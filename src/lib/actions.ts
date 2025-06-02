@@ -7,14 +7,15 @@ import { extractInvoiceData as genAIExtractInvoiceData, type ExtractInvoiceDataI
 
 export async function extractInvoiceDataAction(input: ExtractInvoiceDataInput): Promise<ExtractInvoiceDataOutput> {
   try {
-    // The Genkit flow expects photoDataUri in the input.
-    // Ensure the input object structure matches { photoDataUri: 'data:...' }
     const result = await genAIExtractInvoiceData(input);
     return result;
   } catch (error) {
     console.error("Error in extractInvoiceDataAction:", error);
-    // It's better to throw a more specific error or an error object that client can parse if needed
     if (error instanceof Error) {
+      // Check if the error message indicates a 503 or overload
+      if (error.message.includes('503') || error.message.toLowerCase().includes('overloaded') || error.message.toLowerCase().includes('service unavailable')) {
+        throw new Error(`The AI service is temporarily overloaded or unavailable. Please try again in a few moments. (Details: ${error.message})`);
+      }
       throw new Error(`Failed to extract invoice data: ${error.message}`);
     }
     throw new Error("Failed to extract invoice data due to an unknown error.");
