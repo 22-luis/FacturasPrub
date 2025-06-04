@@ -1,7 +1,7 @@
 
 import type { ExtractInvoiceDataOutput } from '@/ai/flows/extract-invoice-data';
 
-export type UserRole = 'repartidor' | 'supervisor';
+export type UserRole = 'repartidor' | 'supervisor' | 'administrador'; // Added 'administrador'
 
 export type InvoiceStatus = 'PENDIENTE' | 'ENTREGADA' | 'CANCELADA';
 
@@ -14,14 +14,14 @@ export interface User {
 export interface AssignedInvoice {
   id: string;
   invoiceNumber: string;
-  date: string; 
+  date: string;
   totalAmount: number;
   supplierName: string;
   uniqueCode: string;
-  address?: string; 
-  assigneeId?: string; 
+  address?: string;
+  assigneeId?: string;
   status: InvoiceStatus;
-  cancellationReason?: string; // New field for cancellation reason
+  cancellationReason?: string;
 }
 
 export type InvoiceFormData = Omit<AssignedInvoice, 'id'>;
@@ -42,6 +42,7 @@ export interface VerificationResult {
 }
 
 export const mockUsers: User[] = [
+  { id: 'user-adm-1', name: 'Admin General', role: 'administrador' }, // Added Admin
   { id: 'user-sup-1', name: 'Ana Supervisora', role: 'supervisor' },
   { id: 'user-rep-1', name: 'Juan Repartidor', role: 'repartidor' },
   { id: 'user-rep-2', name: 'Luisa Repartidora', role: 'repartidor' },
@@ -79,7 +80,7 @@ export const mockInvoices: AssignedInvoice[] = [
     uniqueCode: 'SUPA123',
     address: '789 Pine Rd, Villagetown, FL 33101',
     status: 'PENDIENTE',
-  }, 
+  },
   {
     id: '4',
     invoiceNumber: 'B-9101',
@@ -99,7 +100,7 @@ export const mockInvoices: AssignedInvoice[] = [
     totalAmount: 55.00,
     supplierName: 'Cafe Central',
     uniqueCode: 'CAFE001',
-    assigneeId: undefined, 
+    assigneeId: undefined,
     status: 'PENDIENTE',
   }
 ];
