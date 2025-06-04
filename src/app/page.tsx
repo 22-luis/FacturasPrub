@@ -260,7 +260,7 @@ export default function HomePage() {
             <CardHeader>
               <CardTitle className="text-2xl text-center font-semibold text-foreground">Iniciar Sesión</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4 sm:space-y-6">
               <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-4">
                 <div>
                   <Label htmlFor="username-login" className="mb-2 block text-sm font-medium text-foreground">

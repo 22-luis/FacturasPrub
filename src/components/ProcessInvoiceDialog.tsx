@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import {
   Dialog,
@@ -162,7 +162,7 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
             </DialogTitle>
           </DialogHeader>
           
-          <div className="flex-grow overflow-y-auto space-y-6 p-1 pr-3">
+          <div className="flex-grow overflow-y-auto space-y-4 sm:space-y-6">
             <InvoiceDetailsView title="Detalles de Factura Asignada" data={invoice} variant="assigned" />
             
             <Separator />

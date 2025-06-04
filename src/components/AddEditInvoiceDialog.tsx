@@ -39,6 +39,14 @@ const initialDialogFormState: DialogFormState = {
 
 const invoiceStatuses: InvoiceStatus[] = ['PENDIENTE', 'ENTREGADA', 'CANCELADA'];
 
+interface AddEditInvoiceDialogProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  invoiceToEdit: AssignedInvoice | null;
+  users: User[];
+  onSave: (invoiceData: InvoiceFormData, id?: string) => void;
+}
+
 export function AddEditInvoiceDialog({
   isOpen,
   onOpenChange,
@@ -172,8 +180,8 @@ export function AddEditInvoiceDialog({
             <DialogTitle>{dialogTitle}</DialogTitle>
             <DialogDescription>{dialogDescription}</DialogDescription>
           </DialogHeader>
-          <div className="flex-grow overflow-y-auto p-1 pr-3">
-            <form onSubmit={handleSubmit} className="space-y-4 p-3">
+          <div className="flex-grow overflow-y-auto">
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               <div>
                 <Label htmlFor="invoiceNumber">Número de Factura</Label>
                 <Input
@@ -309,5 +317,3 @@ export function AddEditInvoiceDialog({
     </>
   );
 }
-
-    

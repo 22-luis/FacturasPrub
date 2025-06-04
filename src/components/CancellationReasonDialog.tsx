@@ -57,7 +57,7 @@ export function CancellationReasonDialog({
             Para la factura <span className="font-semibold">{invoiceIdentifier}</span>.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-4">
+        <div className="space-y-3 sm:space-y-4">
           <div>
             <Label className="mb-2 block">¿El cliente proporcionó una razón para la cancelación?</Label>
             <RadioGroup

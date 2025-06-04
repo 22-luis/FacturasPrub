@@ -54,7 +54,7 @@ export function AddRepartidorDialog({ isOpen, onOpenChange, onSave }: AddReparti
             Introduce el nombre del nuevo repartidor. Se asignará automáticamente el rol de 'repartidor'.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div>
             <Label htmlFor="repartidorName" className="text-right">
               Nombre del Repartidor
