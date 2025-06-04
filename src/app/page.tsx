@@ -6,13 +6,14 @@ import { AppHeader } from '@/components/AppHeader';
 import { InvoiceCard } from '@/components/InvoiceCard';
 import { ProcessInvoiceDialog } from '@/components/ProcessInvoiceDialog';
 import { AddEditInvoiceDialog } from '@/components/AddEditInvoiceDialog';
-import { mockInvoices, mockUsers, generateInvoiceId } from '@/lib/types';
+import { AddRepartidorDialog } from '@/components/AddRepartidorDialog'; // Import new dialog
+import { mockInvoices, mockUsers, generateInvoiceId, generateUserId } from '@/lib/types'; // Import generateUserId
 import type { AssignedInvoice, User, InvoiceFormData, UserRole } from '@/lib/types';
 import { Toaster } from "@/components/ui/toaster";
 import { UserSelector } from '@/components/UserSelector';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, UserSquare2, Archive } from 'lucide-react';
+import { PlusCircle, UserSquare2, Archive, UserPlus } from 'lucide-react'; // Import UserPlus
 import { useToast } from '@/hooks/use-toast';
 
 const UNASSIGNED_KEY = "unassigned_invoices_key";
@@ -23,6 +24,8 @@ export default function HomePage() {
   
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<AssignedInvoice | null>(null);
+
+  const [isAddRepartidorDialogOpen, setIsAddRepartidorDialogOpen] = useState(false); // State for AddRepartidorDialog
 
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -88,6 +91,24 @@ export default function HomePage() {
     }
     setIsAddEditDialogOpen(false); 
   };
+
+  const handleAddRepartidorClick = () => {
+    setIsAddRepartidorDialogOpen(true);
+  };
+
+  const handleSaveRepartidor = (name: string) => {
+    const newRepartidor: User = {
+      id: generateUserId(),
+      name,
+      role: 'repartidor',
+    };
+    setUsers(prevUsers => [...prevUsers, newRepartidor]);
+    toast({
+      title: 'Repartidor Agregado',
+      description: `El repartidor ${name} ha sido agregado al sistema.`,
+    });
+    setIsAddRepartidorDialogOpen(false);
+  };
   
   const getAssigneeName = (assigneeId?: string): string | undefined => {
     if (!assigneeId) return undefined;
@@ -147,12 +168,18 @@ export default function HomePage() {
         {currentUser && currentUser.role === 'supervisor' && (
           <section className="space-y-8">
             <div>
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
                 <h2 className="text-2xl font-semibold text-foreground">Panel de Supervisor</h2>
-                <Button onClick={handleAddInvoiceClick}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Agregar Nueva Factura
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={handleAddInvoiceClick}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Agregar Factura
+                  </Button>
+                  <Button onClick={handleAddRepartidorClick} variant="outline">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Agregar Repartidor
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -258,8 +285,13 @@ export default function HomePage() {
         isOpen={isAddEditDialogOpen}
         onOpenChange={setIsAddEditDialogOpen}
         invoiceToEdit={editingInvoice}
-        users={users}
+        users={users} // Pass updated users list
         onSave={handleSaveInvoice}
+      />
+      <AddRepartidorDialog
+        isOpen={isAddRepartidorDialogOpen}
+        onOpenChange={setIsAddRepartidorDialogOpen}
+        onSave={handleSaveRepartidor}
       />
       <Toaster />
     </div>

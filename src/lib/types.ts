@@ -99,3 +99,5 @@ export const mockInvoices: AssignedInvoice[] = [
 // Helper to generate a somewhat unique ID for new invoices
 export const generateInvoiceId = () => `inv_${Date.now().toString()}_${Math.random().toString(36).substring(2, 7)}`;
 
+// Helper to generate a somewhat unique ID for new users
+export const generateUserId = () => `user_${Date.now().toString()}_${Math.random().toString(36).substring(2, 7)}`;
