@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users } from 'lucide-react';
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -49,15 +49,18 @@ export default function HomePage() {
 
   const [selectedRepartidorIdBySupervisor, setSelectedRepartidorIdBySupervisor] = useState<string | null>(ALL_REPARTIDORES_KEY);
   const [selectedStatusBySupervisor, setSelectedStatusBySupervisor] = useState<InvoiceStatus | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
 
   useEffect(() => {
     if (!loggedInUser) {
       setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY); 
       setSelectedStatusBySupervisor(null);
+      setSearchTerm('');
     } else if (loggedInUser.role === 'supervisor') {
       setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
       setSelectedStatusBySupervisor(null);
+      setSearchTerm('');
     }
   }, [loggedInUser]);
 
@@ -81,8 +84,10 @@ export default function HomePage() {
   const handleLogout = () => {
     toast({ title: "Sesión Cerrada", description: `Hasta luego ${loggedInUser?.name}.` });
     setLoggedInUser(null);
+    // Reset filters and search term on logout
     setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
     setSelectedStatusBySupervisor(null);
+    setSearchTerm('');
     setUsernameInput(''); 
     setPasswordInput('');
   };
@@ -176,43 +181,73 @@ export default function HomePage() {
     if (loggedInUser.role === 'supervisor') {
       let filteredInvoices = [...invoices];
 
+      // 1. Filter by search term
+      if (searchTerm.trim()) {
+        const lowerSearchTerm = searchTerm.trim().toLowerCase();
+        filteredInvoices = filteredInvoices.filter(inv => 
+          inv.supplierName.toLowerCase().includes(lowerSearchTerm) ||
+          inv.invoiceNumber.toLowerCase().includes(lowerSearchTerm)
+        );
+      }
+
+      // 2. Filter by status
       if (selectedStatusBySupervisor) {
         filteredInvoices = filteredInvoices.filter(inv => inv.status === selectedStatusBySupervisor);
       }
 
+      // 3. Filter by repartidor/unassigned
       if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) {
         filteredInvoices = filteredInvoices.filter(inv => !inv.assigneeId);
       } else if (selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) {
         filteredInvoices = filteredInvoices.filter(inv => inv.assigneeId === selectedRepartidorIdBySupervisor);
       }
-      // If selectedRepartidorIdBySupervisor is ALL_REPARTIDORES_KEY, all repartidores/unassigned are included from the status-filtered list
+      // If selectedRepartidorIdBySupervisor is ALL_REPARTIDORES_KEY, all repartidores/unassigned are included from the status/search-filtered list
 
       return filteredInvoices;
     }
 
     if (loggedInUser.role === 'repartidor') {
+      // Repartidores only see their PENDIENTE invoices, search term does not apply to them
       return invoices.filter(inv => inv.assigneeId === loggedInUser.id && inv.status === 'PENDIENTE');
     }
     return [];
-  }, [loggedInUser, invoices, selectedRepartidorIdBySupervisor, selectedStatusBySupervisor]);
+  }, [loggedInUser, invoices, selectedRepartidorIdBySupervisor, selectedStatusBySupervisor, searchTerm]);
 
   const getInvoicesTitleForSupervisor = () => {
+    let titleParts: string[] = [];
+
+    if (searchTerm.trim()) {
+      titleParts.push(`Resultados para "${searchTerm.trim()}"`);
+    }
+    
     let statusPart = "Todas las Facturas";
     if (selectedStatusBySupervisor) {
       const statusDetail = statusCardDetails[selectedStatusBySupervisor];
       statusPart = statusDetail ? statusDetail.label : `Facturas ${selectedStatusBySupervisor.toLowerCase()}`;
     }
+    titleParts.push(statusPart);
 
-    let repartidorPart = "(Todos los Repartidores y Sin Asignar)";
+
     if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) {
-      repartidorPart = "(Sin Asignar)";
+      titleParts.push("(Sin Asignar)");
     } else if (selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) {
       const repartidor = users.find(u => u.id === selectedRepartidorIdBySupervisor);
       if (repartidor) {
-        repartidorPart = `(Asignadas a: ${repartidor.name})`;
+        titleParts.push(`(Asignadas a: ${repartidor.name})`);
       }
+    } else {
+       titleParts.push("(Todos los Repartidores y Sin Asignar)");
     }
-    return `${statusPart.charAt(0).toUpperCase() + statusPart.slice(1)} ${repartidorPart}`;
+    
+    if (titleParts.length > 1 && titleParts[0].startsWith("Resultados para")) {
+        // If search term is active, make "Todas las Facturas" part of the same segment
+        const firstPart = titleParts.shift(); // "Resultados para ..."
+        const secondPart = titleParts.shift()?.toLowerCase(); // "todas las facturas" or specific status
+        titleParts.unshift(`${firstPart} en ${secondPart}`);
+    }
+
+
+    return titleParts.join(' ').trim() || "Facturas";
   };
 
 
@@ -280,7 +315,7 @@ export default function HomePage() {
             <div>
               <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
                 <h2 className="text-2xl font-semibold text-foreground">Panel de Supervisor</h2>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button onClick={handleAddInvoiceClick}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Agregar Factura
@@ -290,6 +325,18 @@ export default function HomePage() {
                     Agregar Repartidor
                   </Button>
                 </div>
+              </div>
+              <div className="mb-6 relative">
+                <Label htmlFor="search-invoices" className="sr-only">Buscar facturas</Label>
+                <Input 
+                  id="search-invoices"
+                  type="text"
+                  placeholder="Buscar por proveedor o N° de factura..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-full"
+                />
+                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               </div>
             </div>
 
@@ -322,8 +369,9 @@ export default function HomePage() {
                   size="sm"
                   onClick={() => setSelectedStatusBySupervisor(null)}
                   className={cn(
-                    "h-full whitespace-normal text-left transition-shadow hover:shadow-lg",
-                    !selectedStatusBySupervisor ? 'ring-2 ring-primary shadow-lg' : 'hover:bg-background hover:text-foreground'
+                    "h-full whitespace-normal text-left justify-start items-center transition-shadow",
+                    !selectedStatusBySupervisor ? 'ring-2 ring-primary shadow-lg' : 'hover:bg-background hover:text-foreground',
+                    "hover:shadow-lg" 
                   )}
                 >
                   <ListFilter className="h-4 w-4" />
@@ -374,8 +422,9 @@ export default function HomePage() {
                   size="sm"
                   onClick={() => setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
                   className={cn(
-                    "h-full whitespace-normal text-left transition-shadow hover:shadow-lg",
-                    selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-lg' : 'hover:bg-background hover:text-foreground'
+                    "h-full whitespace-normal text-left justify-start items-center transition-shadow",
+                    selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-lg' : 'hover:bg-background hover:text-foreground',
+                    "hover:shadow-lg"
                   )}
                 >
                   <Users className="h-4 w-4" />
@@ -405,7 +454,7 @@ export default function HomePage() {
                 </div>
               ) : (
                 <p className="text-muted-foreground">
-                  No se encontraron facturas que coincidan con los filtros seleccionados.
+                  {searchTerm.trim() ? `No se encontraron facturas para "${searchTerm.trim()}" con los filtros seleccionados.` : `No se encontraron facturas que coincidan con los filtros seleccionados.`}
                 </p>
               )}
             </div>
@@ -459,3 +508,5 @@ export default function HomePage() {
   );
 }
 
+
+    
