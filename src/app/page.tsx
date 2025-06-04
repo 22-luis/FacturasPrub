@@ -26,18 +26,29 @@ export default function HomePage() {
   const [invoices, setInvoices] = useState<AssignedInvoice[]>(mockInvoices);
   const { toast } = useToast();
 
+  const [supervisorShouldSeeAllInvoices, setSupervisorShouldSeeAllInvoices] = useState(false);
+
   useEffect(() => {
     if (!currentUser && users.length > 0) {
       setCurrentUser(users[0]);
     }
   }, [currentUser, users]);
 
+  useEffect(() => {
+    // When currentUser changes, reset supervisor's specific view states
+    if (currentUser && currentUser.role !== 'supervisor') {
+      setSupervisorShouldSeeAllInvoices(false);
+    } else if (currentUser && currentUser.role === 'supervisor') {
+      // For a supervisor, invoices are hidden by default
+      setSupervisorShouldSeeAllInvoices(false);
+    }
+  }, [currentUser]);
+
   const handleUserSelect = (userId: string) => {
     const user = users.find(u => u.id === userId) || null;
     setCurrentUser(user);
   };
-
-  // For Repartidor: Open OCR/Verification Dialog
+  
   const handleProcessInvoiceClick = (invoiceId: string) => {
     const invoiceToProcess = invoices.find(inv => inv.id === invoiceId);
     if (invoiceToProcess) {
@@ -46,13 +57,11 @@ export default function HomePage() {
     }
   };
   
-  // For Supervisor: Open Add/Edit Dialog to add a new invoice
   const handleAddInvoiceClick = () => {
-    setEditingInvoice(null); // Ensure it's in "add" mode
+    setEditingInvoice(null); 
     setIsAddEditDialogOpen(true);
   };
 
-  // For Supervisor: Open Add/Edit Dialog to edit an existing invoice
   const handleEditInvoiceClick = (invoiceId: string) => {
     const invoiceToEdit = invoices.find(inv => inv.id === invoiceId);
     if (invoiceToEdit) {
@@ -62,14 +71,14 @@ export default function HomePage() {
   };
 
   const handleSaveInvoice = (invoiceData: InvoiceFormData, id?: string) => {
-    if (id) { // Editing existing invoice
+    if (id) { 
       setInvoices(prevInvoices =>
         prevInvoices.map(inv =>
-          inv.id === id ? { ...inv, ...invoiceData } : inv
+          inv.id === id ? { ...inv, ...invoiceData, id: inv.id } : inv // Ensure id is preserved
         )
       );
       toast({ title: "Factura Actualizada", description: `La factura #${invoiceData.invoiceNumber} ha sido actualizada.` });
-    } else { // Adding new invoice
+    } else { 
       const newInvoice: AssignedInvoice = {
         ...invoiceData,
         id: generateInvoiceId(),
@@ -77,7 +86,7 @@ export default function HomePage() {
       setInvoices(prevInvoices => [newInvoice, ...prevInvoices]);
       toast({ title: "Factura Agregada", description: `La nueva factura #${newInvoice.invoiceNumber} ha sido agregada.` });
     }
-    setIsAddEditDialogOpen(false); // Close dialog after saving
+    setIsAddEditDialogOpen(false); 
   };
   
   const getAssigneeName = (assigneeId?: string): string | undefined => {
@@ -88,13 +97,13 @@ export default function HomePage() {
   const displayedInvoices = useMemo(() => {
     if (!currentUser) return [];
     if (currentUser.role === 'supervisor') {
-      return invoices;
+      return supervisorShouldSeeAllInvoices ? invoices : [];
     }
     if (currentUser.role === 'repartidor') {
       return invoices.filter(inv => inv.assigneeId === currentUser.id);
     }
     return [];
-  }, [currentUser, invoices]);
+  }, [currentUser, invoices, supervisorShouldSeeAllInvoices]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -111,26 +120,40 @@ export default function HomePage() {
         {currentUser && currentUser.role === 'supervisor' && (
           <section>
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-semibold text-foreground">Panel de Supervisor - Todas las Facturas</h2>
-              <Button onClick={handleAddInvoiceClick}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Agregar Nueva Factura
-              </Button>
-            </div>
-            {displayedInvoices.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {displayedInvoices.map(invoice => (
-                  <InvoiceCard
-                    key={invoice.id}
-                    invoice={invoice}
-                    onAction={handleEditInvoiceClick} // Supervisor edits
-                    currentUserRole={currentUser?.role}
-                    assigneeName={getAssigneeName(invoice.assigneeId)}
-                  />
-                ))}
+              <h2 className="text-2xl font-semibold text-foreground">Panel de Supervisor</h2>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => setSupervisorShouldSeeAllInvoices(prev => !prev)}
+                >
+                  {supervisorShouldSeeAllInvoices ? 'Ocultar Todas las Facturas' : 'Mostrar Todas las Facturas'}
+                </Button>
+                <Button onClick={handleAddInvoiceClick}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Agregar Nueva Factura
+                </Button>
               </div>
+            </div>
+            {supervisorShouldSeeAllInvoices ? (
+              displayedInvoices.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {displayedInvoices.map(invoice => (
+                    <InvoiceCard
+                      key={invoice.id}
+                      invoice={invoice}
+                      onAction={handleEditInvoiceClick} 
+                      currentUserRole={currentUser?.role}
+                      assigneeName={getAssigneeName(invoice.assigneeId)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">No hay facturas en el sistema para mostrar.</p>
+              )
             ) : (
-              <p className="text-muted-foreground">No hay facturas en el sistema.</p>
+              <p className="text-muted-foreground">
+                Haz clic en "Mostrar Todas las Facturas" para ver la lista o agrega una nueva factura.
+              </p>
             )}
           </section>
         )}
@@ -144,7 +167,7 @@ export default function HomePage() {
                   <InvoiceCard
                     key={invoice.id}
                     invoice={invoice}
-                    onAction={handleProcessInvoiceClick} // Repartidor processes
+                    onAction={handleProcessInvoiceClick} 
                     currentUserRole={currentUser?.role}
                   />
                 ))}
