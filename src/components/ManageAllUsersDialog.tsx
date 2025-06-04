@@ -51,7 +51,7 @@ export function ManageAllUsersDialog({
             Edita o elimina usuarios existentes en el sistema.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-grow pr-4 -mr-4 my-4">
+        <ScrollArea className="flex-grow min-h-0 pr-4 -mr-4 my-4"> {/* Added min-h-0 */}
           <div className="space-y-3">
             {allUsers.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
