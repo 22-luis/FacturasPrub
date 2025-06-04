@@ -14,9 +14,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search } from 'lucide-react';
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const UNASSIGNED_KEY = "unassigned_invoices_key";
 const ALL_REPARTIDORES_KEY = "all_repartidores_filter_key";
@@ -84,7 +90,6 @@ export default function HomePage() {
   const handleLogout = () => {
     toast({ title: "Sesión Cerrada", description: `Hasta luego ${loggedInUser?.name}.` });
     setLoggedInUser(null);
-    // Reset filters and search term on logout
     setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
     setSelectedStatusBySupervisor(null);
     setSearchTerm('');
@@ -178,10 +183,10 @@ export default function HomePage() {
   const displayedInvoices = useMemo(() => {
     if (!loggedInUser) return [];
 
-    if (loggedInUser.role === 'supervisor') {
-      let filteredInvoices = [...invoices];
+    let filteredInvoices = [...invoices];
 
-      // 1. Filter by search term
+    if (loggedInUser.role === 'supervisor') {
+      // 1. Filter by search term (if any)
       if (searchTerm.trim()) {
         const lowerSearchTerm = searchTerm.trim().toLowerCase();
         filteredInvoices = filteredInvoices.filter(inv => 
@@ -190,24 +195,23 @@ export default function HomePage() {
         );
       }
 
-      // 2. Filter by status
+      // 2. Filter by status (if any selected)
       if (selectedStatusBySupervisor) {
         filteredInvoices = filteredInvoices.filter(inv => inv.status === selectedStatusBySupervisor);
       }
 
-      // 3. Filter by repartidor/unassigned
+      // 3. Filter by repartidor/unassigned (if not "All Repartidores")
       if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) {
         filteredInvoices = filteredInvoices.filter(inv => !inv.assigneeId);
       } else if (selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) {
         filteredInvoices = filteredInvoices.filter(inv => inv.assigneeId === selectedRepartidorIdBySupervisor);
       }
-      // If selectedRepartidorIdBySupervisor is ALL_REPARTIDORES_KEY, all repartidores/unassigned are included from the status/search-filtered list
+      // If selectedRepartidorIdBySupervisor is ALL_REPARTIDORES_KEY, no further filtering by repartidor is done on the current list.
 
       return filteredInvoices;
     }
 
     if (loggedInUser.role === 'repartidor') {
-      // Repartidores only see their PENDIENTE invoices, search term does not apply to them
       return invoices.filter(inv => inv.assigneeId === loggedInUser.id && inv.status === 'PENDIENTE');
     }
     return [];
@@ -215,39 +219,50 @@ export default function HomePage() {
 
   const getInvoicesTitleForSupervisor = () => {
     let titleParts: string[] = [];
+    let baseTitle = "Facturas";
 
     if (searchTerm.trim()) {
       titleParts.push(`Resultados para "${searchTerm.trim()}"`);
     }
     
-    let statusPart = "Todas las Facturas";
+    let statusDescription = "Todos los Estados";
     if (selectedStatusBySupervisor) {
-      const statusDetail = statusCardDetails[selectedStatusBySupervisor];
-      statusPart = statusDetail ? statusDetail.label : `Facturas ${selectedStatusBySupervisor.toLowerCase()}`;
+        const statusDetail = statusCardDetails[selectedStatusBySupervisor];
+        statusDescription = statusDetail ? statusDetail.label : `Facturas ${selectedStatusBySupervisor.toLowerCase()}`;
     }
-    titleParts.push(statusPart);
 
-
+    let repartidorDescription = "Todos los Repartidores y Sin Asignar";
     if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) {
-      titleParts.push("(Sin Asignar)");
+        repartidorDescription = "Facturas sin Asignar";
     } else if (selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) {
-      const repartidor = users.find(u => u.id === selectedRepartidorIdBySupervisor);
-      if (repartidor) {
-        titleParts.push(`(Asignadas a: ${repartidor.name})`);
-      }
-    } else {
-       titleParts.push("(Todos los Repartidores y Sin Asignar)");
+        const repartidor = users.find(u => u.id === selectedRepartidorIdBySupervisor);
+        if (repartidor) {
+            repartidorDescription = `Asignadas a: ${repartidor.name}`;
+        }
     }
     
-    if (titleParts.length > 1 && titleParts[0].startsWith("Resultados para")) {
-        // If search term is active, make "Todas las Facturas" part of the same segment
-        const firstPart = titleParts.shift(); // "Resultados para ..."
-        const secondPart = titleParts.shift()?.toLowerCase(); // "todas las facturas" or specific status
-        titleParts.unshift(`${firstPart} en ${secondPart}`);
+    if (searchTerm.trim()) {
+        if (selectedStatusBySupervisor || (selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY)) {
+            let specifics = [];
+            if (selectedStatusBySupervisor) specifics.push(statusDescription.toLowerCase());
+            if (selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) specifics.push(repartidorDescription.toLowerCase());
+            return `${titleParts[0]} (${specifics.join(', ')})`;
+        }
+        return titleParts[0]; // Just search term
+    }
+    
+    // No search term
+    if (selectedStatusBySupervisor && selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) {
+        return `${statusDescription} (${repartidorDescription})`;
+    }
+    if (selectedStatusBySupervisor) {
+        return statusDescription;
+    }
+    if (selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) {
+        return repartidorDescription;
     }
 
-
-    return titleParts.join(' ').trim() || "Facturas";
+    return baseTitle; // Default: "Facturas"
   };
 
 
@@ -260,7 +275,7 @@ export default function HomePage() {
             <CardHeader>
               <CardTitle className="text-2xl text-center font-semibold text-foreground">Iniciar Sesión</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 sm:space-y-6">
+            <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
               <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-4">
                 <div>
                   <Label htmlFor="username-login" className="mb-2 block text-sm font-medium text-foreground">
@@ -326,114 +341,128 @@ export default function HomePage() {
                   </Button>
                 </div>
               </div>
-              <div className="mb-6 relative">
-                <Label htmlFor="search-invoices" className="sr-only">Buscar facturas</Label>
-                <Input 
-                  id="search-invoices"
-                  type="text"
-                  placeholder="Buscar por proveedor o N° de factura..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-full"
-                />
-                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-              </div>
-            </div>
+              
+              <Accordion type="single" collapsible className="w-full mb-6 border rounded-md shadow-sm">
+                <AccordionItem value="filters-search">
+                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                    <div className="flex items-center gap-2 text-base font-medium">
+                      <Filter className="h-5 w-5 text-primary" />
+                      <span>Opciones de Filtrado y Búsqueda</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-4 px-4 space-y-6">
+                    <div className="relative">
+                      <Label htmlFor="search-invoices" className="sr-only">Buscar facturas</Label>
+                      <Input 
+                        id="search-invoices"
+                        type="text"
+                        placeholder="Buscar por proveedor o N° de factura..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 w-full"
+                      />
+                      <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                    </div>
 
-            <div>
-              <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-4">Filtrar por Estado:</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                {invoiceStatusesArray.map(status => {
-                  const details = statusCardDetails[status];
-                  return (
-                    <Card
-                      key={status}
-                      className={cn(
-                        "cursor-pointer hover:shadow-lg transition-shadow",
-                        selectedStatusBySupervisor === status ? 'ring-2 ring-primary shadow-lg' : 'border'
+                    <div>
+                      <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-4">Filtrar por Estado:</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                        {invoiceStatusesArray.map(status => {
+                          const details = statusCardDetails[status];
+                          return (
+                            <Card
+                              key={status}
+                              className={cn(
+                                "cursor-pointer hover:shadow-lg transition-shadow",
+                                selectedStatusBySupervisor === status ? 'ring-2 ring-primary shadow-lg' : 'border'
+                              )}
+                              onClick={() => setSelectedStatusBySupervisor(status)}
+                            >
+                              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium">{details.label}</CardTitle>
+                                <details.Icon className="h-5 w-5 text-muted-foreground" />
+                              </CardHeader>
+                              <CardContent>
+                                <p className="text-xs text-muted-foreground">{details.description}</p>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setSelectedStatusBySupervisor(null)}
+                          className={cn(
+                            "h-full whitespace-normal text-left justify-start items-center transition-shadow",
+                            !selectedStatusBySupervisor ? 'ring-2 ring-primary shadow-lg' : 'hover:bg-background hover:text-foreground',
+                            "hover:shadow-lg" 
+                          )}
+                        >
+                          <ListFilter className="h-4 w-4" />
+                          Mostrar Todos los Estados
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-4">Filtrar por Repartidor:</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                        {repartidores.map(repartidor => (
+                          <Card 
+                            key={repartidor.id} 
+                            className={cn(
+                                "cursor-pointer hover:shadow-lg transition-shadow",
+                                selectedRepartidorIdBySupervisor === repartidor.id ? 'ring-2 ring-primary shadow-lg' : 'border'
+                            )}
+                            onClick={() => setSelectedRepartidorIdBySupervisor(repartidor.id)}
+                          >
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                              <CardTitle className="text-sm font-medium">{repartidor.name}</CardTitle>
+                              <UserSquare2 className="h-5 w-5 text-muted-foreground" />
+                            </CardHeader>
+                            <CardContent>
+                              <div className="text-xs text-muted-foreground">Rol: repartidor</div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                        <Card
+                          key={UNASSIGNED_KEY}
+                          className={cn(
+                            "cursor-pointer hover:shadow-lg transition-shadow",
+                            selectedRepartidorIdBySupervisor === UNASSIGNED_KEY ? 'ring-2 ring-primary shadow-lg' : 'border'
+                          )}
+                          onClick={() => setSelectedRepartidorIdBySupervisor(UNASSIGNED_KEY)}
+                        >
+                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Facturas sin Asignar</CardTitle>
+                            <Archive className="h-5 w-5 text-muted-foreground" />
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-xs text-muted-foreground">Ver facturas no asignadas</div>
+                          </CardContent>
+                        </Card>
+                        <Button 
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
+                          className={cn(
+                            "h-full whitespace-normal text-left justify-start items-center transition-shadow",
+                            selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-lg' : 'hover:bg-background hover:text-foreground',
+                            "hover:shadow-lg"
+                          )}
+                        >
+                          <Users className="h-4 w-4" />
+                          Mostrar Todas las Facturas
+                        </Button>
+                      </div>
+                      {repartidores.length === 0 && (
+                         <p className="text-muted-foreground mt-2">No hay repartidores en el sistema. Agrega uno para asignar facturas.</p>
                       )}
-                      onClick={() => setSelectedStatusBySupervisor(status)}
-                    >
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{details.label}</CardTitle>
-                        <details.Icon className="h-5 w-5 text-muted-foreground" />
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-xs text-muted-foreground">{details.description}</p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setSelectedStatusBySupervisor(null)}
-                  className={cn(
-                    "h-full whitespace-normal text-left justify-start items-center transition-shadow",
-                    !selectedStatusBySupervisor ? 'ring-2 ring-primary shadow-lg' : 'hover:bg-background hover:text-foreground',
-                    "hover:shadow-lg" 
-                  )}
-                >
-                  <ListFilter className="h-4 w-4" />
-                  Mostrar Todos los Estados
-                </Button>
-              </div>
-            </div>
-            
-            <div>
-              <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-4">Filtrar por Repartidor:</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                {repartidores.map(repartidor => (
-                  <Card 
-                    key={repartidor.id} 
-                    className={cn(
-                        "cursor-pointer hover:shadow-lg transition-shadow",
-                        selectedRepartidorIdBySupervisor === repartidor.id ? 'ring-2 ring-primary shadow-lg' : 'border'
-                    )}
-                    onClick={() => setSelectedRepartidorIdBySupervisor(repartidor.id)}
-                  >
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">{repartidor.name}</CardTitle>
-                      <UserSquare2 className="h-5 w-5 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-xs text-muted-foreground">Rol: {repartidor.role}</div>
-                    </CardContent>
-                  </Card>
-                ))}
-                <Card
-                  key={UNASSIGNED_KEY}
-                  className={cn(
-                    "cursor-pointer hover:shadow-lg transition-shadow",
-                    selectedRepartidorIdBySupervisor === UNASSIGNED_KEY ? 'ring-2 ring-primary shadow-lg' : 'border'
-                  )}
-                  onClick={() => setSelectedRepartidorIdBySupervisor(UNASSIGNED_KEY)}
-                >
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Facturas sin Asignar</CardTitle>
-                    <Archive className="h-5 w-5 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-xs text-muted-foreground">Ver facturas no asignadas</div>
-                  </CardContent>
-                </Card>
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
-                  className={cn(
-                    "h-full whitespace-normal text-left justify-start items-center transition-shadow",
-                    selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-lg' : 'hover:bg-background hover:text-foreground',
-                    "hover:shadow-lg"
-                  )}
-                >
-                  <Users className="h-4 w-4" />
-                  Mostrar Todas las Facturas
-                </Button>
-              </div>
-              {repartidores.length === 0 && (
-                 <p className="text-muted-foreground mt-2">No hay repartidores en el sistema. Agrega uno para asignar facturas.</p>
-              )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+
             </div>
 
             <div>
