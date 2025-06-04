@@ -14,10 +14,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn } from 'lucide-react'; // Removed LogOut as it's in AppHeader
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const UNASSIGNED_KEY = "unassigned_invoices_key";
+const invoiceStatusesArray: InvoiceStatus[] = ['PENDIENTE', 'ENTREGADA', 'CANCELADA'];
+
+const statusCardDetails: Record<InvoiceStatus, { label: string; Icon: React.ElementType; description: string }> = {
+  PENDIENTE: { label: 'Facturas Pendientes', Icon: AlertTriangle, description: "Revisar y procesar" },
+  ENTREGADA: { label: 'Facturas Entregadas', Icon: CheckCircle2, description: "Confirmadas y finalizadas" },
+  CANCELADA: { label: 'Facturas Canceladas', Icon: XCircle, description: "Anuladas del sistema" },
+};
+
 
 export default function HomePage() {
   const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
@@ -38,12 +46,20 @@ export default function HomePage() {
   const { toast } = useToast();
 
   const [selectedRepartidorIdBySupervisor, setSelectedRepartidorIdBySupervisor] = useState<string | null>(null);
+  const [selectedStatusBySupervisor, setSelectedStatusBySupervisor] = useState<InvoiceStatus | null>(null);
+
 
   useEffect(() => {
     if (!loggedInUser) {
       setSelectedRepartidorIdBySupervisor(null); 
+      setSelectedStatusBySupervisor(null);
     }
   }, [loggedInUser]);
+
+  useEffect(() => {
+    // Reset status filter when repartidor selection changes
+    setSelectedStatusBySupervisor(null);
+  }, [selectedRepartidorIdBySupervisor]);
 
   const handleLogin = () => {
     if (!usernameInput.trim() || !passwordInput) {
@@ -66,6 +82,7 @@ export default function HomePage() {
     toast({ title: "Sesión Cerrada", description: `Hasta luego ${loggedInUser?.name}.` });
     setLoggedInUser(null);
     setSelectedRepartidorIdBySupervisor(null);
+    setSelectedStatusBySupervisor(null);
     setUsernameInput(''); 
     setPasswordInput('');
   };
@@ -164,29 +181,41 @@ export default function HomePage() {
     if (!loggedInUser) return [];
 
     if (loggedInUser.role === 'supervisor') {
+      let filteredByRepartidor = invoices;
       if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) {
-        return invoices.filter(inv => !inv.assigneeId);
+        filteredByRepartidor = invoices.filter(inv => !inv.assigneeId);
+      } else if (selectedRepartidorIdBySupervisor) {
+        filteredByRepartidor = invoices.filter(inv => inv.assigneeId === selectedRepartidorIdBySupervisor);
+      } else {
+        return []; // No repartidor selected, show no invoices
       }
-      if (selectedRepartidorIdBySupervisor) {
-        return invoices.filter(inv => inv.assigneeId === selectedRepartidorIdBySupervisor);
+
+      if (selectedStatusBySupervisor) {
+        return filteredByRepartidor.filter(inv => inv.status === selectedStatusBySupervisor);
       }
-      return []; 
+      return filteredByRepartidor; // Return repartidor-filtered if no status is selected
     }
 
     if (loggedInUser.role === 'repartidor') {
-      return invoices.filter(inv => inv.assigneeId === loggedInUser.id);
+      // Repartidores only see their PENDIENTE invoices
+      return invoices.filter(inv => inv.assigneeId === loggedInUser.id && inv.status === 'PENDIENTE');
     }
     return [];
-  }, [loggedInUser, invoices, selectedRepartidorIdBySupervisor]);
+  }, [loggedInUser, invoices, selectedRepartidorIdBySupervisor, selectedStatusBySupervisor]);
 
   const getInvoicesTitleForSupervisor = () => {
+    let titlePart = "";
     if (selectedRepartidorDetails) {
-      return `Facturas asignadas a ${selectedRepartidorDetails.name}`;
+      titlePart = `Facturas asignadas a ${selectedRepartidorDetails.name}`;
+    } else if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) {
+      titlePart = "Facturas sin Asignar";
     }
-    if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) {
-      return "Facturas sin Asignar";
+
+    if (selectedStatusBySupervisor) {
+      const statusLabel = statusCardDetails[selectedStatusBySupervisor]?.label.toLowerCase() || selectedStatusBySupervisor.toLowerCase();
+      return `${titlePart} (Estado: ${statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1)})`;
     }
-    return "";
+    return titlePart;
   };
 
 
@@ -268,8 +297,8 @@ export default function HomePage() {
             </div>
 
             <div>
-              <h3 className="text-xl font-semibold text-foreground mb-4">Ver Facturas Por:</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <h3 className="text-xl font-semibold text-foreground mb-4">Ver Facturas Por Repartidor/Estado:</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
                 {repartidores.map(repartidor => (
                   <Card 
                     key={repartidor.id} 
@@ -299,46 +328,87 @@ export default function HomePage() {
                   </CardContent>
                 </Card>
               </div>
-              {repartidores.length === 0 && (
-                 <p className="text-muted-foreground mt-2">No hay repartidores en el sistema para asignar facturas.</p>
+              {repartidores.length === 0 && !selectedRepartidorIdBySupervisor && (
+                 <p className="text-muted-foreground mt-2">No hay repartidores en el sistema. Agrega uno para asignar facturas.</p>
               )}
             </div>
             
             {selectedRepartidorIdBySupervisor && (
-              <div>
-                <h3 className="text-xl font-semibold text-foreground my-4">
-                  {getInvoicesTitleForSupervisor()}
-                </h3>
-                {displayedInvoices.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {displayedInvoices.map(invoice => (
-                      <InvoiceCard
-                        key={invoice.id}
-                        invoice={invoice}
-                        onAction={handleEditInvoiceClick} 
-                        currentUserRole={loggedInUser?.role}
-                        assigneeName={getAssigneeName(invoice.assigneeId)}
-                      />
-                    ))}
+              <>
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground mb-4">Filtrar por Estado:</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {invoiceStatusesArray.map(status => {
+                      const details = statusCardDetails[status];
+                      return (
+                        <Card
+                          key={status}
+                          className={`cursor-pointer hover:shadow-lg transition-shadow ${selectedStatusBySupervisor === status ? 'ring-2 ring-primary shadow-lg' : 'border'}`}
+                          onClick={() => setSelectedStatusBySupervisor(status)}
+                        >
+                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">{details.label}</CardTitle>
+                            <details.Icon className="h-5 w-5 text-muted-foreground" />
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-xs text-muted-foreground">{details.description}</p>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                     <Button 
+                        variant="outline" 
+                        onClick={() => setSelectedStatusBySupervisor(null)}
+                        className={`h-full ${!selectedStatusBySupervisor ? 'ring-2 ring-primary shadow-lg' : ''}`}
+                        disabled={!selectedStatusBySupervisor}
+                      >
+                        Mostrar Todos los Estados
+                      </Button>
                   </div>
-                ) : (
-                  <p className="text-muted-foreground">
-                    {selectedRepartidorIdBySupervisor === UNASSIGNED_KEY 
-                      ? "No hay facturas sin asignar." 
-                      : `${selectedRepartidorDetails?.name || 'El repartidor seleccionado'} no tiene facturas asignadas.`}
-                  </p>
-                )}
-              </div>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold text-foreground my-6">
+                    {getInvoicesTitleForSupervisor()}
+                  </h3>
+                  {displayedInvoices.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {displayedInvoices.map(invoice => (
+                        <InvoiceCard
+                          key={invoice.id}
+                          invoice={invoice}
+                          onAction={handleEditInvoiceClick} 
+                          currentUserRole={loggedInUser?.role}
+                          assigneeName={getAssigneeName(invoice.assigneeId)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      { selectedRepartidorIdBySupervisor === UNASSIGNED_KEY 
+                        ? selectedStatusBySupervisor 
+                          ? `No hay facturas sin asignar con estado ${selectedStatusBySupervisor.toLowerCase()}.` 
+                          : "No hay facturas sin asignar."
+                        : selectedRepartidorDetails
+                          ? selectedStatusBySupervisor
+                            ? `${selectedRepartidorDetails.name} no tiene facturas con estado ${selectedStatusBySupervisor.toLowerCase()}.`
+                            : `${selectedRepartidorDetails.name} no tiene facturas asignadas.`
+                          : "El repartidor seleccionado no tiene facturas."
+                      }
+                    </p>
+                  )}
+                </div>
+              </>
             )}
              {!selectedRepartidorIdBySupervisor && (
-                <p className="text-muted-foreground pt-4">Selecciona un repartidor o "Facturas sin Asignar" para ver las facturas.</p>
+                <p className="text-muted-foreground pt-4">Selecciona un repartidor o "Facturas sin Asignar" para ver las facturas y opciones de filtrado por estado.</p>
              )}
           </section>
         )}
 
         {loggedInUser.role === 'repartidor' && (
            <section>
-            <h2 className="text-2xl font-semibold mb-6 text-foreground">Mis Facturas Asignadas</h2>
+            <h2 className="text-2xl font-semibold mb-6 text-foreground">Mis Facturas Pendientes</h2>
             {displayedInvoices.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {displayedInvoices.map(invoice => (
@@ -351,7 +421,7 @@ export default function HomePage() {
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground">No tienes facturas asignadas en este momento.</p>
+              <p className="text-muted-foreground">No tienes facturas pendientes asignadas en este momento.</p>
             )}
           </section>
         )}
@@ -382,3 +452,4 @@ export default function HomePage() {
     </div>
   );
 }
+
