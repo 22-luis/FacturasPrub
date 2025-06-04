@@ -12,12 +12,16 @@ export interface User {
 export interface AssignedInvoice {
   id: string;
   invoiceNumber: string;
-  date: string;
+  date: string; // Keep as string for simplicity with text input, can be Date object if using date picker
   totalAmount: number;
   supplierName: string;
   uniqueCode: string;
   assigneeId?: string; // ID of the User (repartidor) it is assigned to
 }
+
+// Represents the data structure for the invoice form
+export type InvoiceFormData = Omit<AssignedInvoice, 'id'>;
+
 
 export type ExtractedInvoiceDetails = ExtractInvoiceDataOutput;
 
@@ -65,7 +69,7 @@ export const mockInvoices: AssignedInvoice[] = [
     totalAmount: 120.50,
     supplierName: 'Supplier A',
     uniqueCode: 'SUPA123',
-  }, // Unassigned
+  }, 
   {
     id: '4',
     invoiceNumber: 'B-9101',
@@ -82,5 +86,9 @@ export const mockInvoices: AssignedInvoice[] = [
     totalAmount: 55.00,
     supplierName: 'Cafe Central',
     uniqueCode: 'CAFE001',
-  } // Unassigned
+    assigneeId: undefined, // Explicitly unassigned
+  }
 ];
+
+// Helper to generate a somewhat unique ID for new invoices
+export const generateInvoiceId = () => `inv_${Date.now().toString()}_${Math.random().toString(36).substring(2, 7)}`;

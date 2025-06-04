@@ -1,20 +1,33 @@
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, Hash, Building, BadgeDollarSign, Fingerprint, PlayCircle, UserCircle, Eye } from 'lucide-react';
+import { CalendarDays, Hash, Building, BadgeDollarSign, Fingerprint, PlayCircle, UserCircle, Eye, Edit3 } from 'lucide-react';
 import type { AssignedInvoice, UserRole } from '@/lib/types';
 
 interface InvoiceCardProps {
   invoice: AssignedInvoice;
-  onProcess: (invoiceId: string) => void;
+  onAction: (invoiceId: string) => void; // Generic action handler
   currentUserRole?: UserRole;
   assigneeName?: string;
 }
 
-export function InvoiceCard({ invoice, onProcess, currentUserRole, assigneeName }: InvoiceCardProps) {
+export function InvoiceCard({ invoice, onAction, currentUserRole, assigneeName }: InvoiceCardProps) {
   const isSupervisor = currentUserRole === 'supervisor';
-  const buttonText = isSupervisor ? 'Ver Detalles' : 'Procesar Factura';
-  const ButtonIcon = isSupervisor ? Eye : PlayCircle;
+  
+  let buttonText = 'Acción';
+  let ButtonIcon = PlayCircle; // Default for repartidor
+  let buttonVariant: "default" | "secondary" = "default";
+
+  if (isSupervisor) {
+    buttonText = 'Editar / Asignar';
+    ButtonIcon = Edit3; // Changed from Eye to Edit3 for supervisor
+    buttonVariant = "secondary";
+  } else { // Repartidor
+    buttonText = 'Procesar Factura';
+    ButtonIcon = PlayCircle;
+    buttonVariant = "default";
+  }
+
 
   return (
     <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
@@ -55,7 +68,7 @@ export function InvoiceCard({ invoice, onProcess, currentUserRole, assigneeName 
         )}
       </CardContent>
       <CardFooter>
-        <Button onClick={() => onProcess(invoice.id)} className="w-full" variant={isSupervisor ? "secondary" : "default"}>
+        <Button onClick={() => onAction(invoice.id)} className="w-full" variant={buttonVariant}>
           <ButtonIcon className="mr-2 h-4 w-4" />
           {buttonText}
         </Button>

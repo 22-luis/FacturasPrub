@@ -5,23 +5,28 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { AppHeader } from '@/components/AppHeader';
 import { InvoiceCard } from '@/components/InvoiceCard';
 import { ProcessInvoiceDialog } from '@/components/ProcessInvoiceDialog';
-import { mockInvoices, mockUsers } from '@/lib/types';
-import type { AssignedInvoice, User, UserRole } from '@/lib/types';
+import { AddEditInvoiceDialog } from '@/components/AddEditInvoiceDialog';
+import { mockInvoices, mockUsers, generateInvoiceId } from '@/lib/types';
+import type { AssignedInvoice, User, InvoiceFormData } from '@/lib/types';
 import { Toaster } from "@/components/ui/toaster";
 import { UserSelector } from '@/components/UserSelector';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function HomePage() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState<AssignedInvoice | null>(null);
+  const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
+  const [processingInvoice, setProcessingInvoice] = useState<AssignedInvoice | null>(null);
   
+  const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState<AssignedInvoice | null>(null);
+
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [invoices, setInvoices] = useState<AssignedInvoice[]>(mockInvoices);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Set a default user on initial load if none is selected
     if (!currentUser && users.length > 0) {
       setCurrentUser(users[0]);
     }
@@ -32,17 +37,47 @@ export default function HomePage() {
     setCurrentUser(user);
   };
 
-  const handleProcessInvoice = (invoiceId: string) => {
+  // For Repartidor: Open OCR/Verification Dialog
+  const handleProcessInvoiceClick = (invoiceId: string) => {
     const invoiceToProcess = invoices.find(inv => inv.id === invoiceId);
     if (invoiceToProcess) {
-      setSelectedInvoice(invoiceToProcess);
-      setIsDialogOpen(true);
+      setProcessingInvoice(invoiceToProcess);
+      setIsProcessDialogOpen(true);
+    }
+  };
+  
+  // For Supervisor: Open Add/Edit Dialog to add a new invoice
+  const handleAddInvoiceClick = () => {
+    setEditingInvoice(null); // Ensure it's in "add" mode
+    setIsAddEditDialogOpen(true);
+  };
+
+  // For Supervisor: Open Add/Edit Dialog to edit an existing invoice
+  const handleEditInvoiceClick = (invoiceId: string) => {
+    const invoiceToEdit = invoices.find(inv => inv.id === invoiceId);
+    if (invoiceToEdit) {
+      setEditingInvoice(invoiceToEdit);
+      setIsAddEditDialogOpen(true);
     }
   };
 
-  const handleAddInvoiceClick = () => {
-    // Placeholder for adding new invoice functionality
-    alert("Funcionalidad 'Agregar Nueva Factura' aún no implementada.");
+  const handleSaveInvoice = (invoiceData: InvoiceFormData, id?: string) => {
+    if (id) { // Editing existing invoice
+      setInvoices(prevInvoices =>
+        prevInvoices.map(inv =>
+          inv.id === id ? { ...inv, ...invoiceData } : inv
+        )
+      );
+      toast({ title: "Factura Actualizada", description: `La factura #${invoiceData.invoiceNumber} ha sido actualizada.` });
+    } else { // Adding new invoice
+      const newInvoice: AssignedInvoice = {
+        ...invoiceData,
+        id: generateInvoiceId(),
+      };
+      setInvoices(prevInvoices => [newInvoice, ...prevInvoices]);
+      toast({ title: "Factura Agregada", description: `La nueva factura #${newInvoice.invoiceNumber} ha sido agregada.` });
+    }
+    setIsAddEditDialogOpen(false); // Close dialog after saving
   };
   
   const getAssigneeName = (assigneeId?: string): string | undefined => {
@@ -88,7 +123,7 @@ export default function HomePage() {
                   <InvoiceCard
                     key={invoice.id}
                     invoice={invoice}
-                    onProcess={handleProcessInvoice}
+                    onAction={handleEditInvoiceClick} // Supervisor edits
                     currentUserRole={currentUser?.role}
                     assigneeName={getAssigneeName(invoice.assigneeId)}
                   />
@@ -109,7 +144,7 @@ export default function HomePage() {
                   <InvoiceCard
                     key={invoice.id}
                     invoice={invoice}
-                    onProcess={handleProcessInvoice}
+                    onAction={handleProcessInvoiceClick} // Repartidor processes
                     currentUserRole={currentUser?.role}
                   />
                 ))}
@@ -125,9 +160,16 @@ export default function HomePage() {
       </footer>
 
       <ProcessInvoiceDialog
-        isOpen={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        invoice={selectedInvoice}
+        isOpen={isProcessDialogOpen}
+        onOpenChange={setIsProcessDialogOpen}
+        invoice={processingInvoice}
+      />
+      <AddEditInvoiceDialog
+        isOpen={isAddEditDialogOpen}
+        onOpenChange={setIsAddEditDialogOpen}
+        invoiceToEdit={editingInvoice}
+        users={users}
+        onSave={handleSaveInvoice}
       />
       <Toaster />
     </div>
