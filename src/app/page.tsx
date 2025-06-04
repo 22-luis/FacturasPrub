@@ -6,15 +6,16 @@ import { AppHeader } from '@/components/AppHeader';
 import { InvoiceCard } from '@/components/InvoiceCard';
 import { ProcessInvoiceDialog } from '@/components/ProcessInvoiceDialog';
 import { AddEditInvoiceDialog } from '@/components/AddEditInvoiceDialog';
-import { AddRepartidorDialog } from '@/components/AddRepartidorDialog'; // Import new dialog
-import { mockInvoices, mockUsers, generateInvoiceId, generateUserId } from '@/lib/types'; // Import generateUserId
-import type { AssignedInvoice, User, InvoiceFormData, UserRole } from '@/lib/types';
+import { AddRepartidorDialog } from '@/components/AddRepartidorDialog';
+import { mockInvoices, mockUsers, generateInvoiceId, generateUserId } from '@/lib/types';
+import type { AssignedInvoice, User, InvoiceFormData } from '@/lib/types';
 import { Toaster } from "@/components/ui/toaster";
 import { UserSelector } from '@/components/UserSelector';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, UserSquare2, Archive, UserPlus } from 'lucide-react'; // Import UserPlus
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Label } from '@/components/ui/label';
 
 const UNASSIGNED_KEY = "unassigned_invoices_key";
 
@@ -25,31 +26,40 @@ export default function HomePage() {
   const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<AssignedInvoice | null>(null);
 
-  const [isAddRepartidorDialogOpen, setIsAddRepartidorDialogOpen] = useState(false); // State for AddRepartidorDialog
+  const [isAddRepartidorDialogOpen, setIsAddRepartidorDialogOpen] = useState(false);
 
   const [users, setUsers] = useState<User[]>(mockUsers);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loggedInUser, setLoggedInUser] = useState<User | null>(null);
+  const [userToLoginId, setUserToLoginId] = useState<string>('');
+
   const [invoices, setInvoices] = useState<AssignedInvoice[]>(mockInvoices);
   const { toast } = useToast();
 
   const [selectedRepartidorIdBySupervisor, setSelectedRepartidorIdBySupervisor] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!currentUser && users.length > 0) {
-      setCurrentUser(users[0]);
+    if (!loggedInUser) {
+      setSelectedRepartidorIdBySupervisor(null); // Reset supervisor's selection on logout
     }
-  }, [currentUser, users]);
+  }, [loggedInUser]);
 
-  useEffect(() => {
-    if (!currentUser || currentUser.role !== 'supervisor') {
-      setSelectedRepartidorIdBySupervisor(null);
+  const handleLogin = () => {
+    if (!userToLoginId) {
+      toast({ variant: "destructive", title: "Error", description: "Por favor, selecciona un usuario para iniciar sesión." });
+      return;
     }
-  }, [currentUser]);
+    const user = users.find(u => u.id === userToLoginId);
+    if (user) {
+      setLoggedInUser(user);
+      toast({ title: "Sesión Iniciada", description: `Bienvenido ${user.name}.` });
+    }
+  };
 
-  const handleUserSelect = (userId: string) => {
-    const user = users.find(u => u.id === userId) || null;
-    setCurrentUser(user);
-    setSelectedRepartidorIdBySupervisor(null); 
+  const handleLogout = () => {
+    toast({ title: "Sesión Cerrada", description: `Hasta luego ${loggedInUser?.name}.` });
+    setLoggedInUser(null);
+    setUserToLoginId(''); // Reset login selection
+    setSelectedRepartidorIdBySupervisor(null);
   };
   
   const handleProcessInvoiceClick = (invoiceId: string) => {
@@ -118,16 +128,16 @@ export default function HomePage() {
   const repartidores = useMemo(() => users.filter(user => user.role === 'repartidor'), [users]);
 
   const selectedRepartidorDetails = useMemo(() => {
-    if (currentUser?.role === 'supervisor' && selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== UNASSIGNED_KEY) {
+    if (loggedInUser?.role === 'supervisor' && selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== UNASSIGNED_KEY) {
       return users.find(u => u.id === selectedRepartidorIdBySupervisor);
     }
     return null;
-  }, [currentUser, selectedRepartidorIdBySupervisor, users]);
+  }, [loggedInUser, selectedRepartidorIdBySupervisor, users]);
 
   const displayedInvoices = useMemo(() => {
-    if (!currentUser) return [];
+    if (!loggedInUser) return [];
 
-    if (currentUser.role === 'supervisor') {
+    if (loggedInUser.role === 'supervisor') {
       if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) {
         return invoices.filter(inv => !inv.assigneeId);
       }
@@ -137,11 +147,11 @@ export default function HomePage() {
       return []; 
     }
 
-    if (currentUser.role === 'repartidor') {
-      return invoices.filter(inv => inv.assigneeId === currentUser.id);
+    if (loggedInUser.role === 'repartidor') {
+      return invoices.filter(inv => inv.assigneeId === loggedInUser.id);
     }
     return [];
-  }, [currentUser, invoices, selectedRepartidorIdBySupervisor]);
+  }, [loggedInUser, invoices, selectedRepartidorIdBySupervisor]);
 
   const getInvoicesTitleForSupervisor = () => {
     if (selectedRepartidorDetails) {
@@ -153,19 +163,48 @@ export default function HomePage() {
     return "";
   };
 
+
+  if (!loggedInUser) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <AppHeader loggedInUser={null} onLogout={() => {}} />
+        <main className="flex-grow container mx-auto px-4 py-8 flex flex-col items-center justify-center">
+          <Card className="w-full max-w-md shadow-xl">
+            <CardHeader>
+              <CardTitle className="text-2xl text-center font-semibold text-foreground">Iniciar Sesión</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <Label htmlFor="login-user-selector" className="mb-2 block text-sm font-medium text-foreground">
+                  Selecciona tu usuario:
+                </Label>
+                <UserSelector 
+                  users={users} 
+                  currentUser={users.find(u => u.id === userToLoginId) || null} 
+                  onSelectUser={setUserToLoginId}
+                  className="w-full"
+                />
+              </div>
+              <Button onClick={handleLogin} className="w-full" size="lg">
+                <LogIn className="mr-2 h-5 w-5" />
+                Entrar
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+        <footer className="py-6 text-center text-sm text-muted-foreground border-t">
+          © 2025 SnapClaim. All rights reserved.
+        </footer>
+        <Toaster />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <AppHeader />
+      <AppHeader loggedInUser={loggedInUser} onLogout={handleLogout} />
       <main className="flex-grow container mx-auto px-4 py-8">
-        <UserSelector users={users} currentUser={currentUser} onSelectUser={handleUserSelect} className="mb-8" />
-
-        {!currentUser && (
-          <div className="text-center py-10">
-            <p className="text-xl text-muted-foreground">Por favor, selecciona un usuario para continuar.</p>
-          </div>
-        )}
-
-        {currentUser && currentUser.role === 'supervisor' && (
+        {loggedInUser.role === 'supervisor' && (
           <section className="space-y-8">
             <div>
               <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
@@ -222,7 +261,7 @@ export default function HomePage() {
             
             {selectedRepartidorIdBySupervisor && (
               <div>
-                <h3 className="text-xl font-semibold text-foreground mb-4">
+                <h3 className="text-xl font-semibold text-foreground my-4">
                   {getInvoicesTitleForSupervisor()}
                 </h3>
                 {displayedInvoices.length > 0 ? (
@@ -232,7 +271,7 @@ export default function HomePage() {
                         key={invoice.id}
                         invoice={invoice}
                         onAction={handleEditInvoiceClick} 
-                        currentUserRole={currentUser?.role}
+                        currentUserRole={loggedInUser?.role}
                         assigneeName={getAssigneeName(invoice.assigneeId)}
                       />
                     ))}
@@ -252,7 +291,7 @@ export default function HomePage() {
           </section>
         )}
 
-        {currentUser && currentUser.role === 'repartidor' && (
+        {loggedInUser.role === 'repartidor' && (
            <section>
             <h2 className="text-2xl font-semibold mb-6 text-foreground">Mis Facturas Asignadas</h2>
             {displayedInvoices.length > 0 ? (
@@ -262,7 +301,7 @@ export default function HomePage() {
                     key={invoice.id}
                     invoice={invoice}
                     onAction={handleProcessInvoiceClick} 
-                    currentUserRole={currentUser?.role}
+                    currentUserRole={loggedInUser?.role}
                   />
                 ))}
               </div>
@@ -285,7 +324,7 @@ export default function HomePage() {
         isOpen={isAddEditDialogOpen}
         onOpenChange={setIsAddEditDialogOpen}
         invoiceToEdit={editingInvoice}
-        users={users} // Pass updated users list
+        users={users}
         onSave={handleSaveInvoice}
       />
       <AddRepartidorDialog
