@@ -12,8 +12,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { UserSelector } from '@/components/UserSelector';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, UserSquare2 } from 'lucide-react';
+import { PlusCircle, UserSquare2, Archive } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+const UNASSIGNED_KEY = "unassigned_invoices_key";
 
 export default function HomePage() {
   const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
@@ -27,7 +29,6 @@ export default function HomePage() {
   const [invoices, setInvoices] = useState<AssignedInvoice[]>(mockInvoices);
   const { toast } = useToast();
 
-  // State for supervisor to track which repartidor's invoices are being viewed
   const [selectedRepartidorIdBySupervisor, setSelectedRepartidorIdBySupervisor] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,7 +38,6 @@ export default function HomePage() {
   }, [currentUser, users]);
 
   useEffect(() => {
-    // When currentUser changes, or if current user is not a supervisor, reset selected repartidor
     if (!currentUser || currentUser.role !== 'supervisor') {
       setSelectedRepartidorIdBySupervisor(null);
     }
@@ -46,7 +46,6 @@ export default function HomePage() {
   const handleUserSelect = (userId: string) => {
     const user = users.find(u => u.id === userId) || null;
     setCurrentUser(user);
-    // If a new user is selected, reset the supervisor's selection of a repartidor
     setSelectedRepartidorIdBySupervisor(null); 
   };
   
@@ -98,7 +97,7 @@ export default function HomePage() {
   const repartidores = useMemo(() => users.filter(user => user.role === 'repartidor'), [users]);
 
   const selectedRepartidorDetails = useMemo(() => {
-    if (currentUser?.role === 'supervisor' && selectedRepartidorIdBySupervisor) {
+    if (currentUser?.role === 'supervisor' && selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== UNASSIGNED_KEY) {
       return users.find(u => u.id === selectedRepartidorIdBySupervisor);
     }
     return null;
@@ -108,10 +107,13 @@ export default function HomePage() {
     if (!currentUser) return [];
 
     if (currentUser.role === 'supervisor') {
+      if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) {
+        return invoices.filter(inv => !inv.assigneeId);
+      }
       if (selectedRepartidorIdBySupervisor) {
         return invoices.filter(inv => inv.assigneeId === selectedRepartidorIdBySupervisor);
       }
-      return []; // No repartidor selected by supervisor, so no invoices to show
+      return []; 
     }
 
     if (currentUser.role === 'repartidor') {
@@ -119,6 +121,16 @@ export default function HomePage() {
     }
     return [];
   }, [currentUser, invoices, selectedRepartidorIdBySupervisor]);
+
+  const getInvoicesTitleForSupervisor = () => {
+    if (selectedRepartidorDetails) {
+      return `Facturas asignadas a ${selectedRepartidorDetails.name}`;
+    }
+    if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) {
+      return "Facturas sin Asignar";
+    }
+    return "";
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -145,34 +157,46 @@ export default function HomePage() {
             </div>
 
             <div>
-              <h3 className="text-xl font-semibold text-foreground mb-4">Repartidores</h3>
-              {repartidores.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {repartidores.map(repartidor => (
-                    <Card 
-                      key={repartidor.id} 
-                      className={`cursor-pointer hover:shadow-lg transition-shadow ${selectedRepartidorIdBySupervisor === repartidor.id ? 'ring-2 ring-primary shadow-lg' : ''}`}
-                      onClick={() => setSelectedRepartidorIdBySupervisor(repartidor.id)}
-                    >
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">{repartidor.name}</CardTitle>
-                        <UserSquare2 className="h-5 w-5 text-muted-foreground" />
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-xs text-muted-foreground">Rol: {repartidor.role}</div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">No hay repartidores en el sistema.</p>
+              <h3 className="text-xl font-semibold text-foreground mb-4">Ver Facturas Por:</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {repartidores.map(repartidor => (
+                  <Card 
+                    key={repartidor.id} 
+                    className={`cursor-pointer hover:shadow-lg transition-shadow ${selectedRepartidorIdBySupervisor === repartidor.id ? 'ring-2 ring-primary shadow-lg' : 'border'}`}
+                    onClick={() => setSelectedRepartidorIdBySupervisor(repartidor.id)}
+                  >
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">{repartidor.name}</CardTitle>
+                      <UserSquare2 className="h-5 w-5 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-xs text-muted-foreground">Rol: {repartidor.role}</div>
+                    </CardContent>
+                  </Card>
+                ))}
+                <Card
+                  key={UNASSIGNED_KEY}
+                  className={`cursor-pointer hover:shadow-lg transition-shadow ${selectedRepartidorIdBySupervisor === UNASSIGNED_KEY ? 'ring-2 ring-primary shadow-lg' : 'border'}`}
+                  onClick={() => setSelectedRepartidorIdBySupervisor(UNASSIGNED_KEY)}
+                >
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Facturas sin Asignar</CardTitle>
+                    <Archive className="h-5 w-5 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-xs text-muted-foreground">Ver todas las facturas no asignadas</div>
+                  </CardContent>
+                </Card>
+              </div>
+              {repartidores.length === 0 && (
+                 <p className="text-muted-foreground mt-2">No hay repartidores en el sistema para asignar facturas.</p>
               )}
             </div>
             
-            {selectedRepartidorDetails && (
+            {selectedRepartidorIdBySupervisor && (
               <div>
                 <h3 className="text-xl font-semibold text-foreground mb-4">
-                  Facturas asignadas a {selectedRepartidorDetails.name}
+                  {getInvoicesTitleForSupervisor()}
                 </h3>
                 {displayedInvoices.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -187,12 +211,16 @@ export default function HomePage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground">{selectedRepartidorDetails.name} no tiene facturas asignadas.</p>
+                  <p className="text-muted-foreground">
+                    {selectedRepartidorIdBySupervisor === UNASSIGNED_KEY 
+                      ? "No hay facturas sin asignar." 
+                      : `${selectedRepartidorDetails?.name || 'El repartidor seleccionado'} no tiene facturas asignadas.`}
+                  </p>
                 )}
               </div>
             )}
-             {!selectedRepartidorDetails && (
-                <p className="text-muted-foreground pt-4">Selecciona un repartidor para ver sus facturas asignadas.</p>
+             {!selectedRepartidorIdBySupervisor && (
+                <p className="text-muted-foreground pt-4">Selecciona un repartidor o "Facturas sin Asignar" para ver las facturas.</p>
              )}
           </section>
         )}
@@ -237,4 +265,3 @@ export default function HomePage() {
     </div>
   );
 }
-
