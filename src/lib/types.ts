@@ -42,7 +42,7 @@ export interface VerificationResult {
 }
 
 export const mockUsers: User[] = [
-  { id: 'user-adm-1', name: 'Admin General', role: 'administrador' }, // Added Admin
+  { id: 'user-adm-1', name: 'admin', role: 'administrador' }, // Changed name to 'admin'
   { id: 'user-sup-1', name: 'Ana Supervisora', role: 'supervisor' },
   { id: 'user-rep-1', name: 'Juan Repartidor', role: 'repartidor' },
   { id: 'user-rep-2', name: 'Luisa Repartidora', role: 'repartidor' },
@@ -108,3 +108,4 @@ export const mockInvoices: AssignedInvoice[] = [
 export const generateInvoiceId = () => `inv_${Date.now().toString()}_${Math.random().toString(36).substring(2, 7)}`;
 
 export const generateUserId = () => `user_${Date.now().toString()}_${Math.random().toString(36).substring(2, 7)}`;
+
