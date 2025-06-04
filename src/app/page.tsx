@@ -7,6 +7,8 @@ import { InvoiceCard } from '@/components/InvoiceCard';
 import { ProcessInvoiceDialog } from '@/components/ProcessInvoiceDialog';
 import { AddEditInvoiceDialog } from '@/components/AddEditInvoiceDialog';
 import { AddRepartidorDialog } from '@/components/AddRepartidorDialog';
+import { ManageRepartidoresDialog } from '@/components/ManageRepartidoresDialog';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { mockInvoices, mockUsers, generateInvoiceId, generateUserId } from '@/lib/types';
 import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus } from '@/lib/types';
 import { Toaster } from "@/components/ui/toaster";
@@ -14,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter } from 'lucide-react';
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
@@ -39,10 +41,16 @@ export default function HomePage() {
   const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
   const [processingInvoice, setProcessingInvoice] = useState<AssignedInvoice | null>(null);
   
-  const [isAddEditDialogOpen, setIsAddEditDialogOpen] = useState(false);
-  const [editingInvoice, setEditingInvoice] = useState<AssignedInvoice | null>(null);
+  const [isAddEditInvoiceDialogOpen, setIsAddEditInvoiceDialogOpen] = useState(false);
+  const [invoiceToEdit, setInvoiceToEdit] = useState<AssignedInvoice | null>(null);
 
   const [isAddRepartidorDialogOpen, setIsAddRepartidorDialogOpen] = useState(false);
+  const [repartidorToEdit, setRepartidorToEdit] = useState<User | null>(null);
+
+  const [isManageRepartidoresOpen, setIsManageRepartidoresOpen] = useState(false);
+  const [isConfirmDeleteRepartidorOpen, setIsConfirmDeleteRepartidorOpen] = useState(false);
+  const [repartidorToDelete, setRepartidorToDelete] = useState<User | null>(null);
+  
 
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [loggedInUser, setLoggedInUser] = useState<User | null>(null);
@@ -64,9 +72,10 @@ export default function HomePage() {
       setSelectedStatusBySupervisor(null);
       setSearchTerm('');
     } else if (loggedInUser.role === 'supervisor') {
-      setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
-      setSelectedStatusBySupervisor(null);
-      setSearchTerm('');
+      // For supervisor, reset filters on login, or maintain if needed
+      // setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY); // Example: Reset
+      // setSelectedStatusBySupervisor(null);
+      // setSearchTerm('');
     }
   }, [loggedInUser]);
 
@@ -81,7 +90,13 @@ export default function HomePage() {
       setLoggedInUser(user);
       toast({ title: "Sesión Iniciada", description: `Bienvenido ${user.name}.` });
       setUsernameInput(''); 
-      setPasswordInput(''); 
+      setPasswordInput('');
+      // Reset filters for supervisor on login
+      if (user.role === 'supervisor') {
+        setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
+        setSelectedStatusBySupervisor(null);
+        setSearchTerm('');
+      }
     } else {
       toast({ variant: "destructive", title: "Error de Inicio de Sesión", description: "Nombre de usuario o contraseña incorrectos." });
     }
@@ -90,6 +105,7 @@ export default function HomePage() {
   const handleLogout = () => {
     toast({ title: "Sesión Cerrada", description: `Hasta luego ${loggedInUser?.name}.` });
     setLoggedInUser(null);
+    // Reset all filters and search term on logout
     setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
     setSelectedStatusBySupervisor(null);
     setSearchTerm('');
@@ -106,15 +122,15 @@ export default function HomePage() {
   };
   
   const handleAddInvoiceClick = () => {
-    setEditingInvoice(null); 
-    setIsAddEditDialogOpen(true);
+    setInvoiceToEdit(null); 
+    setIsAddEditInvoiceDialogOpen(true);
   };
 
   const handleEditInvoiceClick = (invoiceId: string) => {
     const invoiceToEdit = invoices.find(inv => inv.id === invoiceId);
     if (invoiceToEdit) {
-      setEditingInvoice(invoiceToEdit);
-      setIsAddEditDialogOpen(true);
+      setInvoiceToEdit(invoiceToEdit);
+      setIsAddEditInvoiceDialogOpen(true);
     }
   };
 
@@ -134,7 +150,7 @@ export default function HomePage() {
       setInvoices(prevInvoices => [newInvoice, ...prevInvoices]);
       toast({ title: "Factura Agregada", description: `La nueva factura #${newInvoice.invoiceNumber} ha sido agregada.` });
     }
-    setIsAddEditDialogOpen(false); 
+    setIsAddEditInvoiceDialogOpen(false); 
   };
 
   const handleUpdateInvoiceStatus = (invoiceId: string, newStatus: InvoiceStatus, cancellationReason?: string) => {
@@ -155,22 +171,61 @@ export default function HomePage() {
     });
   };
 
-  const handleAddRepartidorClick = () => {
+  const handleOpenAddRepartidorDialog = () => {
+    setRepartidorToEdit(null);
+    setIsAddRepartidorDialogOpen(true);
+  };
+  
+  const handleOpenEditRepartidorDialog = (repartidor: User) => {
+    setRepartidorToEdit(repartidor);
     setIsAddRepartidorDialogOpen(true);
   };
 
-  const handleSaveRepartidor = (name: string) => {
-    const newRepartidor: User = {
-      id: generateUserId(),
-      name,
-      role: 'repartidor',
-    };
-    setUsers(prevUsers => [...prevUsers, newRepartidor]);
-    toast({
-      title: 'Repartidor Agregado',
-      description: `El repartidor ${name} ha sido agregado al sistema.`,
-    });
+  const handleSaveRepartidor = (name: string, idToEdit?: string) => {
+    if (idToEdit) {
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user.id === idToEdit ? { ...user, name } : user
+        )
+      );
+      toast({ title: 'Repartidor Actualizado', description: `El nombre del repartidor ha sido actualizado a ${name}.` });
+    } else {
+      const newRepartidor: User = {
+        id: generateUserId(),
+        name,
+        role: 'repartidor',
+      };
+      setUsers(prevUsers => [...prevUsers, newRepartidor]);
+      toast({ title: 'Repartidor Agregado', description: `El repartidor ${name} ha sido agregado al sistema.` });
+    }
     setIsAddRepartidorDialogOpen(false);
+    // If ManageRepartidoresDialog is open, this change will be reflected there
+  };
+
+  const handleOpenDeleteRepartidorDialog = (repartidor: User) => {
+    setRepartidorToDelete(repartidor);
+    setIsConfirmDeleteRepartidorOpen(true);
+  };
+
+  const executeDeleteRepartidor = () => {
+    if (!repartidorToDelete) return;
+
+    setUsers(prevUsers => prevUsers.filter(user => user.id !== repartidorToDelete.id));
+    setInvoices(prevInvoices => 
+      prevInvoices.map(inv => 
+        inv.assigneeId === repartidorToDelete.id ? { ...inv, assigneeId: undefined } : inv
+      )
+    );
+    toast({ title: 'Repartidor Eliminado', description: `El repartidor ${repartidorToDelete.name} ha sido eliminado. Sus facturas han sido desasignadas.` });
+    
+    // If the deleted repartidor was selected in the filter, reset the filter
+    if (selectedRepartidorIdBySupervisor === repartidorToDelete.id) {
+      setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
+    }
+
+    setRepartidorToDelete(null);
+    setIsConfirmDeleteRepartidorOpen(false);
+    // setIsManageRepartidoresOpen(false); // Optionally close manage dialog
   };
   
   const getAssigneeName = (assigneeId?: string): string | undefined => {
@@ -186,28 +241,24 @@ export default function HomePage() {
     let filteredInvoices = [...invoices];
 
     if (loggedInUser.role === 'supervisor') {
-      // 1. Filter by search term (if any)
       if (searchTerm.trim()) {
         const lowerSearchTerm = searchTerm.trim().toLowerCase();
         filteredInvoices = filteredInvoices.filter(inv => 
           inv.supplierName.toLowerCase().includes(lowerSearchTerm) ||
-          inv.invoiceNumber.toLowerCase().includes(lowerSearchTerm)
+          inv.invoiceNumber.toLowerCase().includes(lowerSearchTerm) ||
+          (inv.uniqueCode && inv.uniqueCode.toLowerCase().includes(lowerSearchTerm))
         );
       }
 
-      // 2. Filter by status (if any selected)
       if (selectedStatusBySupervisor) {
         filteredInvoices = filteredInvoices.filter(inv => inv.status === selectedStatusBySupervisor);
       }
 
-      // 3. Filter by repartidor/unassigned (if not "All Repartidores")
       if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) {
         filteredInvoices = filteredInvoices.filter(inv => !inv.assigneeId);
       } else if (selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) {
         filteredInvoices = filteredInvoices.filter(inv => inv.assigneeId === selectedRepartidorIdBySupervisor);
       }
-      // If selectedRepartidorIdBySupervisor is ALL_REPARTIDORES_KEY, no further filtering by repartidor is done on the current list.
-
       return filteredInvoices;
     }
 
@@ -231,22 +282,25 @@ export default function HomePage() {
         statusDescription = statusDetail ? statusDetail.label : `Facturas ${selectedStatusBySupervisor.toLowerCase()}`;
     }
 
-    let repartidorDescription = "Todos los Repartidores y Sin Asignar";
+    let repartidorDescription = "Todas las Facturas";
     if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) {
         repartidorDescription = "Facturas sin Asignar";
     } else if (selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) {
         const repartidor = users.find(u => u.id === selectedRepartidorIdBySupervisor);
         if (repartidor) {
             repartidorDescription = `Asignadas a: ${repartidor.name}`;
+        } else {
+           repartidorDescription = "Repartidor no encontrado"; // Should not happen if data is consistent
         }
     }
     
     if (searchTerm.trim()) {
-        if (selectedStatusBySupervisor || (selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY)) {
-            let specifics = [];
-            if (selectedStatusBySupervisor) specifics.push(statusDescription.toLowerCase());
-            if (selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) specifics.push(repartidorDescription.toLowerCase());
-            return `${titleParts[0]} (${specifics.join(', ')})`;
+        let specifics = [];
+        if (selectedStatusBySupervisor) specifics.push(statusDescription.toLowerCase());
+        if (selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) specifics.push(repartidorDescription.toLowerCase());
+        
+        if (specifics.length > 0) {
+          return `${titleParts[0]} (${specifics.join(', ')})`;
         }
         return titleParts[0]; // Just search term
     }
@@ -335,9 +389,13 @@ export default function HomePage() {
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Agregar Factura
                   </Button>
-                  <Button onClick={handleAddRepartidorClick} variant="outline">
+                  <Button onClick={handleOpenAddRepartidorDialog} variant="outline">
                     <UserPlus className="mr-2 h-4 w-4" />
                     Agregar Repartidor
+                  </Button>
+                   <Button onClick={() => setIsManageRepartidoresOpen(true)} variant="outline">
+                    <Settings2 className="mr-2 h-4 w-4" />
+                    Gestionar Repartidores
                   </Button>
                 </div>
               </div>
@@ -356,7 +414,7 @@ export default function HomePage() {
                       <Input 
                         id="search-invoices"
                         type="text"
-                        placeholder="Buscar por proveedor o N° de factura..."
+                        placeholder="Buscar por proveedor, N° factura o código..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-10 w-full"
@@ -376,7 +434,7 @@ export default function HomePage() {
                                 "cursor-pointer hover:shadow-lg transition-shadow",
                                 selectedStatusBySupervisor === status ? 'ring-2 ring-primary shadow-lg' : 'border'
                               )}
-                              onClick={() => setSelectedStatusBySupervisor(status)}
+                              onClick={() => setSelectedStatusBySupervisor(prev => prev === status ? null : status)}
                             >
                               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{details.label}</CardTitle>
@@ -398,7 +456,7 @@ export default function HomePage() {
                             "hover:shadow-lg" 
                           )}
                         >
-                          <ListFilter className="h-4 w-4" />
+                          <ListFilter className="mr-2 h-4 w-4" />
                           Mostrar Todos los Estados
                         </Button>
                       </div>
@@ -414,7 +472,7 @@ export default function HomePage() {
                                 "cursor-pointer hover:shadow-lg transition-shadow",
                                 selectedRepartidorIdBySupervisor === repartidor.id ? 'ring-2 ring-primary shadow-lg' : 'border'
                             )}
-                            onClick={() => setSelectedRepartidorIdBySupervisor(repartidor.id)}
+                            onClick={() => setSelectedRepartidorIdBySupervisor(prev => prev === repartidor.id ? ALL_REPARTIDORES_KEY : repartidor.id)}
                           >
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                               <CardTitle className="text-sm font-medium">{repartidor.name}</CardTitle>
@@ -431,7 +489,7 @@ export default function HomePage() {
                             "cursor-pointer hover:shadow-lg transition-shadow",
                             selectedRepartidorIdBySupervisor === UNASSIGNED_KEY ? 'ring-2 ring-primary shadow-lg' : 'border'
                           )}
-                          onClick={() => setSelectedRepartidorIdBySupervisor(UNASSIGNED_KEY)}
+                          onClick={() => setSelectedRepartidorIdBySupervisor(prev => prev === UNASSIGNED_KEY ? ALL_REPARTIDORES_KEY : UNASSIGNED_KEY)}
                         >
                           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Facturas sin Asignar</CardTitle>
@@ -447,11 +505,11 @@ export default function HomePage() {
                           onClick={() => setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
                           className={cn(
                             "h-full whitespace-normal text-left justify-start items-center transition-shadow",
-                            selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-lg' : 'hover:bg-background hover:text-foreground',
+                             selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-lg' : 'hover:bg-background hover:text-foreground',
                             "hover:shadow-lg"
                           )}
                         >
-                          <Users className="h-4 w-4" />
+                          <Users className="mr-2 h-4 w-4" />
                           Mostrar Todas las Facturas
                         </Button>
                       </div>
@@ -521,9 +579,9 @@ export default function HomePage() {
         onUpdateStatus={handleUpdateInvoiceStatus}
       />
       <AddEditInvoiceDialog
-        isOpen={isAddEditDialogOpen}
-        onOpenChange={setIsAddEditDialogOpen}
-        invoiceToEdit={editingInvoice}
+        isOpen={isAddEditInvoiceDialogOpen}
+        onOpenChange={setIsAddEditInvoiceDialogOpen}
+        invoiceToEdit={invoiceToEdit}
         users={users}
         onSave={handleSaveInvoice}
       />
@@ -531,7 +589,25 @@ export default function HomePage() {
         isOpen={isAddRepartidorDialogOpen}
         onOpenChange={setIsAddRepartidorDialogOpen}
         onSave={handleSaveRepartidor}
+        repartidorToEdit={repartidorToEdit}
       />
+      <ManageRepartidoresDialog
+        isOpen={isManageRepartidoresOpen}
+        onOpenChange={setIsManageRepartidoresOpen}
+        repartidores={repartidores}
+        onEdit={handleOpenEditRepartidorDialog}
+        onDelete={handleOpenDeleteRepartidorDialog}
+      />
+      {repartidorToDelete && (
+        <ConfirmDialog
+            isOpen={isConfirmDeleteRepartidorOpen}
+            onOpenChange={setIsConfirmDeleteRepartidorOpen}
+            title={`Confirmar Eliminación de ${repartidorToDelete.name}`}
+            description={`¿Estás seguro de que quieres eliminar a ${repartidorToDelete.name}? Esta acción no se puede deshacer. Las facturas asignadas a este repartidor pasarán a estar "Sin asignar".`}
+            onConfirm={executeDeleteRepartidor}
+            confirmButtonText="Eliminar Repartidor"
+        />
+      )}
       <Toaster />
     </div>
   );
