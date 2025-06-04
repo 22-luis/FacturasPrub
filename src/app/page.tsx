@@ -318,13 +318,14 @@ export default function HomePage() {
                 })}
                 <Button 
                     variant="outline" 
+                    size="sm"
                     onClick={() => setSelectedStatusBySupervisor(null)}
                     className={cn(
-                        "h-full text-sm",
+                        "h-full whitespace-normal text-left",
                         !selectedStatusBySupervisor ? 'ring-2 ring-primary shadow-lg' : ''
                     )}
                   >
-                    <ListFilter className="mr-2 h-4 w-4" />
+                    <ListFilter className="h-4 w-4" />
                     Mostrar Todos los Estados
                   </Button>
               </div>
@@ -368,14 +369,15 @@ export default function HomePage() {
                   </CardContent>
                 </Card>
                 <Button 
-                    variant="outline" 
+                    variant="outline"
+                    size="sm"
                     onClick={() => setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
                     className={cn(
-                        "h-full text-sm",
+                        "h-full whitespace-normal text-left",
                         selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-lg' : ''
                     )}
                   >
-                    <Users className="mr-2 h-4 w-4" />
+                    <Users className="h-4 w-4" />
                     Mostrar Todas las Facturas
                   </Button>
               </div>
@@ -455,3 +457,4 @@ export default function HomePage() {
     </div>
   );
 }
+
