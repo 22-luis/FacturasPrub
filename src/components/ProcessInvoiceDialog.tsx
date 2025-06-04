@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, BadgeCheck, ScanLine, CheckCircle, XCircle, RotateCcw, Camera, Upload, Trash2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 import type { AssignedInvoice, ExtractedInvoiceDetails, VerificationResult, InvoiceStatus } from '@/lib/types';
 import { extractInvoiceDataAction } from '@/lib/actions';
@@ -34,23 +36,26 @@ interface ProcessInvoiceDialogProps {
 }
 
 export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateStatus }: ProcessInvoiceDialogProps) {
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null); // Kept for FileUpload, but primary data is imageDataUri
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [imageDataUri, setImageDataUri] = useState<string | null>(null);
   
   const [extractedData, setExtractedData] = useState<ExtractedInvoiceDetails | null>(null);
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
-  const [isLoading, setIsLoading] = useState(false); // For AI extraction
+  const [isLoading, setIsLoading] = useState(false); 
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const [isCancellationReasonSubDialogOpen, setIsCancellationReasonSubDialogOpen] = useState(false);
 
-  // Camera related states
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null); // Hidden canvas for capturing
+  const canvasRef = useRef<HTMLCanvasElement>(null); 
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [isCapturingPhoto, setIsCapturingPhoto] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | undefined>(undefined);
+  const [isCameraInitializing, setIsCameraInitializing] = useState(false);
 
 
   const resetAllStates = useCallback(() => {
@@ -61,7 +66,7 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
     setIsLoading(false);
     setError(null);
     setIsCancellationReasonSubDialogOpen(false);
-    // Camera specific resets
+    
     setShowCamera(false);
     setHasCameraPermission(null);
     setIsCapturingPhoto(false);
@@ -69,6 +74,9 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
       cameraStream.getTracks().forEach(track => track.stop());
     }
     setCameraStream(null);
+    setAvailableCameras([]);
+    setSelectedDeviceId(undefined);
+    setIsCameraInitializing(false);
   }, [cameraStream]);
 
   useEffect(() => {
@@ -77,44 +85,87 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
     }
   }, [isOpen, invoice, resetAllStates]);
 
-  // Effect for camera permission and stream management
+  // Effect to enumerate devices and set initial selection when camera view is activated
   useEffect(() => {
-    let currentStream: MediaStream | null = null;
-    const getCameraPermission = async () => {
-      if (showCamera) {
+    if (showCamera && availableCameras.length === 0) { // Only run if showing camera and devices not yet enumerated
+      const initCameraDevices = async () => {
+        setIsCameraInitializing(true);
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-          currentStream = stream;
+          if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+            throw new Error("Media devices API not available.");
+          }
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter(device => device.kind === 'videoinput');
+          setAvailableCameras(videoDevices);
+
+          if (videoDevices.length > 0) {
+            let initialDeviceId = videoDevices[0].deviceId; 
+            const rearCamera = videoDevices.find(device =>
+              device.label.toLowerCase().includes('back') ||
+              device.label.toLowerCase().includes('rear') ||
+              device.label.toLowerCase().includes('environment')
+            );
+            if (rearCamera) {
+              initialDeviceId = rearCamera.deviceId;
+            }
+            setSelectedDeviceId(initialDeviceId); // This will trigger the stream effect
+          } else {
+            setHasCameraPermission(false);
+            toast({ variant: "destructive", title: "No Se Encontraron Cámaras", description: "No se encontraron dispositivos de entrada de video." });
+          }
+        } catch (err: any) {
+          console.error("Error enumerating devices:", err);
+          setHasCameraPermission(false);
+          toast({ variant: "destructive", title: "Error de Cámara", description: err.message || "No se pudieron listar los dispositivos de cámara." });
+        } finally {
+          setIsCameraInitializing(false);
+        }
+      };
+      initCameraDevices();
+    }
+  }, [showCamera, toast, availableCameras.length]);
+
+  // Effect to start/switch stream when selectedDeviceId or showCamera changes
+  useEffect(() => {
+    let currentStreamInstance: MediaStream | null = null;
+
+    if (showCamera && selectedDeviceId && !isCameraInitializing) {
+      const getStream = async () => {
+        if (cameraStream) { 
+          cameraStream.getTracks().forEach(track => track.stop());
+        }
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: { exact: selectedDeviceId } }
+          });
+          currentStreamInstance = stream;
           setCameraStream(stream);
-          setHasCameraPermission(true);
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
           }
-        } catch (err) {
-          console.error('Error accessing camera:', err);
+          setHasCameraPermission(true);
+        } catch (err: any) {
+          console.error('Error accessing specific camera:', err);
           setHasCameraPermission(false);
           toast({
             variant: 'destructive',
             title: 'Acceso a Cámara Denegado',
-            description: 'Por favor, habilita los permisos de cámara en tu navegador.',
+            description: err.message || 'Habilita los permisos de cámara o selecciona otra cámara.',
           });
         }
-      }
-    };
-
-    getCameraPermission();
+      };
+      getStream();
+    }
 
     return () => {
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-      }
-       if (cameraStream) { // Ensure existing stream is also stopped
-        cameraStream.getTracks().forEach(track => track.stop());
-        setCameraStream(null);
+      if (currentStreamInstance) {
+        currentStreamInstance.getTracks().forEach(track => track.stop());
+      } else if (cameraStream && !showCamera) { // Ensure cleanup if showCamera becomes false
+         cameraStream.getTracks().forEach(track => track.stop());
+         setCameraStream(null);
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showCamera, toast]);
+  }, [showCamera, selectedDeviceId, isCameraInitializing, toast, cameraStream]);
 
 
   const handleFileSelectForUpload = (file: File | null, dataUrl: string | null) => {
@@ -123,7 +174,10 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
     setExtractedData(null); 
     setVerificationResult(null);
     setError(null);
-    setShowCamera(false); // Ensure camera is hidden if a file is uploaded
+    // If switching from camera to upload, ensure camera is off and related states are reset
+    if (showCamera) setShowCamera(false); 
+    // setSelectedDeviceId(undefined); // This will be handled by showCamera=false effect
+    // setAvailableCameras([]);
   };
 
   const handleTakePhoto = async () => {
@@ -142,11 +196,11 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg');
         setImageDataUri(dataUrl);
-        setUploadedFile(null); // Clear file upload if photo is taken
+        setUploadedFile(null); 
         setExtractedData(null);
         setVerificationResult(null);
         setError(null);
-        setShowCamera(false); // Hide camera view, show preview
+        setShowCamera(false); 
         toast({ title: 'Foto Capturada', description: 'Imagen lista para extracción.' });
       } else {
         throw new Error('Failed to get canvas context');
@@ -165,8 +219,6 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
     setExtractedData(null);
     setVerificationResult(null);
     setError(null);
-    // If camera was active, we might want to keep it active or allow user to re-toggle
-    // For now, just clearing the image. User can re-open camera if needed.
   };
 
   const verifyData = useCallback((assigned: AssignedInvoice, extracted: ExtractedInvoiceDetails): VerificationResult => {
@@ -243,7 +295,7 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
   return (
     <>
       <Dialog open={isOpen && !isCancellationReasonSubDialogOpen} onOpenChange={(open) => {
-        if(!open) resetAllStates(); // Ensure states reset when dialog is closed
+        if(!open) resetAllStates();
         onOpenChange(open);
       }}>
         <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
@@ -297,29 +349,54 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
               </h3>
 
               <div className="flex gap-2 mb-4">
-                <Button variant={showCamera ? "outline" : "default"} onClick={() => { setShowCamera(false); setImageDataUri(null); setExtractedData(null); setVerificationResult(null);}}>
+                <Button variant={showCamera ? "outline" : "default"} onClick={() => { setShowCamera(false); setImageDataUri(null); setExtractedData(null); setVerificationResult(null); setUploadedFile(null); /* Camera states reset by setShowCamera effect */ }}>
                   <Upload className="mr-2 h-4 w-4" /> Subir Archivo
                 </Button>
-                <Button variant={showCamera ? "default" : "outline"} onClick={() => { setShowCamera(true); setImageDataUri(null); setExtractedData(null); setVerificationResult(null);}}>
+                <Button variant={showCamera ? "default" : "outline"} onClick={() => { setShowCamera(true); setImageDataUri(null); setExtractedData(null); setVerificationResult(null); setUploadedFile(null); /* Camera states reset by setShowCamera effect */ }}>
                   <Camera className="mr-2 h-4 w-4" /> Tomar Foto
                 </Button>
               </div>
 
               {showCamera ? (
                 <div className="space-y-4">
+                  {isCameraInitializing && <LoadingIndicator text="Iniciando cámara..." />}
+                  
+                  {!isCameraInitializing && availableCameras.length > 1 && (
+                    <div className="my-2">
+                      <Label htmlFor="camera-select" className="mb-1 block text-sm font-medium">Seleccionar Cámara:</Label>
+                      <Select
+                        value={selectedDeviceId}
+                        onValueChange={(deviceId) => setSelectedDeviceId(deviceId)}
+                        disabled={isLoading || isCapturingPhoto}
+                      >
+                        <SelectTrigger id="camera-select" className="w-full sm:w-[300px]">
+                          <SelectValue placeholder="Selecciona una cámara" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableCameras.map((device, index) => (
+                            <SelectItem key={device.deviceId} value={device.deviceId}>
+                              {device.label || `Cámara ${index + 1}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted playsInline />
-                  {hasCameraPermission === false && (
+                  
+                  {hasCameraPermission === false && !isCameraInitializing && (
                     <Alert variant="destructive">
                       <AlertTriangle className="h-4 w-4" />
-                      <AlertTitle>Permiso de Cámara Denegado</AlertTitle>
+                      <AlertTitle>Permiso de Cámara Denegado o Sin Cámaras</AlertTitle>
                       <AlertDescription>
-                        Habilita los permisos de cámara en tu navegador para usar esta función.
+                        Verifica los permisos de cámara en tu navegador o asegúrate de tener una cámara conectada.
                       </AlertDescription>
                     </Alert>
                   )}
                   <Button 
                     onClick={handleTakePhoto} 
-                    disabled={!hasCameraPermission || isCapturingPhoto || isLoading} 
+                    disabled={!hasCameraPermission || isCapturingPhoto || isLoading || isCameraInitializing || !cameraStream} 
                     className="w-full sm:w-auto"
                   >
                     {isCapturingPhoto ? <LoadingIndicator text="Capturando..." /> : <> <Camera className="mr-2 h-4 w-4" /> Capturar Foto </>}
@@ -329,7 +406,6 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
                 <FileUpload onFileSelect={handleFileSelectForUpload} disabled={isLoading || isCapturingPhoto} />
               )}
               
-              {/* Hidden canvas for capturing photo */}
               <canvas ref={canvasRef} style={{ display: 'none' }} />
 
               {imageDataUri && (
@@ -374,10 +450,8 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
               </>
             )}
             {!isLoading && !error && !extractedData && !verificationResult && !imageDataUri && (
-              <VerificationResultView result={null} /> // Show pending state if no image yet
+              <VerificationResultView result={null} />
             )}
-
-
           </div>
           <DialogFooter className="mt-auto pt-4 border-t">
             <DialogClose asChild>
