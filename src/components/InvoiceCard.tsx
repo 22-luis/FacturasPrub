@@ -48,51 +48,61 @@ export function InvoiceCard({ invoice, onAction, currentUserRole, assigneeName }
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-xl flex items-center">
-            <span className="mr-2">{invoice.supplierName}</span>
-            <Fingerprint className="h-5 w-5 text-primary" />
+            <span className="mr-2 break-words">{invoice.supplierName}</span>
+            <Fingerprint className="h-5 w-5 text-primary flex-shrink-0" />
           </CardTitle>
-          <Badge className={cn("text-xs", currentStatusStyle.badgeClass)}>
-            <currentStatusStyle.Icon className="h-3.5 w-3.5 mr-1.5" />
+          <Badge className={cn("text-xs whitespace-nowrap", currentStatusStyle.badgeClass)}>
+            <currentStatusStyle.Icon className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
             {currentStatusStyle.text}
           </Badge>
         </div>
-        <CardDescription>Código Único: {invoice.uniqueCode}</CardDescription>
+        <CardDescription className="break-words">Código Único: {invoice.uniqueCode}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 text-sm flex-grow">
-        <div className="flex items-center">
-          <Hash className="h-4 w-4 mr-2 text-muted-foreground" />
-          <span className="text-muted-foreground mr-1">Factura #:</span>
-          <span className="font-medium text-foreground">{invoice.invoiceNumber}</span>
+        <div className="flex items-start">
+          <Hash className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
+          <div className="min-w-0 flex-1">
+            <span className="text-muted-foreground mr-1">Factura #:</span>
+            <span className="font-medium text-foreground break-words">{invoice.invoiceNumber}</span>
+          </div>
         </div>
-        <div className="flex items-center">
-          <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground" />
+        <div className="flex items-start">
+          <CalendarDays className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
+          <div className="min-w-0 flex-1">
            <span className="text-muted-foreground mr-1">Fecha:</span>
-          <span className="font-medium text-foreground">{invoice.date}</span>
+            <span className="font-medium text-foreground break-words">{invoice.date}</span>
+          </div>
         </div>
-        <div className="flex items-center">
-          <BadgeDollarSign className="h-4 w-4 mr-2 text-muted-foreground" />
+        <div className="flex items-start">
+          <BadgeDollarSign className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
+          <div className="min-w-0 flex-1">
            <span className="text-muted-foreground mr-1">Monto:</span>
-          <span className="font-medium text-foreground">${invoice.totalAmount.toFixed(2)}</span>
+            <span className="font-medium text-foreground break-words">${invoice.totalAmount.toFixed(2)}</span>
+          </div>
         </div>
-         <div className="flex items-center">
-          <Building className="h-4 w-4 mr-2 text-muted-foreground" />
+         <div className="flex items-start">
+          <Building className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
+          <div className="min-w-0 flex-1">
            <span className="text-muted-foreground mr-1">Proveedor:</span>
-          <span className="font-medium text-foreground">{invoice.supplierName}</span>
+            <span className="font-medium text-foreground break-words">{invoice.supplierName}</span>
+          </div>
         </div>
         {invoice.address && (
           <div className="flex items-start">
             <MapPin className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
-            <div>
+            <div className="min-w-0 flex-1">
               <span className="text-muted-foreground mr-1">Dirección:</span>
-              <span className="font-medium text-foreground">{invoice.address}</span>
+              <span className="font-medium text-foreground break-words">{invoice.address}</span>
             </div>
           </div>
         )}
         {isSupervisor && (
-          <div className="flex items-center pt-1">
-            <UserCircle className="h-4 w-4 mr-2 text-muted-foreground" />
-            <span className="text-muted-foreground mr-1">Asignada a:</span>
-            <span className="font-medium text-foreground">{assigneeName || 'Sin asignar'}</span>
+          <div className="flex items-start pt-1">
+            <UserCircle className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <span className="text-muted-foreground mr-1">Asignada a:</span>
+              <span className="font-medium text-foreground break-words">{assigneeName || 'Sin asignar'}</span>
+            </div>
           </div>
         )}
       </CardContent>
