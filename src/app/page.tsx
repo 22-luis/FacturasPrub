@@ -318,17 +318,17 @@ export default function HomePage() {
                   );
                 })}
                 <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setSelectedStatusBySupervisor(null)}
-                    className={cn(
-                        "h-full whitespace-normal text-left transition-shadow hover:shadow-lg",
-                        !selectedStatusBySupervisor && 'ring-2 ring-primary shadow-lg'
-                    )}
-                  >
-                    <ListFilter className="h-4 w-4" />
-                    Mostrar Todos los Estados
-                  </Button>
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setSelectedStatusBySupervisor(null)}
+                  className={cn(
+                    "h-full whitespace-normal text-left transition-shadow hover:shadow-lg",
+                    !selectedStatusBySupervisor ? 'ring-2 ring-primary shadow-lg' : 'hover:bg-background hover:text-foreground'
+                  )}
+                >
+                  <ListFilter className="h-4 w-4" />
+                  Mostrar Todos los Estados
+                </Button>
               </div>
             </div>
             
@@ -370,17 +370,17 @@ export default function HomePage() {
                   </CardContent>
                 </Card>
                 <Button 
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
-                    className={cn(
-                        "h-full whitespace-normal text-left transition-shadow hover:shadow-lg",
-                        selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY && 'ring-2 ring-primary shadow-lg'
-                    )}
-                  >
-                    <Users className="h-4 w-4" />
-                    Mostrar Todas las Facturas
-                  </Button>
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
+                  className={cn(
+                    "h-full whitespace-normal text-left transition-shadow hover:shadow-lg",
+                    selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-lg' : 'hover:bg-background hover:text-foreground'
+                  )}
+                >
+                  <Users className="h-4 w-4" />
+                  Mostrar Todas las Facturas
+                </Button>
               </div>
               {repartidores.length === 0 && (
                  <p className="text-muted-foreground mt-2">No hay repartidores en el sistema. Agrega uno para asignar facturas.</p>
