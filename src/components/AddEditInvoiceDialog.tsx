@@ -116,8 +116,8 @@ export function AddEditInvoiceDialog({
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-grow pr-6 -mr-6"> {/* Added pr-6 and -mr-6 for scrollbar padding */}
-          <form onSubmit={handleSubmit} className="space-y-4 py-4">
+        <ScrollArea className="flex-grow"> {/* Removed pr-6 -mr-6 */}
+          <form onSubmit={handleSubmit} className="space-y-4 p-4"> {/* Changed py-4 to p-4 for consistent padding */}
             <div>
               <Label htmlFor="invoiceNumber">Número de Factura</Label>
               <Input
