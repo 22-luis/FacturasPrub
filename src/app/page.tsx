@@ -10,12 +10,12 @@ import { AddRepartidorDialog } from '@/components/AddRepartidorDialog';
 import { mockInvoices, mockUsers, generateInvoiceId, generateUserId } from '@/lib/types';
 import type { AssignedInvoice, User, InvoiceFormData } from '@/lib/types';
 import { Toaster } from "@/components/ui/toaster";
-import { UserSelector } from '@/components/UserSelector';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, LogOut } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const UNASSIGNED_KEY = "unassigned_invoices_key";
 
@@ -30,7 +30,9 @@ export default function HomePage() {
 
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [loggedInUser, setLoggedInUser] = useState<User | null>(null);
-  const [userToLoginId, setUserToLoginId] = useState<string>('');
+  
+  const [usernameInput, setUsernameInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
 
   const [invoices, setInvoices] = useState<AssignedInvoice[]>(mockInvoices);
   const { toast } = useToast();
@@ -44,22 +46,28 @@ export default function HomePage() {
   }, [loggedInUser]);
 
   const handleLogin = () => {
-    if (!userToLoginId) {
-      toast({ variant: "destructive", title: "Error", description: "Por favor, selecciona un usuario para iniciar sesión." });
+    if (!usernameInput.trim() || !passwordInput) {
+      toast({ variant: "destructive", title: "Error", description: "Por favor, ingresa tu nombre de usuario y contraseña." });
       return;
     }
-    const user = users.find(u => u.id === userToLoginId);
-    if (user) {
+    const user = users.find(u => u.name.toLowerCase() === usernameInput.trim().toLowerCase());
+    
+    if (user && passwordInput === '123') {
       setLoggedInUser(user);
       toast({ title: "Sesión Iniciada", description: `Bienvenido ${user.name}.` });
+      setUsernameInput(''); // Clear input after login
+      setPasswordInput(''); // Clear input after login
+    } else {
+      toast({ variant: "destructive", title: "Error de Inicio de Sesión", description: "Nombre de usuario o contraseña incorrectos." });
     }
   };
 
   const handleLogout = () => {
     toast({ title: "Sesión Cerrada", description: `Hasta luego ${loggedInUser?.name}.` });
     setLoggedInUser(null);
-    setUserToLoginId(''); // Reset login selection
     setSelectedRepartidorIdBySupervisor(null);
+    setUsernameInput(''); 
+    setPasswordInput('');
   };
   
   const handleProcessInvoiceClick = (invoiceId: string) => {
@@ -174,21 +182,40 @@ export default function HomePage() {
               <CardTitle className="text-2xl text-center font-semibold text-foreground">Iniciar Sesión</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div>
-                <Label htmlFor="login-user-selector" className="mb-2 block text-sm font-medium text-foreground">
-                  Selecciona tu usuario:
-                </Label>
-                <UserSelector 
-                  users={users} 
-                  currentUser={users.find(u => u.id === userToLoginId) || null} 
-                  onSelectUser={setUserToLoginId}
-                  className="w-full"
-                />
-              </div>
-              <Button onClick={handleLogin} className="w-full" size="lg">
-                <LogIn className="mr-2 h-5 w-5" />
-                Entrar
-              </Button>
+              <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-4">
+                <div>
+                  <Label htmlFor="username" className="mb-2 block text-sm font-medium text-foreground">
+                    Nombre de Usuario:
+                  </Label>
+                  <Input
+                    id="username"
+                    type="text"
+                    value={usernameInput}
+                    onChange={(e) => setUsernameInput(e.target.value)}
+                    placeholder="Ej: Ana Supervisora"
+                    required
+                    className="w-full"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="password" className="mb-2 block text-sm font-medium text-foreground">
+                    Contraseña:
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    placeholder="Contraseña"
+                    required
+                    className="w-full"
+                  />
+                </div>
+                <Button type="submit" className="w-full" size="lg">
+                  <LogIn className="mr-2 h-5 w-5" />
+                  Entrar
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </main>
