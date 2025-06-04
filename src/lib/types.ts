@@ -3,6 +3,8 @@ import type { ExtractInvoiceDataOutput } from '@/ai/flows/extract-invoice-data';
 
 export type UserRole = 'repartidor' | 'supervisor';
 
+export type InvoiceStatus = 'PENDIENTE' | 'ENTREGADA' | 'CANCELADA';
+
 export interface User {
   id: string;
   name: string;
@@ -12,15 +14,15 @@ export interface User {
 export interface AssignedInvoice {
   id: string;
   invoiceNumber: string;
-  date: string; // Keep as string for simplicity with text input, can be Date object if using date picker
+  date: string; 
   totalAmount: number;
   supplierName: string;
   uniqueCode: string;
-  address?: string; // New optional address field
-  assigneeId?: string; // ID of the User (repartidor) it is assigned to
+  address?: string; 
+  assigneeId?: string; 
+  status: InvoiceStatus; // New status field
 }
 
-// Represents the data structure for the invoice form
 export type InvoiceFormData = Omit<AssignedInvoice, 'id'>;
 
 
@@ -54,6 +56,7 @@ export const mockInvoices: AssignedInvoice[] = [
     uniqueCode: 'XYZ123',
     address: '123 Main St, Anytown, CA 90210',
     assigneeId: 'user-rep-1',
+    status: 'PENDIENTE',
   },
   {
     id: '2',
@@ -64,6 +67,7 @@ export const mockInvoices: AssignedInvoice[] = [
     uniqueCode: 'QWE456',
     address: '456 Oak Ave, Sometown, TX 75001',
     assigneeId: 'user-rep-2',
+    status: 'ENTREGADA',
   },
   {
     id: '3',
@@ -73,6 +77,7 @@ export const mockInvoices: AssignedInvoice[] = [
     supplierName: 'Supplier A',
     uniqueCode: 'SUPA123',
     address: '789 Pine Rd, Villagetown, FL 33101',
+    status: 'PENDIENTE',
   }, 
   {
     id: '4',
@@ -83,6 +88,7 @@ export const mockInvoices: AssignedInvoice[] = [
     uniqueCode: 'MKT789',
     address: '101 Business Dr, Corp City, NY 10001',
     assigneeId: 'user-rep-1',
+    status: 'CANCELADA',
   },
   {
     id: '5',
@@ -91,13 +97,12 @@ export const mockInvoices: AssignedInvoice[] = [
     totalAmount: 55.00,
     supplierName: 'Cafe Central',
     uniqueCode: 'CAFE001',
-    // No address for this one, to test optionality
-    assigneeId: undefined, // Explicitly unassigned
+    assigneeId: undefined, 
+    status: 'PENDIENTE',
   }
 ];
 
-// Helper to generate a somewhat unique ID for new invoices
 export const generateInvoiceId = () => `inv_${Date.now().toString()}_${Math.random().toString(36).substring(2, 7)}`;
 
-// Helper to generate a somewhat unique ID for new users
 export const generateUserId = () => `user_${Date.now().toString()}_${Math.random().toString(36).substring(2, 7)}`;
+

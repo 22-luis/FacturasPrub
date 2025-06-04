@@ -15,9 +15,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { AssignedInvoice, User, InvoiceFormData } from '@/lib/types';
+import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Textarea } from '@/components/ui/textarea'; // Using Textarea for potentially multi-line address
+import { Textarea } from '@/components/ui/textarea';
 
 interface AddEditInvoiceDialogProps {
   isOpen: boolean;
@@ -33,9 +33,12 @@ const initialFormState: InvoiceFormData = {
   totalAmount: 0,
   supplierName: '',
   uniqueCode: '',
-  address: '', // Initialize address
+  address: '',
   assigneeId: undefined,
+  status: 'PENDIENTE', // Default status
 };
+
+const invoiceStatuses: InvoiceStatus[] = ['PENDIENTE', 'ENTREGADA', 'CANCELADA'];
 
 export function AddEditInvoiceDialog({
   isOpen,
@@ -55,8 +58,9 @@ export function AddEditInvoiceDialog({
         totalAmount: invoiceToEdit.totalAmount,
         supplierName: invoiceToEdit.supplierName,
         uniqueCode: invoiceToEdit.uniqueCode,
-        address: invoiceToEdit.address || '', // Populate address
+        address: invoiceToEdit.address || '',
         assigneeId: invoiceToEdit.assigneeId || undefined,
+        status: invoiceToEdit.status || 'PENDIENTE',
       });
     } else {
       setFormData(initialFormState);
@@ -71,10 +75,12 @@ export function AddEditInvoiceDialog({
     }));
   };
 
-  const handleSelectChange = (value: string) => {
+  const handleSelectChange = (name: 'assigneeId' | 'status', value: string) => {
     setFormData((prev) => ({
       ...prev,
-      assigneeId: value === 'unassigned' ? undefined : value,
+      [name]: name === 'assigneeId' 
+        ? (value === 'unassigned' ? undefined : value)
+        : (value as InvoiceStatus),
     }));
   };
 
@@ -115,8 +121,8 @@ export function AddEditInvoiceDialog({
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
-        <div className="flex-grow overflow-y-auto p-4">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="flex-grow overflow-y-auto p-1 pr-3">
+          <form onSubmit={handleSubmit} className="space-y-4 p-3">
             <div>
               <Label htmlFor="invoiceNumber">Número de Factura</Label>
               <Input
@@ -172,7 +178,7 @@ export function AddEditInvoiceDialog({
             </div>
             <div>
               <Label htmlFor="address">Dirección</Label>
-              <Textarea // Using Textarea for address
+              <Textarea
                 id="address"
                 name="address"
                 value={formData.address || ''}
@@ -182,11 +188,30 @@ export function AddEditInvoiceDialog({
               />
             </div>
             <div>
+              <Label htmlFor="status">Estado de la Factura</Label>
+              <Select
+                name="status"
+                value={formData.status}
+                onValueChange={(value) => handleSelectChange('status', value)}
+              >
+                <SelectTrigger id="status">
+                  <SelectValue placeholder="Seleccionar estado..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {invoiceStatuses.map(status => (
+                    <SelectItem key={status} value={status}>
+                      {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label htmlFor="assigneeId">Asignar a Repartidor</Label>
               <Select
                 name="assigneeId"
                 value={formData.assigneeId || 'unassigned'}
-                onValueChange={handleSelectChange}
+                onValueChange={(value) => handleSelectChange('assigneeId', value)}
               >
                 <SelectTrigger id="assigneeId">
                   <SelectValue placeholder="Seleccionar repartidor..." />

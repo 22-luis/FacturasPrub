@@ -1,15 +1,28 @@
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, Hash, Building, BadgeDollarSign, Fingerprint, PlayCircle, UserCircle, Edit3, MapPin } from 'lucide-react';
-import type { AssignedInvoice, UserRole } from '@/lib/types';
+import { Badge } from '@/components/ui/badge';
+import { CalendarDays, Hash, Building, BadgeDollarSign, Fingerprint, PlayCircle, UserCircle, Edit3, MapPin, AlertCircle, CheckCircle, Ban } from 'lucide-react';
+import type { AssignedInvoice, UserRole, InvoiceStatus } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 interface InvoiceCardProps {
   invoice: AssignedInvoice;
-  onAction: (invoiceId: string) => void; // Generic action handler
+  onAction: (invoiceId: string) => void; 
   currentUserRole?: UserRole;
   assigneeName?: string;
 }
+
+const statusStyles: Record<InvoiceStatus, {
+  Icon: React.ElementType;
+  badgeClass: string;
+  text: string;
+}> = {
+  PENDIENTE: { Icon: AlertCircle, badgeClass: 'bg-yellow-500 hover:bg-yellow-500/90 text-black', text: 'Pendiente' },
+  ENTREGADA: { Icon: CheckCircle, badgeClass: 'bg-green-500 hover:bg-green-500/90 text-white', text: 'Entregada' },
+  CANCELADA: { Icon: Ban, badgeClass: 'bg-red-600 hover:bg-red-600/90 text-white', text: 'Cancelada' },
+};
+
 
 export function InvoiceCard({ invoice, onAction, currentUserRole, assigneeName }: InvoiceCardProps) {
   const isSupervisor = currentUserRole === 'supervisor';
@@ -22,20 +35,27 @@ export function InvoiceCard({ invoice, onAction, currentUserRole, assigneeName }
     buttonText = 'Editar / Asignar';
     ButtonIcon = Edit3; 
     buttonVariant = "secondary";
-  } else { // Repartidor
+  } else { 
     buttonText = 'Procesar Factura';
     ButtonIcon = PlayCircle;
     buttonVariant = "default";
   }
 
+  const currentStatusStyle = statusStyles[invoice.status] || statusStyles.PENDIENTE;
 
   return (
     <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
       <CardHeader>
-        <CardTitle className="flex items-center justify-between text-xl">
-          <span>{invoice.supplierName}</span>
-          <Fingerprint className="h-5 w-5 text-primary" />
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xl flex items-center">
+            <span className="mr-2">{invoice.supplierName}</span>
+            <Fingerprint className="h-5 w-5 text-primary" />
+          </CardTitle>
+          <Badge className={cn("text-xs", currentStatusStyle.badgeClass)}>
+            <currentStatusStyle.Icon className="h-3.5 w-3.5 mr-1.5" />
+            {currentStatusStyle.text}
+          </Badge>
+        </div>
         <CardDescription>Código Único: {invoice.uniqueCode}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 text-sm flex-grow">

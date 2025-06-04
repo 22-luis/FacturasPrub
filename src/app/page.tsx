@@ -8,7 +8,7 @@ import { ProcessInvoiceDialog } from '@/components/ProcessInvoiceDialog';
 import { AddEditInvoiceDialog } from '@/components/AddEditInvoiceDialog';
 import { AddRepartidorDialog } from '@/components/AddRepartidorDialog';
 import { mockInvoices, mockUsers, generateInvoiceId, generateUserId } from '@/lib/types';
-import type { AssignedInvoice, User, InvoiceFormData } from '@/lib/types';
+import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus } from '@/lib/types';
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,7 +41,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!loggedInUser) {
-      setSelectedRepartidorIdBySupervisor(null); // Reset supervisor's selection on logout
+      setSelectedRepartidorIdBySupervisor(null); 
     }
   }, [loggedInUser]);
 
@@ -55,8 +55,8 @@ export default function HomePage() {
     if (user && passwordInput === '123') {
       setLoggedInUser(user);
       toast({ title: "Sesión Iniciada", description: `Bienvenido ${user.name}.` });
-      setUsernameInput(''); // Clear input after login
-      setPasswordInput(''); // Clear input after login
+      setUsernameInput(''); 
+      setPasswordInput(''); 
     } else {
       toast({ variant: "destructive", title: "Error de Inicio de Sesión", description: "Nombre de usuario o contraseña incorrectos." });
     }
@@ -103,11 +103,20 @@ export default function HomePage() {
       const newInvoice: AssignedInvoice = {
         ...invoiceData,
         id: generateInvoiceId(),
+        // status is already part of invoiceData from initialFormState
       };
       setInvoices(prevInvoices => [newInvoice, ...prevInvoices]);
       toast({ title: "Factura Agregada", description: `La nueva factura #${newInvoice.invoiceNumber} ha sido agregada.` });
     }
     setIsAddEditDialogOpen(false); 
+  };
+
+  const handleUpdateInvoiceStatus = (invoiceId: string, newStatus: InvoiceStatus) => {
+    setInvoices(prevInvoices =>
+      prevInvoices.map(inv =>
+        inv.id === invoiceId ? { ...inv, status: newStatus } : inv
+      )
+    );
   };
 
   const handleAddRepartidorClick = () => {
@@ -346,6 +355,7 @@ export default function HomePage() {
         isOpen={isProcessDialogOpen}
         onOpenChange={setIsProcessDialogOpen}
         invoice={processingInvoice}
+        onUpdateStatus={handleUpdateInvoiceStatus}
       />
       <AddEditInvoiceDialog
         isOpen={isAddEditDialogOpen}
