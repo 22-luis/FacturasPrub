@@ -322,10 +322,8 @@ export default function HomePage() {
                     size="sm"
                     onClick={() => setSelectedStatusBySupervisor(null)}
                     className={cn(
-                        "h-full whitespace-normal text-left",
-                        !selectedStatusBySupervisor
-                            ? 'bg-primary text-primary-foreground shadow-lg hover:bg-primary/90' 
-                            : 'hover:bg-primary hover:text-primary-foreground'
+                        "h-full whitespace-normal text-left transition-shadow hover:shadow-lg",
+                        !selectedStatusBySupervisor && 'ring-2 ring-primary shadow-lg'
                     )}
                   >
                     <ListFilter className="h-4 w-4" />
@@ -376,10 +374,8 @@ export default function HomePage() {
                     size="sm"
                     onClick={() => setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
                     className={cn(
-                        "h-full whitespace-normal text-left",
-                        selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY 
-                            ? 'bg-primary text-primary-foreground shadow-lg hover:bg-primary/90'
-                            : 'hover:bg-primary hover:text-primary-foreground'
+                        "h-full whitespace-normal text-left transition-shadow hover:shadow-lg",
+                        selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY && 'ring-2 ring-primary shadow-lg'
                     )}
                   >
                     <Users className="h-4 w-4" />
