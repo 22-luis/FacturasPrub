@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
+// ScrollArea import removed
 import type { AssignedInvoice, User, InvoiceFormData } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
@@ -48,7 +48,6 @@ export function AddEditInvoiceDialog({
 
   useEffect(() => {
     if (invoiceToEdit) {
-      // When editing, pre-fill form with invoice data
       setFormData({
         invoiceNumber: invoiceToEdit.invoiceNumber,
         date: invoiceToEdit.date,
@@ -58,10 +57,9 @@ export function AddEditInvoiceDialog({
         assigneeId: invoiceToEdit.assigneeId || undefined,
       });
     } else {
-      // When adding, reset to initial (empty) state
       setFormData(initialFormState);
     }
-  }, [invoiceToEdit, isOpen]); // Re-run effect if invoiceToEdit or isOpen changes
+  }, [invoiceToEdit, isOpen]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
@@ -80,7 +78,6 @@ export function AddEditInvoiceDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Basic validation
     if (!formData.invoiceNumber || !formData.date || !formData.supplierName || !formData.uniqueCode) {
       toast({
         variant: "destructive",
@@ -99,7 +96,7 @@ export function AddEditInvoiceDialog({
     }
 
     onSave(formData, invoiceToEdit?.id);
-    onOpenChange(false); // Close dialog on save
+    onOpenChange(false);
   };
 
   const repartidores = users.filter(user => user.role === 'repartidor');
@@ -116,8 +113,9 @@ export function AddEditInvoiceDialog({
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-grow"> {/* Removed pr-6 -mr-6 */}
-          <form onSubmit={handleSubmit} className="space-y-4 p-4"> {/* Changed py-4 to p-4 for consistent padding */}
+        {/* Replaced ScrollArea with a div for scrolling */}
+        <div className="flex-grow overflow-y-auto p-4">
+          <form onSubmit={handleSubmit} className="space-y-4"> {/* Removed p-4 from form, added to wrapper div */}
             <div>
               <Label htmlFor="invoiceNumber">Número de Factura</Label>
               <Input
@@ -133,7 +131,7 @@ export function AddEditInvoiceDialog({
               <Input
                 id="date"
                 name="date"
-                type="date" // Use date type for better UX if browser supports
+                type="date"
                 value={formData.date}
                 onChange={handleChange}
                 required
@@ -192,7 +190,7 @@ export function AddEditInvoiceDialog({
               </Select>
             </div>
           </form>
-        </ScrollArea>
+        </div>
         <DialogFooter className="mt-auto pt-4 border-t">
            <DialogClose asChild>
             <Button type="button" variant="outline">Cancelar</Button>
