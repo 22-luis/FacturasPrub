@@ -15,9 +15,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-// ScrollArea import removed
 import type { AssignedInvoice, User, InvoiceFormData } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { Textarea } from '@/components/ui/textarea'; // Using Textarea for potentially multi-line address
 
 interface AddEditInvoiceDialogProps {
   isOpen: boolean;
@@ -33,6 +33,7 @@ const initialFormState: InvoiceFormData = {
   totalAmount: 0,
   supplierName: '',
   uniqueCode: '',
+  address: '', // Initialize address
   assigneeId: undefined,
 };
 
@@ -54,6 +55,7 @@ export function AddEditInvoiceDialog({
         totalAmount: invoiceToEdit.totalAmount,
         supplierName: invoiceToEdit.supplierName,
         uniqueCode: invoiceToEdit.uniqueCode,
+        address: invoiceToEdit.address || '', // Populate address
         assigneeId: invoiceToEdit.assigneeId || undefined,
       });
     } else {
@@ -61,7 +63,7 @@ export function AddEditInvoiceDialog({
     }
   }, [invoiceToEdit, isOpen]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -113,9 +115,8 @@ export function AddEditInvoiceDialog({
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
-        {/* Replaced ScrollArea with a div for scrolling */}
         <div className="flex-grow overflow-y-auto p-4">
-          <form onSubmit={handleSubmit} className="space-y-4"> {/* Removed p-4 from form, added to wrapper div */}
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="invoiceNumber">Número de Factura</Label>
               <Input
@@ -144,7 +145,7 @@ export function AddEditInvoiceDialog({
                 name="totalAmount"
                 type="text"
                 inputMode="decimal"
-                value={formData.totalAmount} // React handles converting number to string for display
+                value={formData.totalAmount}
                 onChange={handleChange}
                 required
               />
@@ -167,6 +168,17 @@ export function AddEditInvoiceDialog({
                 value={formData.uniqueCode}
                 onChange={handleChange}
                 required
+              />
+            </div>
+            <div>
+              <Label htmlFor="address">Dirección</Label>
+              <Textarea // Using Textarea for address
+                id="address"
+                name="address"
+                value={formData.address || ''}
+                onChange={handleChange}
+                placeholder="Ej: Calle Falsa 123, Ciudad"
+                rows={3}
               />
             </div>
             <div>

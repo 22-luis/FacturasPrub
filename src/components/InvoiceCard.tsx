@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, Hash, Building, BadgeDollarSign, Fingerprint, PlayCircle, UserCircle, Eye, Edit3 } from 'lucide-react';
+import { CalendarDays, Hash, Building, BadgeDollarSign, Fingerprint, PlayCircle, UserCircle, Edit3, MapPin } from 'lucide-react';
 import type { AssignedInvoice, UserRole } from '@/lib/types';
 
 interface InvoiceCardProps {
@@ -15,12 +15,12 @@ export function InvoiceCard({ invoice, onAction, currentUserRole, assigneeName }
   const isSupervisor = currentUserRole === 'supervisor';
   
   let buttonText = 'Acción';
-  let ButtonIcon = PlayCircle; // Default for repartidor
+  let ButtonIcon = PlayCircle; 
   let buttonVariant: "default" | "secondary" = "default";
 
   if (isSupervisor) {
     buttonText = 'Editar / Asignar';
-    ButtonIcon = Edit3; // Changed from Eye to Edit3 for supervisor
+    ButtonIcon = Edit3; 
     buttonVariant = "secondary";
   } else { // Repartidor
     buttonText = 'Procesar Factura';
@@ -59,6 +59,15 @@ export function InvoiceCard({ invoice, onAction, currentUserRole, assigneeName }
            <span className="text-muted-foreground mr-1">Proveedor:</span>
           <span className="font-medium text-foreground">{invoice.supplierName}</span>
         </div>
+        {invoice.address && (
+          <div className="flex items-start">
+            <MapPin className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
+            <div>
+              <span className="text-muted-foreground mr-1">Dirección:</span>
+              <span className="font-medium text-foreground">{invoice.address}</span>
+            </div>
+          </div>
+        )}
         {isSupervisor && (
           <div className="flex items-center pt-1">
             <UserCircle className="h-4 w-4 mr-2 text-muted-foreground" />

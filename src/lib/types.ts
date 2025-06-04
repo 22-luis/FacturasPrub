@@ -16,6 +16,7 @@ export interface AssignedInvoice {
   totalAmount: number;
   supplierName: string;
   uniqueCode: string;
+  address?: string; // New optional address field
   assigneeId?: string; // ID of the User (repartidor) it is assigned to
 }
 
@@ -51,6 +52,7 @@ export const mockInvoices: AssignedInvoice[] = [
     totalAmount: 150.75,
     supplierName: 'Office Supplies Inc.',
     uniqueCode: 'XYZ123',
+    address: '123 Main St, Anytown, CA 90210',
     assigneeId: 'user-rep-1',
   },
   {
@@ -60,6 +62,7 @@ export const mockInvoices: AssignedInvoice[] = [
     totalAmount: 89.99,
     supplierName: 'Tech Solutions Ltd.',
     uniqueCode: 'QWE456',
+    address: '456 Oak Ave, Sometown, TX 75001',
     assigneeId: 'user-rep-2',
   },
   {
@@ -69,6 +72,7 @@ export const mockInvoices: AssignedInvoice[] = [
     totalAmount: 120.50,
     supplierName: 'Supplier A',
     uniqueCode: 'SUPA123',
+    address: '789 Pine Rd, Villagetown, FL 33101',
   }, 
   {
     id: '4',
@@ -77,6 +81,7 @@ export const mockInvoices: AssignedInvoice[] = [
     totalAmount: 250.00,
     supplierName: 'Marketing Co.',
     uniqueCode: 'MKT789',
+    address: '101 Business Dr, Corp City, NY 10001',
     assigneeId: 'user-rep-1',
   },
   {
@@ -86,9 +91,11 @@ export const mockInvoices: AssignedInvoice[] = [
     totalAmount: 55.00,
     supplierName: 'Cafe Central',
     uniqueCode: 'CAFE001',
+    // No address for this one, to test optionality
     assigneeId: undefined, // Explicitly unassigned
   }
 ];
 
 // Helper to generate a somewhat unique ID for new invoices
 export const generateInvoiceId = () => `inv_${Date.now().toString()}_${Math.random().toString(36).substring(2, 7)}`;
+
