@@ -199,7 +199,8 @@ export default function HomePage() {
   const getInvoicesTitleForSupervisor = () => {
     let statusPart = "Todas las Facturas";
     if (selectedStatusBySupervisor) {
-      statusPart = `Facturas ${selectedStatusBySupervisor.toLowerCase()}`;
+      const statusDetail = statusCardDetails[selectedStatusBySupervisor];
+      statusPart = statusDetail ? statusDetail.label : `Facturas ${selectedStatusBySupervisor.toLowerCase()}`;
     }
 
     let repartidorPart = "(Todos los Repartidores y Sin Asignar)";
@@ -322,7 +323,9 @@ export default function HomePage() {
                     onClick={() => setSelectedStatusBySupervisor(null)}
                     className={cn(
                         "h-full whitespace-normal text-left",
-                        !selectedStatusBySupervisor ? 'ring-2 ring-primary shadow-lg' : ''
+                        !selectedStatusBySupervisor
+                            ? 'bg-primary text-primary-foreground shadow-lg hover:bg-primary/90' 
+                            : 'hover:bg-primary hover:text-primary-foreground'
                     )}
                   >
                     <ListFilter className="h-4 w-4" />
@@ -369,12 +372,14 @@ export default function HomePage() {
                   </CardContent>
                 </Card>
                 <Button 
-                    variant="default"
+                    variant="outline"
                     size="sm"
                     onClick={() => setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
                     className={cn(
                         "h-full whitespace-normal text-left",
-                        selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'shadow-lg' : '' // ring-2 ring-primary removed as it's not visible on primary bg
+                        selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY 
+                            ? 'bg-primary text-primary-foreground shadow-lg hover:bg-primary/90'
+                            : 'hover:bg-primary hover:text-primary-foreground'
                     )}
                   >
                     <Users className="h-4 w-4" />
