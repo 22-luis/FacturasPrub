@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
-import { CancellationReasonDialog } from './CancellationReasonDialog'; // Import new dialog
+import { CancellationReasonDialog } from './CancellationReasonDialog';
 
 interface AddEditInvoiceDialogProps {
   isOpen: boolean;
@@ -90,11 +90,16 @@ export function AddEditInvoiceDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.invoiceNumber || !formData.date || !formData.supplierName || !formData.uniqueCode) {
+    if (!formData.invoiceNumber.trim() || 
+        !formData.date.trim() || 
+        !formData.supplierName.trim() || 
+        !formData.uniqueCode.trim() ||
+        !formData.address?.trim() // Added address validation
+       ) {
       toast({
         variant: "destructive",
         title: "Error de Validación",
-        description: "Por favor, completa todos los campos obligatorios: Número de Factura, Fecha, Proveedor y Código Único.",
+        description: "Por favor, completa todos los campos obligatorios: Número de Factura, Fecha, Proveedor, Código Único y Dirección.",
       });
       return;
     }
@@ -107,12 +112,9 @@ export function AddEditInvoiceDialog({
       return;
     }
 
-    // Check if status is changing to CANCELADA
     if (formData.status === 'CANCELADA' && (!invoiceToEdit || invoiceToEdit.status !== 'CANCELADA')) {
       setIsCancellationReasonSubDialogOpen(true);
-      // Don't save yet, wait for reason dialog
     } else {
-      // If not changing to CANCELADA, or already CANCELADA, save directly
       onSave({ ...formData, cancellationReason: formData.status === 'CANCELADA' ? formData.cancellationReason : undefined }, invoiceToEdit?.id);
       onOpenChange(false);
     }
@@ -122,7 +124,7 @@ export function AddEditInvoiceDialog({
     const finalFormData = { ...formData, status: 'CANCELADA' as InvoiceStatus, cancellationReason: reason };
     onSave(finalFormData, invoiceToEdit?.id);
     setIsCancellationReasonSubDialogOpen(false);
-    onOpenChange(false); // Close the main AddEdit dialog
+    onOpenChange(false);
   };
 
 
@@ -205,6 +207,7 @@ export function AddEditInvoiceDialog({
                   onChange={handleChange}
                   placeholder="Ej: Calle Falsa 123, Ciudad"
                   rows={3}
+                  required 
                 />
               </div>
               <div>
@@ -262,19 +265,11 @@ export function AddEditInvoiceDialog({
         </DialogContent>
       </Dialog>
 
-      {invoiceToEdit && (
+      { (invoiceToEdit || formData.status === 'CANCELADA') && ( // Ensure dialog opens for new invoice being cancelled too
         <CancellationReasonDialog
           isOpen={isCancellationReasonSubDialogOpen}
           onOpenChange={setIsCancellationReasonSubDialogOpen}
-          invoiceIdentifier={formData.invoiceNumber || invoiceToEdit.invoiceNumber}
-          onConfirm={handleConfirmCancellationWithReason}
-        />
-      )}
-       {!invoiceToEdit && ( // For new invoices
-        <CancellationReasonDialog
-          isOpen={isCancellationReasonSubDialogOpen}
-          onOpenChange={setIsCancellationReasonSubDialogOpen}
-          invoiceIdentifier={formData.invoiceNumber || "Nueva Factura"}
+          invoiceIdentifier={formData.invoiceNumber || invoiceToEdit?.invoiceNumber || "Nueva Factura"}
           onConfirm={handleConfirmCancellationWithReason}
         />
       )}
