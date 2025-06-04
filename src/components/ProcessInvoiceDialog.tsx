@@ -23,12 +23,13 @@ import { FileUpload } from './FileUpload';
 import { InvoiceDetailsView } from './InvoiceDetailsView';
 import { VerificationResultView } from './VerificationResultView';
 import { LoadingIndicator } from './LoadingIndicator';
+import { CancellationReasonDialog } from './CancellationReasonDialog'; // Import new dialog
 
 interface ProcessInvoiceDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   invoice: AssignedInvoice | null;
-  onUpdateStatus: (invoiceId: string, newStatus: InvoiceStatus) => void;
+  onUpdateStatus: (invoiceId: string, newStatus: InvoiceStatus, cancellationReason?: string) => void;
 }
 
 export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateStatus }: ProcessInvoiceDialogProps) {
@@ -39,8 +40,11 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const [isCancellationReasonSubDialogOpen, setIsCancellationReasonSubDialogOpen] = useState(false);
+
 
   useEffect(() => {
+    // Reset states when dialog opens/closes or invoice changes
     if (!isOpen || !invoice) {
       setUploadedFile(null);
       setImageDataUri(null);
@@ -48,6 +52,7 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
       setVerificationResult(null);
       setIsLoading(false);
       setError(null);
+      setIsCancellationReasonSubDialogOpen(false);
     }
   }, [isOpen, invoice]);
 
@@ -110,106 +115,130 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
   };
 
   const handleChangeStatus = (newStatus: InvoiceStatus) => {
-    if (invoice) {
+    if (!invoice) return;
+
+    if (newStatus === 'CANCELADA') {
+      setIsCancellationReasonSubDialogOpen(true); // Open reason dialog
+    } else {
       onUpdateStatus(invoice.id, newStatus);
-      toast({
-        title: 'Estado Actualizado',
-        description: `La factura #${invoice.invoiceNumber} ha sido actualizada a ${newStatus.toLowerCase()}.`,
-      });
-      onOpenChange(false); // Close dialog after status change
+      onOpenChange(false); // Close dialog after status change for non-cancelled
+    }
+  };
+
+  const handleConfirmCancellationWithReason = (reason?: string) => {
+    if (invoice) {
+      onUpdateStatus(invoice.id, 'CANCELADA', reason);
+      setIsCancellationReasonSubDialogOpen(false);
+      onOpenChange(false); // Close the main ProcessInvoiceDialog
     }
   };
   
   if (!invoice) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="text-xl flex items-center gap-2">
-             <ScanLine className="h-6 w-6 text-primary" />
-            Procesar Factura: {invoice.invoiceNumber} (Estado: {invoice.status})
-          </DialogTitle>
-        </DialogHeader>
-        
-        <div className="flex-grow overflow-y-auto space-y-6 p-1 pr-3">
-          <InvoiceDetailsView title="Detalles de Factura Asignada" data={invoice} variant="assigned" />
+    <>
+      <Dialog open={isOpen && !isCancellationReasonSubDialogOpen} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <ScanLine className="h-6 w-6 text-primary" />
+              Procesar Factura: {invoice.invoiceNumber} (Estado: {invoice.status})
+            </DialogTitle>
+          </DialogHeader>
           
-          <Separator />
+          <div className="flex-grow overflow-y-auto space-y-6 p-1 pr-3">
+            <InvoiceDetailsView title="Detalles de Factura Asignada" data={invoice} variant="assigned" />
+            
+            <Separator />
 
-          <div>
-            <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                <BadgeCheck className="h-5 w-5 text-primary"/>
-                Cambiar Estado de la Factura
-            </h3>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {invoice.status === 'PENDIENTE' && (
-                <>
-                  <Button onClick={() => handleChangeStatus('ENTREGADA')} variant="default" className="bg-green-600 hover:bg-green-700 text-white">
-                    <CheckCircle className="mr-2 h-4 w-4" /> Marcar como ENTREGADA
+            <div>
+              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                  <BadgeCheck className="h-5 w-5 text-primary"/>
+                  Cambiar Estado de la Factura
+              </h3>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {invoice.status === 'PENDIENTE' && (
+                  <>
+                    <Button onClick={() => handleChangeStatus('ENTREGADA')} variant="default" className="bg-green-600 hover:bg-green-700 text-white">
+                      <CheckCircle className="mr-2 h-4 w-4" /> Marcar como ENTREGADA
+                    </Button>
+                    <Button onClick={() => handleChangeStatus('CANCELADA')} variant="destructive">
+                      <XCircle className="mr-2 h-4 w-4" /> Marcar como CANCELADA
+                    </Button>
+                  </>
+                )}
+                {(invoice.status === 'ENTREGADA' || invoice.status === 'CANCELADA') && (
+                  <Button onClick={() => handleChangeStatus('PENDIENTE')} variant="outline">
+                    <RotateCcw className="mr-2 h-4 w-4" /> Revertir a PENDIENTE
                   </Button>
-                  <Button onClick={() => handleChangeStatus('CANCELADA')} variant="destructive">
-                    <XCircle className="mr-2 h-4 w-4" /> Marcar como CANCELADA
-                  </Button>
-                </>
+                )}
+              </div>
+              {invoice.status === 'CANCELADA' && invoice.cancellationReason && (
+                 <div className="mt-3 text-sm text-muted-foreground p-2 border rounded-md bg-secondary/30">
+                  <p><span className="font-medium">Motivo de cancelación:</span> {invoice.cancellationReason}</p>
+                </div>
               )}
-              {(invoice.status === 'ENTREGADA' || invoice.status === 'CANCELADA') && (
-                <Button onClick={() => handleChangeStatus('PENDIENTE')} variant="outline">
-                  <RotateCcw className="mr-2 h-4 w-4" /> Revertir a PENDIENTE
+            </div>
+
+            <Separator />
+            
+            <div>
+              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                  <ScanLine className="h-5 w-5 text-primary"/>
+                  Capturar y Extraer Datos (Opcional)
+              </h3>
+              <FileUpload onFileSelect={handleFileSelect} disabled={isLoading} />
+              {imageDataUri && (
+                <Button onClick={handleExtractData} disabled={isLoading || !imageDataUri} className="mt-4 w-full sm:w-auto">
+                  {isLoading && extractedData === null ? <LoadingIndicator text="Extrayendo..." /> : 'Extraer y Verificar Datos'}
                 </Button>
               )}
             </div>
-          </div>
 
-          <Separator />
-          
-          <div>
-            <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                <ScanLine className="h-5 w-5 text-primary"/>
-                Capturar y Extraer Datos (Opcional)
-            </h3>
-            <FileUpload onFileSelect={handleFileSelect} disabled={isLoading} />
-            {imageDataUri && (
-              <Button onClick={handleExtractData} disabled={isLoading || !imageDataUri} className="mt-4 w-full sm:w-auto">
-                {isLoading && extractedData === null ? <LoadingIndicator text="Extrayendo..." /> : 'Extraer y Verificar Datos'}
-              </Button>
+            {isLoading && !extractedData && <LoadingIndicator text="Extrayendo y verificando datos..." />}
+            
+            {error && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Error de Extracción</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
-          </div>
 
-          {isLoading && !extractedData && <LoadingIndicator text="Extrayendo y verificando datos..." />}
-          
-          {error && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle>Error de Extracción</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {(extractedData || verificationResult) && !isLoading && !error && (
-            <>
-              <Separator />
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Resultados de Verificación</h3>
-                 {extractedData && <InvoiceDetailsView title="Datos Extraídos de Factura" data={extractedData} variant="extracted" />}
-                <div className="mt-4">
-                  <VerificationResultView result={verificationResult} />
+            {(extractedData || verificationResult) && !isLoading && !error && (
+              <>
+                <Separator />
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Resultados de Verificación</h3>
+                  {extractedData && <InvoiceDetailsView title="Datos Extraídos de Factura" data={extractedData} variant="extracted" />}
+                  <div className="mt-4">
+                    <VerificationResultView result={verificationResult} />
+                  </div>
                 </div>
-              </div>
-            </>
-          )}
-           {!isLoading && !error && !extractedData && !verificationResult && !imageDataUri && (
-             <VerificationResultView result={null} />
-           )}
+              </>
+            )}
+            {!isLoading && !error && !extractedData && !verificationResult && !imageDataUri && (
+              <VerificationResultView result={null} />
+            )}
 
 
-        </div>
-        <DialogFooter className="mt-auto pt-4 border-t">
-          <DialogClose asChild>
-            <Button variant="outline">Cerrar</Button>
-          </DialogClose>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </div>
+          <DialogFooter className="mt-auto pt-4 border-t">
+            <DialogClose asChild>
+              <Button variant="outline">Cerrar</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {invoice && (
+        <CancellationReasonDialog
+          isOpen={isCancellationReasonSubDialogOpen}
+          onOpenChange={setIsCancellationReasonSubDialogOpen}
+          invoiceIdentifier={invoice.invoiceNumber}
+          onConfirm={handleConfirmCancellationWithReason}
+        />
+      )}
+    </>
   );
 }

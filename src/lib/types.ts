@@ -20,7 +20,8 @@ export interface AssignedInvoice {
   uniqueCode: string;
   address?: string; 
   assigneeId?: string; 
-  status: InvoiceStatus; // New status field
+  status: InvoiceStatus;
+  cancellationReason?: string; // New field for cancellation reason
 }
 
 export type InvoiceFormData = Omit<AssignedInvoice, 'id'>;
@@ -89,6 +90,7 @@ export const mockInvoices: AssignedInvoice[] = [
     address: '101 Business Dr, Corp City, NY 10001',
     assigneeId: 'user-rep-1',
     status: 'CANCELADA',
+    cancellationReason: 'Cliente solicitó cancelar el pedido.',
   },
   {
     id: '5',
@@ -105,4 +107,3 @@ export const mockInvoices: AssignedInvoice[] = [
 export const generateInvoiceId = () => `inv_${Date.now().toString()}_${Math.random().toString(36).substring(2, 7)}`;
 
 export const generateUserId = () => `user_${Date.now().toString()}_${Math.random().toString(36).substring(2, 7)}`;
-

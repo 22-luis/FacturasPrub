@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, LogOut } from 'lucide-react';
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn } from 'lucide-react'; // Removed LogOut as it's in AppHeader
 import { useToast } from '@/hooks/use-toast';
 
 const UNASSIGNED_KEY = "unassigned_invoices_key";
@@ -52,7 +52,7 @@ export default function HomePage() {
     }
     const user = users.find(u => u.name.toLowerCase() === usernameInput.trim().toLowerCase());
     
-    if (user && passwordInput === '123') {
+    if (user && passwordInput === '123') { // Using '123' as a generic password for all
       setLoggedInUser(user);
       toast({ title: "Sesión Iniciada", description: `Bienvenido ${user.name}.` });
       setUsernameInput(''); 
@@ -103,7 +103,6 @@ export default function HomePage() {
       const newInvoice: AssignedInvoice = {
         ...invoiceData,
         id: generateInvoiceId(),
-        // status is already part of invoiceData from initialFormState
       };
       setInvoices(prevInvoices => [newInvoice, ...prevInvoices]);
       toast({ title: "Factura Agregada", description: `La nueva factura #${newInvoice.invoiceNumber} ha sido agregada.` });
@@ -111,12 +110,22 @@ export default function HomePage() {
     setIsAddEditDialogOpen(false); 
   };
 
-  const handleUpdateInvoiceStatus = (invoiceId: string, newStatus: InvoiceStatus) => {
+  const handleUpdateInvoiceStatus = (invoiceId: string, newStatus: InvoiceStatus, cancellationReason?: string) => {
     setInvoices(prevInvoices =>
       prevInvoices.map(inv =>
-        inv.id === invoiceId ? { ...inv, status: newStatus } : inv
+        inv.id === invoiceId 
+          ? { 
+              ...inv, 
+              status: newStatus, 
+              cancellationReason: newStatus === 'CANCELADA' ? cancellationReason : inv.cancellationReason 
+            } 
+          : inv
       )
     );
+     toast({
+      title: 'Estado Actualizado',
+      description: `La factura ha sido actualizada a ${newStatus.toLowerCase()}.`,
+    });
   };
 
   const handleAddRepartidorClick = () => {
@@ -193,11 +202,11 @@ export default function HomePage() {
             <CardContent className="space-y-6">
               <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-4">
                 <div>
-                  <Label htmlFor="username" className="mb-2 block text-sm font-medium text-foreground">
+                  <Label htmlFor="username-login" className="mb-2 block text-sm font-medium text-foreground">
                     Nombre de Usuario:
                   </Label>
                   <Input
-                    id="username"
+                    id="username-login"
                     type="text"
                     value={usernameInput}
                     onChange={(e) => setUsernameInput(e.target.value)}
@@ -207,15 +216,15 @@ export default function HomePage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="password" className="mb-2 block text-sm font-medium text-foreground">
+                  <Label htmlFor="password-login" className="mb-2 block text-sm font-medium text-foreground">
                     Contraseña:
                   </Label>
                   <Input
-                    id="password"
+                    id="password-login"
                     type="password"
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
-                    placeholder="Contraseña"
+                    placeholder="Contraseña (ej: 123)"
                     required
                     className="w-full"
                   />
