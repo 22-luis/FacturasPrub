@@ -369,12 +369,12 @@ export default function HomePage() {
                   </CardContent>
                 </Card>
                 <Button 
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     onClick={() => setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
                     className={cn(
                         "h-full whitespace-normal text-left",
-                        selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-lg' : ''
+                        selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'shadow-lg' : '' // ring-2 ring-primary removed as it's not visible on primary bg
                     )}
                   >
                     <Users className="h-4 w-4" />
