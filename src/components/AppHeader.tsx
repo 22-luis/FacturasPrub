@@ -18,9 +18,9 @@ export function AppHeader({ loggedInUser, onLogout }: AppHeaderProps) {
         </div>
         {loggedInUser && (
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-muted-foreground">
               <UserCircle className="h-5 w-5 text-primary" />
-              <span>{loggedInUser.name} ({loggedInUser.role})</span>
+              <span className="text-xs sm:text-sm">{loggedInUser.name} ({loggedInUser.role})</span>
             </div>
             <Button variant="outline" size="sm" onClick={onLogout}>
               <LogOut className="mr-2 h-4 w-4" />

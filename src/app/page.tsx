@@ -314,7 +314,7 @@ export default function HomePage() {
           <section className="space-y-8">
             <div>
               <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
-                <h2 className="text-2xl font-semibold text-foreground">Panel de Supervisor</h2>
+                <h2 className="text-xl sm:text-2xl font-semibold text-foreground">Panel de Supervisor</h2>
                 <div className="flex gap-2 flex-wrap">
                   <Button onClick={handleAddInvoiceClick}>
                     <PlusCircle className="mr-2 h-4 w-4" />
@@ -341,7 +341,7 @@ export default function HomePage() {
             </div>
 
             <div>
-              <h3 className="text-xl font-semibold text-foreground mb-4">Filtrar por Estado:</h3>
+              <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-4">Filtrar por Estado:</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 {invoiceStatusesArray.map(status => {
                   const details = statusCardDetails[status];
@@ -381,7 +381,7 @@ export default function HomePage() {
             </div>
             
             <div>
-              <h3 className="text-xl font-semibold text-foreground mb-4">Filtrar por Repartidor:</h3>
+              <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-4">Filtrar por Repartidor:</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 {repartidores.map(repartidor => (
                   <Card 
@@ -437,7 +437,7 @@ export default function HomePage() {
             </div>
 
             <div>
-              <h3 className="text-xl font-semibold text-foreground my-6">
+              <h3 className="text-lg sm:text-xl font-semibold text-foreground my-6">
                 {getInvoicesTitleForSupervisor()}
               </h3>
               {displayedInvoices.length > 0 ? (
@@ -463,7 +463,7 @@ export default function HomePage() {
 
         {loggedInUser.role === 'repartidor' && (
            <section>
-            <h2 className="text-2xl font-semibold mb-6 text-foreground">Mis Facturas Pendientes</h2>
+            <h2 className="text-xl sm:text-2xl font-semibold mb-6 text-foreground">Mis Facturas Pendientes</h2>
             {displayedInvoices.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {displayedInvoices.map(invoice => (
@@ -507,6 +507,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-
-    

@@ -162,13 +162,13 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
             </DialogTitle>
           </DialogHeader>
           
-          <div className="flex-grow overflow-y-auto space-y-4 sm:space-y-6">
+          <div className="flex-grow overflow-y-auto space-y-4 sm:space-y-6 p-1">
             <InvoiceDetailsView title="Detalles de Factura Asignada" data={invoice} variant="assigned" />
             
             <Separator />
 
             <div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+              <h3 className="text-base sm:text-lg font-semibold mb-2 flex items-center gap-2">
                   <BadgeCheck className="h-5 w-5 text-primary"/>
                   Cambiar Estado de la Factura
               </h3>
@@ -199,9 +199,9 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
             <Separator />
             
             <div>
-              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+              <h3 className="text-base sm:text-lg font-semibold mb-3 flex items-center gap-2">
                   <Upload className="h-5 w-5 text-primary"/>
-                  Subir Imagen de Factura (Opcional)
+                  Subir Imagen de Factura
               </h3>
               
               <FileUpload onFileSelect={handleFileSelect} disabled={isLoading} />
@@ -239,7 +239,7 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
               <>
                 <Separator />
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">Resultados de Verificación</h3>
+                  <h3 className="text-base sm:text-lg font-semibold mb-3">Resultados de Verificación</h3>
                   {extractedData && <InvoiceDetailsView title="Datos Extraídos de Factura" data={extractedData} variant="extracted" />}
                   <div className="mt-4">
                     <VerificationResultView result={verificationResult} />

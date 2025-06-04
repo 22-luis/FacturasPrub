@@ -47,7 +47,7 @@ export function InvoiceCard({ invoice, onAction, currentUserRole, assigneeName }
     <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-xl flex items-center">
+          <CardTitle className="text-lg sm:text-xl flex items-center">
             <span className="mr-2 break-words">{invoice.supplierName}</span>
             <Fingerprint className="h-5 w-5 text-primary flex-shrink-0" />
           </CardTitle>
