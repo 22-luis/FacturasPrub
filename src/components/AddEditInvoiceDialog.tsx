@@ -62,10 +62,10 @@ export function AddEditInvoiceDialog({
   }, [invoiceToEdit, isOpen]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'number' ? parseFloat(value) || 0 : value,
+      [name]: name === 'totalAmount' ? (parseFloat(value) || 0) : value,
     }));
   };
 
@@ -142,9 +142,9 @@ export function AddEditInvoiceDialog({
               <Input
                 id="totalAmount"
                 name="totalAmount"
-                type="number"
-                step="0.01"
-                value={formData.totalAmount}
+                type="text"
+                inputMode="decimal"
+                value={formData.totalAmount} // React handles converting number to string for display
                 onChange={handleChange}
                 required
               />
