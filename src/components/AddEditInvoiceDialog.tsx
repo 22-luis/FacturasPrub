@@ -20,18 +20,15 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { CancellationReasonDialog } from './CancellationReasonDialog';
 
-interface AddEditInvoiceDialogProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  invoiceToEdit?: AssignedInvoice | null;
-  users: User[];
-  onSave: (invoiceData: InvoiceFormData, id?: string) => void;
-}
+// Define a type for the dialog's internal form state
+type DialogFormState = Omit<InvoiceFormData, 'totalAmount'> & {
+  totalAmount: string; // Keep as string for input flexibility
+};
 
-const initialFormState: InvoiceFormData = {
+const initialDialogFormState: DialogFormState = {
   invoiceNumber: '',
   date: '',
-  totalAmount: 0,
+  totalAmount: '', // Initialize as empty string
   supplierName: '',
   uniqueCode: '',
   address: '',
@@ -49,16 +46,16 @@ export function AddEditInvoiceDialog({
   users,
   onSave,
 }: AddEditInvoiceDialogProps) {
-  const [formData, setFormData] = useState<InvoiceFormData>(initialFormState);
+  const [formData, setFormData] = useState<DialogFormState>(initialDialogFormState);
   const { toast } = useToast();
   const [isCancellationReasonSubDialogOpen, setIsCancellationReasonSubDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (invoiceToEdit) {
+    if (invoiceToEdit && isOpen) { // Ensure state updates only when dialog is open and has an invoice
       setFormData({
         invoiceNumber: invoiceToEdit.invoiceNumber,
         date: invoiceToEdit.date,
-        totalAmount: invoiceToEdit.totalAmount,
+        totalAmount: invoiceToEdit.totalAmount.toString(), // Convert number to string
         supplierName: invoiceToEdit.supplierName,
         uniqueCode: invoiceToEdit.uniqueCode,
         address: invoiceToEdit.address || '',
@@ -66,17 +63,22 @@ export function AddEditInvoiceDialog({
         status: invoiceToEdit.status || 'PENDIENTE',
         cancellationReason: invoiceToEdit.cancellationReason || undefined,
       });
-    } else {
-      setFormData(initialFormState);
+    } else if (!invoiceToEdit && isOpen) { // Reset for new invoice when dialog opens
+      setFormData(initialDialogFormState);
     }
   }, [invoiceToEdit, isOpen]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === 'totalAmount' ? (parseFloat(value) || 0) : value,
-    }));
+     if (name === "totalAmount") {
+      // Allow only characters suitable for a decimal number string
+      const regex = /^[0-9]*\.?[0-9]*$/;
+      if (value === "" || regex.test(value)) {
+        setFormData((prev) => ({ ...prev, [name]: value }));
+      }
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSelectChange = (name: 'assigneeId' | 'status', value: string) => {
@@ -94,39 +96,62 @@ export function AddEditInvoiceDialog({
         !formData.date.trim() || 
         !formData.supplierName.trim() || 
         !formData.uniqueCode.trim() ||
-        !formData.address?.trim() // Added address validation
+        !formData.address?.trim() ||
+        !formData.totalAmount.trim() // Also check totalAmount string
        ) {
       toast({
         variant: "destructive",
         title: "Error de Validación",
-        description: "Por favor, completa todos los campos obligatorios: Número de Factura, Fecha, Proveedor, Código Único y Dirección.",
-      });
-      return;
-    }
-    if (formData.totalAmount <= 0) {
-       toast({
-        variant: "destructive",
-        title: "Error de Validación",
-        description: "El monto total debe ser un número positivo.",
+        description: "Por favor, completa todos los campos obligatorios: Número de Factura, Fecha, Proveedor, Código Único, Dirección y Monto Total.",
       });
       return;
     }
 
-    if (formData.status === 'CANCELADA' && (!invoiceToEdit || invoiceToEdit.status !== 'CANCELADA')) {
+    const numericTotalAmount = parseFloat(formData.totalAmount);
+    if (isNaN(numericTotalAmount) || numericTotalAmount <= 0) {
+       toast({
+        variant: "destructive",
+        title: "Error de Validación",
+        description: "El monto total debe ser un número positivo válido.",
+      });
+      return;
+    }
+
+    const dataToSave: InvoiceFormData = {
+      ...formData,
+      totalAmount: numericTotalAmount, // Convert back to number for saving
+    };
+
+    if (dataToSave.status === 'CANCELADA' && (!invoiceToEdit || invoiceToEdit.status !== 'CANCELADA')) {
       setIsCancellationReasonSubDialogOpen(true);
     } else {
-      onSave({ ...formData, cancellationReason: formData.status === 'CANCELADA' ? formData.cancellationReason : undefined }, invoiceToEdit?.id);
+      const finalDataToSave: InvoiceFormData = {
+        ...dataToSave,
+        cancellationReason: dataToSave.status === 'CANCELADA' ? dataToSave.cancellationReason : undefined,
+      };
+      onSave(finalDataToSave, invoiceToEdit?.id);
       onOpenChange(false);
     }
   };
 
   const handleConfirmCancellationWithReason = (reason?: string) => {
-    const finalFormData = { ...formData, status: 'CANCELADA' as InvoiceStatus, cancellationReason: reason };
-    onSave(finalFormData, invoiceToEdit?.id);
+    const numericTotalAmount = parseFloat(formData.totalAmount);
+    if (isNaN(numericTotalAmount) || numericTotalAmount <=0) { // Basic validation for safety
+        toast({ variant: "destructive", title: "Error", description: "Monto total inválido al confirmar cancelación."});
+        setIsCancellationReasonSubDialogOpen(false);
+        return;
+    }
+
+    const finalInvoiceData: InvoiceFormData = { 
+        ...formData, 
+        totalAmount: numericTotalAmount, // Convert to number
+        status: 'CANCELADA' as InvoiceStatus, 
+        cancellationReason: reason 
+    };
+    onSave(finalInvoiceData, invoiceToEdit?.id);
     setIsCancellationReasonSubDialogOpen(false);
     onOpenChange(false);
   };
-
 
   const repartidores = users.filter(user => user.role === 'repartidor');
   const dialogTitle = invoiceToEdit ? 'Editar Factura' : 'Agregar Nueva Factura';
@@ -134,10 +159,14 @@ export function AddEditInvoiceDialog({
     ? `Modifica los detalles de la factura ${invoiceToEdit.invoiceNumber}.`
     : "Completa los detalles de la nueva factura.";
 
-
   return (
     <>
-      <Dialog open={isOpen && !isCancellationReasonSubDialogOpen} onOpenChange={onOpenChange}>
+      <Dialog open={isOpen && !isCancellationReasonSubDialogOpen} onOpenChange={(open) => {
+        if (!open) { // Reset form if dialog is closed externally
+            setFormData(initialDialogFormState);
+        }
+        onOpenChange(open);
+      }}>
         <DialogContent className="sm:max-w-[525px] max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>{dialogTitle}</DialogTitle>
@@ -173,8 +202,9 @@ export function AddEditInvoiceDialog({
                   name="totalAmount"
                   type="text"
                   inputMode="decimal"
-                  value={formData.totalAmount}
+                  value={formData.totalAmount} // This is now a string
                   onChange={handleChange}
+                  placeholder="Ej: 123.45"
                   required
                 />
               </div>
@@ -229,9 +259,9 @@ export function AddEditInvoiceDialog({
                   </SelectContent>
                 </Select>
               </div>
-              {formData.status === 'CANCELADA' && invoiceToEdit?.cancellationReason && (
+              {formData.status === 'CANCELADA' && formData.cancellationReason && (
                 <div className="text-sm text-muted-foreground p-2 border rounded-md">
-                  <p><span className="font-medium">Motivo de cancelación guardado:</span> {invoiceToEdit.cancellationReason}</p>
+                  <p><span className="font-medium">Motivo de cancelación guardado:</span> {formData.cancellationReason}</p>
                 </div>
               )}
               <div>
@@ -258,14 +288,17 @@ export function AddEditInvoiceDialog({
           </div>
           <DialogFooter className="mt-auto pt-4 border-t">
             <DialogClose asChild>
-              <Button type="button" variant="outline">Cancelar</Button>
+              <Button type="button" variant="outline" onClick={() => {
+                 setFormData(initialDialogFormState); // Reset form on cancel
+                 onOpenChange(false);
+              }}>Cancelar</Button>
             </DialogClose>
             <Button type="submit" onClick={handleSubmit}>Guardar Factura</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      { (invoiceToEdit || formData.status === 'CANCELADA') && ( // Ensure dialog opens for new invoice being cancelled too
+      {(isOpen && (formData.status === 'CANCELADA' || (invoiceToEdit && invoiceToEdit.status === 'CANCELADA' && formData.status === 'CANCELADA'))) && (
         <CancellationReasonDialog
           isOpen={isCancellationReasonSubDialogOpen}
           onOpenChange={setIsCancellationReasonSubDialogOpen}
@@ -276,3 +309,5 @@ export function AddEditInvoiceDialog({
     </>
   );
 }
+
+    
