@@ -1,7 +1,8 @@
 
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle, BadgeCheck, ScanLine, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, ScanLine, CheckCircle, XCircle, RotateCcw, Camera, Upload, Trash2 } from 'lucide-react';
 
 import type { AssignedInvoice, ExtractedInvoiceDetails, VerificationResult, InvoiceStatus } from '@/lib/types';
 import { extractInvoiceDataAction } from '@/lib/actions';
@@ -23,7 +24,7 @@ import { FileUpload } from './FileUpload';
 import { InvoiceDetailsView } from './InvoiceDetailsView';
 import { VerificationResultView } from './VerificationResultView';
 import { LoadingIndicator } from './LoadingIndicator';
-import { CancellationReasonDialog } from './CancellationReasonDialog'; // Import new dialog
+import { CancellationReasonDialog } from './CancellationReasonDialog';
 
 interface ProcessInvoiceDialogProps {
   isOpen: boolean;
@@ -33,35 +34,139 @@ interface ProcessInvoiceDialogProps {
 }
 
 export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateStatus }: ProcessInvoiceDialogProps) {
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null); // Kept for FileUpload, but primary data is imageDataUri
   const [imageDataUri, setImageDataUri] = useState<string | null>(null);
+  
   const [extractedData, setExtractedData] = useState<ExtractedInvoiceDetails | null>(null);
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // For AI extraction
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const [isCancellationReasonSubDialogOpen, setIsCancellationReasonSubDialogOpen] = useState(false);
 
+  // Camera related states
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null); // Hidden canvas for capturing
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const [isCapturingPhoto, setIsCapturingPhoto] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+
+
+  const resetAllStates = useCallback(() => {
+    setUploadedFile(null);
+    setImageDataUri(null);
+    setExtractedData(null);
+    setVerificationResult(null);
+    setIsLoading(false);
+    setError(null);
+    setIsCancellationReasonSubDialogOpen(false);
+    // Camera specific resets
+    setShowCamera(false);
+    setHasCameraPermission(null);
+    setIsCapturingPhoto(false);
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+    }
+    setCameraStream(null);
+  }, [cameraStream]);
 
   useEffect(() => {
-    // Reset states when dialog opens/closes or invoice changes
     if (!isOpen || !invoice) {
-      setUploadedFile(null);
-      setImageDataUri(null);
-      setExtractedData(null);
-      setVerificationResult(null);
-      setIsLoading(false);
-      setError(null);
-      setIsCancellationReasonSubDialogOpen(false);
+      resetAllStates();
     }
-  }, [isOpen, invoice]);
+  }, [isOpen, invoice, resetAllStates]);
 
-  const handleFileSelect = (file: File | null, dataUrl: string | null) => {
+  // Effect for camera permission and stream management
+  useEffect(() => {
+    let currentStream: MediaStream | null = null;
+    const getCameraPermission = async () => {
+      if (showCamera) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          currentStream = stream;
+          setCameraStream(stream);
+          setHasCameraPermission(true);
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        } catch (err) {
+          console.error('Error accessing camera:', err);
+          setHasCameraPermission(false);
+          toast({
+            variant: 'destructive',
+            title: 'Acceso a Cámara Denegado',
+            description: 'Por favor, habilita los permisos de cámara en tu navegador.',
+          });
+        }
+      }
+    };
+
+    getCameraPermission();
+
+    return () => {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+       if (cameraStream) { // Ensure existing stream is also stopped
+        cameraStream.getTracks().forEach(track => track.stop());
+        setCameraStream(null);
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCamera, toast]);
+
+
+  const handleFileSelectForUpload = (file: File | null, dataUrl: string | null) => {
     setUploadedFile(file);
     setImageDataUri(dataUrl);
     setExtractedData(null); 
     setVerificationResult(null);
     setError(null);
+    setShowCamera(false); // Ensure camera is hidden if a file is uploaded
+  };
+
+  const handleTakePhoto = async () => {
+    if (!videoRef.current || !canvasRef.current || !hasCameraPermission) {
+      toast({ variant: 'destructive', title: 'Error de Cámara', description: 'Cámara no disponible o sin permisos.' });
+      return;
+    }
+    setIsCapturingPhoto(true);
+    try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        setImageDataUri(dataUrl);
+        setUploadedFile(null); // Clear file upload if photo is taken
+        setExtractedData(null);
+        setVerificationResult(null);
+        setError(null);
+        setShowCamera(false); // Hide camera view, show preview
+        toast({ title: 'Foto Capturada', description: 'Imagen lista para extracción.' });
+      } else {
+        throw new Error('Failed to get canvas context');
+      }
+    } catch (e: any) {
+      setError(e.message || 'Error al capturar la foto.');
+      toast({ variant: 'destructive', title: 'Error de Captura', description: e.message || 'No se pudo capturar la foto.' });
+    } finally {
+      setIsCapturingPhoto(false);
+    }
+  };
+  
+  const clearImageData = () => {
+    setImageDataUri(null);
+    setUploadedFile(null);
+    setExtractedData(null);
+    setVerificationResult(null);
+    setError(null);
+    // If camera was active, we might want to keep it active or allow user to re-toggle
+    // For now, just clearing the image. User can re-open camera if needed.
   };
 
   const verifyData = useCallback((assigned: AssignedInvoice, extracted: ExtractedInvoiceDetails): VerificationResult => {
@@ -118,10 +223,10 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
     if (!invoice) return;
 
     if (newStatus === 'CANCELADA') {
-      setIsCancellationReasonSubDialogOpen(true); // Open reason dialog
+      setIsCancellationReasonSubDialogOpen(true);
     } else {
       onUpdateStatus(invoice.id, newStatus);
-      onOpenChange(false); // Close dialog after status change for non-cancelled
+      onOpenChange(false); 
     }
   };
 
@@ -129,7 +234,7 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
     if (invoice) {
       onUpdateStatus(invoice.id, 'CANCELADA', reason);
       setIsCancellationReasonSubDialogOpen(false);
-      onOpenChange(false); // Close the main ProcessInvoiceDialog
+      onOpenChange(false); 
     }
   };
   
@@ -137,7 +242,10 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
 
   return (
     <>
-      <Dialog open={isOpen && !isCancellationReasonSubDialogOpen} onOpenChange={onOpenChange}>
+      <Dialog open={isOpen && !isCancellationReasonSubDialogOpen} onOpenChange={(open) => {
+        if(!open) resetAllStates(); // Ensure states reset when dialog is closed
+        onOpenChange(open);
+      }}>
         <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2">
@@ -183,14 +291,62 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
             <Separator />
             
             <div>
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
-                  <ScanLine className="h-5 w-5 text-primary"/>
-                  Capturar y Extraer Datos (Opcional)
+              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  {showCamera ? <Camera className="h-5 w-5 text-primary"/> : <Upload className="h-5 w-5 text-primary"/>}
+                  Capturar o Subir Imagen de Factura (Opcional)
               </h3>
-              <FileUpload onFileSelect={handleFileSelect} disabled={isLoading} />
+
+              <div className="flex gap-2 mb-4">
+                <Button variant={showCamera ? "outline" : "default"} onClick={() => { setShowCamera(false); setImageDataUri(null); setExtractedData(null); setVerificationResult(null);}}>
+                  <Upload className="mr-2 h-4 w-4" /> Subir Archivo
+                </Button>
+                <Button variant={showCamera ? "default" : "outline"} onClick={() => { setShowCamera(true); setImageDataUri(null); setExtractedData(null); setVerificationResult(null);}}>
+                  <Camera className="mr-2 h-4 w-4" /> Tomar Foto
+                </Button>
+              </div>
+
+              {showCamera ? (
+                <div className="space-y-4">
+                  <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay muted playsInline />
+                  {hasCameraPermission === false && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Permiso de Cámara Denegado</AlertTitle>
+                      <AlertDescription>
+                        Habilita los permisos de cámara en tu navegador para usar esta función.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <Button 
+                    onClick={handleTakePhoto} 
+                    disabled={!hasCameraPermission || isCapturingPhoto || isLoading} 
+                    className="w-full sm:w-auto"
+                  >
+                    {isCapturingPhoto ? <LoadingIndicator text="Capturando..." /> : <> <Camera className="mr-2 h-4 w-4" /> Capturar Foto </>}
+                  </Button>
+                </div>
+              ) : (
+                <FileUpload onFileSelect={handleFileSelectForUpload} disabled={isLoading || isCapturingPhoto} />
+              )}
+              
+              {/* Hidden canvas for capturing photo */}
+              <canvas ref={canvasRef} style={{ display: 'none' }} />
+
               {imageDataUri && (
-                <Button onClick={handleExtractData} disabled={isLoading || !imageDataUri} className="mt-4 w-full sm:w-auto">
-                  {isLoading && extractedData === null ? <LoadingIndicator text="Extrayendo..." /> : 'Extraer y Verificar Datos'}
+                <div className="mt-4 space-y-2">
+                  <h4 className="text-md font-semibold">Vista Previa de Imagen:</h4>
+                  <div className="relative w-full max-w-md aspect-video border rounded-md overflow-hidden">
+                    <Image src={imageDataUri} alt="Vista previa de factura" layout="fill" objectFit="contain" />
+                  </div>
+                  <Button variant="outline" size="sm" onClick={clearImageData} disabled={isLoading || isCapturingPhoto}>
+                    <Trash2 className="mr-2 h-4 w-4" /> Quitar Imagen
+                  </Button>
+                </div>
+              )}
+
+              {imageDataUri && (
+                <Button onClick={handleExtractData} disabled={isLoading || isCapturingPhoto || !imageDataUri} className="mt-4 w-full sm:w-auto">
+                  {isLoading ? <LoadingIndicator text="Extrayendo..." /> : 'Extraer y Verificar Datos'}
                 </Button>
               )}
             </div>
@@ -200,7 +356,7 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
             {error && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Error de Extracción</AlertTitle>
+                <AlertTitle>Error</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
@@ -218,14 +374,14 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
               </>
             )}
             {!isLoading && !error && !extractedData && !verificationResult && !imageDataUri && (
-              <VerificationResultView result={null} />
+              <VerificationResultView result={null} /> // Show pending state if no image yet
             )}
 
 
           </div>
           <DialogFooter className="mt-auto pt-4 border-t">
             <DialogClose asChild>
-              <Button variant="outline">Cerrar</Button>
+              <Button variant="outline" onClick={resetAllStates}>Cerrar</Button>
             </DialogClose>
           </DialogFooter>
         </DialogContent>
@@ -242,3 +398,4 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
     </>
   );
 }
+
