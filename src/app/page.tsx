@@ -11,7 +11,7 @@ import { AddRepartidorDialog } from '@/components/AddRepartidorDialog';
 import { ManageRepartidoresDialog } from '@/components/ManageRepartidoresDialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AddEditUserDialog } from '@/components/AddEditUserDialog';
-import { ManageAllUsersDialog } from '@/components/ManageAllUsersDialog'; // Import the dialog
+import { ManageAllUsersDialog } from '@/components/ManageAllUsersDialog'; 
 
 import { mockInvoices, mockUsers, generateInvoiceId, generateUserId } from '@/lib/types';
 import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, UserRole } from '@/lib/types';
@@ -20,13 +20,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, ArrowLeft } from 'lucide-react';
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, ArrowLeft, ChevronDown, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 
 const UNASSIGNED_KEY = "unassigned_invoices_key";
@@ -40,14 +46,13 @@ const statusCardDetails: Record<InvoiceStatus, { label: string; Icon: React.Elem
   CANCELADA: { label: 'Facturas Canceladas', Icon: XCircle, description: "Anuladas del sistema" },
 };
 
-// This will be moved to ManageAllUsersDialog
-// const adminRoleDisplayInfo: Record<User['role'], { Icon: React.ElementType; label: string, badgeClass?: string }> = {
-//   administrador: { Icon: ShieldAlert, label: 'Administrador', badgeClass: 'bg-purple-600 text-white hover:bg-purple-700' },
-//   supervisor: { Icon: ShieldCheck, label: 'Supervisor', badgeClass: 'bg-blue-500 text-white hover:bg-blue-600' },
-//   repartidor: { Icon: UserSquare2, label: 'Repartidor', badgeClass: 'bg-green-500 text-white hover:bg-green-600' },
-// };
-// const adminAvailableRolesForFilter: UserRole[] = ['administrador', 'supervisor', 'repartidor'];
-const manageableUserRoles: UserRole[] = ['supervisor', 'repartidor']; // Roles que un admin puede asignar/cambiar
+const adminRoleDisplayInfo: Record<UserRole, { Icon: React.ElementType; label: string, badgeClass?: string }> = {
+  administrador: { Icon: ShieldAlert, label: 'Administrador', badgeClass: 'bg-purple-600 text-white hover:bg-purple-700' },
+  supervisor: { Icon: ShieldCheck, label: 'Supervisor', badgeClass: 'bg-blue-500 text-white hover:bg-blue-600' },
+  repartidor: { Icon: UserSquare2, label: 'Repartidor', badgeClass: 'bg-green-500 text-white hover:bg-green-600' },
+};
+const adminAvailableRolesForFilter: UserRole[] = ['administrador', 'supervisor', 'repartidor'];
+const manageableUserRoles: UserRole[] = ['supervisor', 'repartidor'];
 
 
 export default function HomePage() {
@@ -67,7 +72,7 @@ export default function HomePage() {
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [isConfirmDeleteUserOpen, setIsConfirmDeleteUserOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [isManageAllUsersDialogOpen, setIsManageAllUsersDialogOpen] = useState(false); // State for the new modal
+  const [isManageAllUsersDialogOpen, setIsManageAllUsersDialogOpen] = useState(false); 
 
 
   const [users, setUsers] = useState<User[]>(mockUsers);
@@ -236,22 +241,21 @@ export default function HomePage() {
     setIsConfirmDeleteRepartidorOpen(false);
   };
 
-  // --- All User Management (for Administrador role) ---
-  const handleOpenAddUserDialog = () => { // Used by Admin
+  const handleOpenAddUserDialog = () => { 
     setUserToEdit(null);
     setIsAddEditUserDialogOpen(true);
   };
 
-  const handleOpenEditUserDialog = (user: User) => { // Used by Admin (from ManageAllUsersDialog)
+  const handleOpenEditUserDialog = (user: User) => { 
     setUserToEdit(user);
     setIsAddEditUserDialogOpen(true);
   };
 
-  const handleSaveUser = (userData: { name: string; role: UserRole }, idToEdit?: string) => { // Used by Admin
+  const handleSaveUser = (userData: { name: string; role: UserRole }, idToEdit?: string) => { 
     if (idToEdit) {
         if (loggedInUser?.id === idToEdit && loggedInUser.role === 'administrador' && userData.role !== 'administrador') {
             toast({ variant: "destructive", title: "Operación no permitida", description: "Un administrador no puede cambiar su propio rol." });
-            setIsAddEditUserDialogOpen(false); // Close the AddEditUserDialog
+            setIsAddEditUserDialogOpen(false); 
             return;
         }
       setUsers(prevUsers =>
@@ -269,10 +273,10 @@ export default function HomePage() {
       setUsers(prevUsers => [...prevUsers, newUser]);
       toast({ title: 'Usuario Agregado', description: `El usuario ${userData.name} (${userData.role}) ha sido agregado.` });
     }
-    setIsAddEditUserDialogOpen(false); // Close the AddEditUserDialog
+    setIsAddEditUserDialogOpen(false); 
   };
 
-  const handleOpenDeleteUserDialog = (user: User) => { // Used by Admin (from ManageAllUsersDialog)
+  const handleOpenDeleteUserDialog = (user: User) => { 
     if (loggedInUser && user.id === loggedInUser.id) {
       toast({ variant: "destructive", title: "Operación no permitida", description: "No puedes eliminarte a ti mismo." });
       return;
@@ -281,7 +285,7 @@ export default function HomePage() {
     setIsConfirmDeleteUserOpen(true);
   };
 
-  const executeDeleteUser = () => { // Used by Admin
+  const executeDeleteUser = () => { 
     if (!userToDelete) return;
 
     setUsers(prevUsers => prevUsers.filter(user => user.id !== userToDelete.id));
@@ -300,7 +304,7 @@ export default function HomePage() {
     }
 
     setUserToDelete(null);
-    setIsConfirmDeleteUserOpen(false); // Close the ConfirmDialog
+    setIsConfirmDeleteUserOpen(false); 
   };
 
 
@@ -498,123 +502,133 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Filter and Search Accordion - Kept for Supervisor/Admin invoice view */}
-              <Card className="shadow-sm border">
-                <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <Filter className="h-5 w-5 text-primary" />
-                        Opciones de Filtrado y Búsqueda de Facturas
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-2 space-y-6">
-                    <div className="relative">
-                      <Label htmlFor="search-invoices" className="sr-only">Buscar facturas</Label>
-                      <Input
-                        id="search-invoices"
-                        type="text"
-                        placeholder="Buscar por proveedor, N° factura o código..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 w-full"
-                      />
-                      <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                    </div>
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="item-1">
+                  <Card className="shadow-sm border">
+                    <AccordionTrigger className="w-full p-0 hover:no-underline">
+                      <CardHeader className="flex-1">
+                          <CardTitle className="text-lg flex items-center justify-between w-full">
+                            <div className="flex items-center gap-2">
+                              <Filter className="h-5 w-5 text-primary" />
+                              Opciones de Filtrado y Búsqueda de Facturas
+                            </div>
+                            <ChevronDown className="h-5 w-5 transition-transform duration-200 accordion-chevron" />
+                          </CardTitle>
+                      </CardHeader>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <CardContent className="pt-2 space-y-6">
+                          <div className="relative">
+                            <Label htmlFor="search-invoices" className="sr-only">Buscar facturas</Label>
+                            <Input
+                              id="search-invoices"
+                              type="text"
+                              placeholder="Buscar por proveedor, N° factura o código..."
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              className="pl-10 w-full"
+                            />
+                            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                          </div>
 
-                    <div>
-                      <h3 className="text-base font-medium text-foreground mb-3">Filtrar Facturas por Estado:</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                        {invoiceStatusesArray.map(status => {
-                          const details = statusCardDetails[status];
-                          return (
-                            <Card
-                              key={status}
-                              className={cn(
-                                "cursor-pointer transition-shadow",
-                                selectedStatusBySupervisor === status ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md'
-                              )}
-                              onClick={() => setSelectedStatusBySupervisor(prev => prev === status ? null : status)}
-                            >
-                              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
-                                <CardTitle className="text-xs font-medium">{details.label}</CardTitle>
-                                <details.Icon className="h-4 w-4 text-muted-foreground" />
-                              </CardHeader>
-                              <CardContent className="px-3 pb-2">
-                                <p className="text-xs text-muted-foreground">{details.description}</p>
-                              </CardContent>
-                            </Card>
-                          );
-                        })}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedStatusBySupervisor(null)}
-                          className={cn(
-                            "h-full whitespace-normal text-left justify-start items-center transition-shadow hover:shadow-md text-xs py-2 px-3",
-                            !selectedStatusBySupervisor ? 'ring-2 ring-primary shadow-md' : 'hover:bg-background hover:text-foreground'
-                          )}
-                        >
-                          <ListFilter className="mr-2 h-3 w-3" />
-                          Mostrar Todos los Estados
-                        </Button>
-                      </div>
-                    </div>
+                          <div>
+                            <h3 className="text-base font-medium text-foreground mb-3">Filtrar Facturas por Estado:</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                              {invoiceStatusesArray.map(status => {
+                                const details = statusCardDetails[status];
+                                return (
+                                  <Card
+                                    key={status}
+                                    className={cn(
+                                      "cursor-pointer transition-shadow",
+                                      selectedStatusBySupervisor === status ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md'
+                                    )}
+                                    onClick={() => setSelectedStatusBySupervisor(prev => prev === status ? null : status)}
+                                  >
+                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
+                                      <CardTitle className="text-xs font-medium">{details.label}</CardTitle>
+                                      <details.Icon className="h-4 w-4 text-muted-foreground" />
+                                    </CardHeader>
+                                    <CardContent className="px-3 pb-2">
+                                      <p className="text-xs text-muted-foreground">{details.description}</p>
+                                    </CardContent>
+                                  </Card>
+                                );
+                              })}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedStatusBySupervisor(null)}
+                                className={cn(
+                                  "h-full whitespace-normal text-left justify-start items-center transition-shadow hover:shadow-md text-xs py-2 px-3",
+                                  !selectedStatusBySupervisor ? 'ring-2 ring-primary shadow-md' : 'hover:bg-background hover:text-foreground'
+                                )}
+                              >
+                                <ListFilter className="mr-2 h-3 w-3" />
+                                Mostrar Todos los Estados
+                              </Button>
+                            </div>
+                          </div>
 
-                    <div>
-                      <h3 className="text-base font-medium text-foreground mb-3">Filtrar Facturas por Repartidor:</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                        {repartidores.map(repartidor => (
-                          <Card
-                            key={repartidor.id}
-                            className={cn(
-                                "cursor-pointer transition-shadow",
-                                selectedRepartidorIdBySupervisor === repartidor.id ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md'
+                          <div>
+                            <h3 className="text-base font-medium text-foreground mb-3">Filtrar Facturas por Repartidor:</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                              {repartidores.map(repartidor => (
+                                <Card
+                                  key={repartidor.id}
+                                  className={cn(
+                                      "cursor-pointer transition-shadow",
+                                      selectedRepartidorIdBySupervisor === repartidor.id ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md'
+                                  )}
+                                  onClick={() => setSelectedRepartidorIdBySupervisor(prev => prev === repartidor.id ? ALL_REPARTIDORES_KEY : repartidor.id)}
+                                >
+                                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
+                                    <CardTitle className="text-xs font-medium">{repartidor.name}</CardTitle>
+                                    <UserSquare2 className="h-4 w-4 text-muted-foreground" />
+                                  </CardHeader>
+                                  <CardContent className="px-3 pb-2">
+                                    <div className="text-xs text-muted-foreground">Rol: repartidor</div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                              <Card
+                                key={UNASSIGNED_KEY}
+                                className={cn(
+                                  "cursor-pointer transition-shadow",
+                                  selectedRepartidorIdBySupervisor === UNASSIGNED_KEY ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md'
+                                )}
+                                onClick={() => setSelectedRepartidorIdBySupervisor(prev => prev === UNASSIGNED_KEY ? ALL_REPARTIDORES_KEY : UNASSIGNED_KEY)}
+                              >
+                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
+                                  <CardTitle className="text-xs font-medium">Facturas sin Asignar</CardTitle>
+                                  <Archive className="h-4 w-4 text-muted-foreground" />
+                                </CardHeader>
+                                <CardContent className="px-3 pb-2">
+                                  <div className="text-xs text-muted-foreground">Ver no asignadas</div>
+                                </CardContent>
+                              </Card>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
+                                className={cn(
+                                  "h-full whitespace-normal text-left justify-start items-center transition-shadow hover:shadow-md text-xs py-2 px-3",
+                                   selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-md' : 'hover:bg-background hover:text-foreground'
+                                )}
+                              >
+                                <Users className="mr-2 h-3 w-3" />
+                                Mostrar Todas las Facturas
+                              </Button>
+                            </div>
+                            {repartidores.length === 0 && (
+                               <p className="text-muted-foreground mt-2 text-sm">No hay repartidores. Agrega uno para asignar facturas.</p>
                             )}
-                            onClick={() => setSelectedRepartidorIdBySupervisor(prev => prev === repartidor.id ? ALL_REPARTIDORES_KEY : repartidor.id)}
-                          >
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
-                              <CardTitle className="text-xs font-medium">{repartidor.name}</CardTitle>
-                              <UserSquare2 className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent className="px-3 pb-2">
-                              <div className="text-xs text-muted-foreground">Rol: repartidor</div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                        <Card
-                          key={UNASSIGNED_KEY}
-                          className={cn(
-                            "cursor-pointer transition-shadow",
-                            selectedRepartidorIdBySupervisor === UNASSIGNED_KEY ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md'
-                          )}
-                          onClick={() => setSelectedRepartidorIdBySupervisor(prev => prev === UNASSIGNED_KEY ? ALL_REPARTIDORES_KEY : UNASSIGNED_KEY)}
-                        >
-                           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
-                            <CardTitle className="text-xs font-medium">Facturas sin Asignar</CardTitle>
-                            <Archive className="h-4 w-4 text-muted-foreground" />
-                          </CardHeader>
-                          <CardContent className="px-3 pb-2">
-                            <div className="text-xs text-muted-foreground">Ver no asignadas</div>
-                          </CardContent>
-                        </Card>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
-                          className={cn(
-                            "h-full whitespace-normal text-left justify-start items-center transition-shadow hover:shadow-md text-xs py-2 px-3",
-                             selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-md' : 'hover:bg-background hover:text-foreground'
-                          )}
-                        >
-                          <Users className="mr-2 h-3 w-3" />
-                          Mostrar Todas las Facturas
-                        </Button>
-                      </div>
-                      {repartidores.length === 0 && (
-                         <p className="text-muted-foreground mt-2 text-sm">No hay repartidores. Agrega uno para asignar facturas.</p>
-                      )}
-                    </div>
-                  </CardContent>
-              </Card>
+                          </div>
+                        </CardContent>
+                      </AccordionContent>
+                    </Card>
+                </AccordionItem>
+              </Accordion>
             </div>
 
             <div>
@@ -709,7 +723,6 @@ export default function HomePage() {
         </>
       )}
 
-      {/* Dialogs for Administrador role (add/edit user and confirm delete) */}
       {isAdmin && (
           <>
             <AddEditUserDialog

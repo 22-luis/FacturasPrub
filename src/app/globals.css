@@ -109,3 +109,11 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom styles for AccordionTrigger icon rotation */
+.accordion-chevron {
+  transition: transform 0.2s ease-in-out;
+}
+[data-state=open] > .accordion-chevron {
+  transform: rotate(180deg);
+}
