@@ -2,14 +2,17 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
+import Link from 'next/link'; // Import Link
 import { AppHeader } from '@/components/AppHeader';
 import { InvoiceCard } from '@/components/InvoiceCard';
 import { ProcessInvoiceDialog } from '@/components/ProcessInvoiceDialog';
 import { AddEditInvoiceDialog } from '@/components/AddEditInvoiceDialog';
 import { AddRepartidorDialog } from '@/components/AddRepartidorDialog';
 import { ManageRepartidoresDialog } from '@/components/ManageRepartidoresDialog';
-import { AddEditUserDialog } from '@/components/AddEditUserDialog';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
+// AddEditUserDialog and ConfirmDialog for user deletion will be primarily used in the new admin/manage-users page
+// but ConfirmDialog might still be needed for repartidor deletion here.
+import { ConfirmDialog } from '@/components/ConfirmDialog'; 
+
 import { mockInvoices, mockUsers, generateInvoiceId, generateUserId } from '@/lib/types';
 import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, UserRole } from '@/lib/types';
 import { Toaster } from "@/components/ui/toaster";
@@ -17,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, Pencil, Trash2, ShieldAlert, ShieldCheck, User as UserIconLucide } from 'lucide-react'; // Added UserIconLucide
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
@@ -26,16 +29,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 
 
 const UNASSIGNED_KEY = "unassigned_invoices_key";
 const ALL_REPARTIDORES_KEY = "all_repartidores_filter_key";
 const invoiceStatusesArray: InvoiceStatus[] = ['PENDIENTE', 'ENTREGADA', 'CANCELADA'];
-const manageableUserRoles: UserRole[] = ['supervisor', 'repartidor'];
 
 
 const statusCardDetails: Record<InvoiceStatus, { label: string; Icon: React.ElementType; description: string }> = {
@@ -43,14 +41,6 @@ const statusCardDetails: Record<InvoiceStatus, { label: string; Icon: React.Elem
   ENTREGADA: { label: 'Facturas Entregadas', Icon: CheckCircle2, description: "Confirmadas y finalizadas" },
   CANCELADA: { label: 'Facturas Canceladas', Icon: XCircle, description: "Anuladas del sistema" },
 };
-
-// Copied from ManageAllUsersDialog.tsx for inline admin user management
-const adminRoleDisplayInfo: Record<User['role'], { Icon: React.ElementType; label: string, badgeClass?: string }> = {
-  administrador: { Icon: ShieldAlert, label: 'Administrador', badgeClass: 'bg-purple-600 text-white hover:bg-purple-700' },
-  supervisor: { Icon: ShieldCheck, label: 'Supervisor', badgeClass: 'bg-blue-500 text-white hover:bg-blue-600' },
-  repartidor: { Icon: UserSquare2, label: 'Repartidor', badgeClass: 'bg-green-500 text-white hover:bg-green-600' },
-};
-const adminAvailableRolesForFilter: UserRole[] = ['administrador', 'supervisor', 'repartidor'];
 
 
 export default function HomePage() {
@@ -67,14 +57,8 @@ export default function HomePage() {
   const [isConfirmDeleteRepartidorOpen, setIsConfirmDeleteRepartidorOpen] = useState(false);
   const [repartidorToDelete, setRepartidorToDelete] = useState<User | null>(null);
 
-  // For Administrador role (managing all users)
-  const [isAddEditUserDialogOpen, setIsAddEditUserDialogOpen] = useState(false);
-  const [userToEdit, setUserToEdit] = useState<User | null>(null);
-  const [isConfirmDeleteUserOpen, setIsConfirmDeleteUserOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [adminUserListRoleFilter, setAdminUserListRoleFilter] = useState<UserRole | 'all'>('all');
-
-
+  // User state will primarily be managed by the new admin page for admins.
+  // Supervisors will manage repartidores through their specific dialogs.
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [loggedInUser, setLoggedInUser] = useState<User | null>(null);
 
@@ -94,9 +78,8 @@ export default function HomePage() {
       setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
       setSelectedStatusBySupervisor(null);
       setSearchTerm('');
-      setAdminUserListRoleFilter('all');
     } else if (loggedInUser.role === 'supervisor' || loggedInUser.role === 'administrador') {
-      // For supervisor/admin, reset filters on login, or maintain if needed
+      // For supervisor/admin, reset filters on login
     }
   }, [loggedInUser]);
 
@@ -117,9 +100,6 @@ export default function HomePage() {
         setSelectedStatusBySupervisor(null);
         setSearchTerm('');
       }
-      if (user.role === 'administrador') {
-        setAdminUserListRoleFilter('all');
-      }
     } else {
       toast({ variant: "destructive", title: "Error de Inicio de Sesión", description: "Nombre de usuario o contraseña incorrectos." });
     }
@@ -131,7 +111,6 @@ export default function HomePage() {
     setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
     setSelectedStatusBySupervisor(null);
     setSearchTerm('');
-    setAdminUserListRoleFilter('all');
     setUsernameInput('');
     setPasswordInput('');
   };
@@ -249,73 +228,7 @@ export default function HomePage() {
     setIsConfirmDeleteRepartidorOpen(false);
   };
 
-  // --- All User Management (for Administrador role, used by inline section and dialogs) ---
-  const handleOpenAddUserDialog = () => {
-    setUserToEdit(null);
-    setIsAddEditUserDialogOpen(true);
-  };
-
-  const handleOpenEditUserDialog = (user: User) => {
-    setUserToEdit(user);
-    setIsAddEditUserDialogOpen(true);
-  };
-  
-  const handleSaveUser = (userData: { name: string; role: UserRole }, idToEdit?: string) => {
-    if (idToEdit) {
-        if (loggedInUser?.id === idToEdit && loggedInUser.role === 'administrador' && userData.role !== 'administrador') {
-            toast({ variant: "destructive", title: "Operación no permitida", description: "Un administrador no puede cambiar su propio rol." });
-            setIsAddEditUserDialogOpen(false);
-            return;
-        }
-      setUsers(prevUsers =>
-        prevUsers.map(user =>
-          user.id === idToEdit ? { ...user, name: userData.name, role: userData.role } : user
-        )
-      );
-      toast({ title: 'Usuario Actualizado', description: `Los datos de ${userData.name} han sido actualizados.` });
-    } else { 
-      const newUser: User = {
-        id: generateUserId(),
-        name: userData.name,
-        role: userData.role,
-      };
-      setUsers(prevUsers => [...prevUsers, newUser]);
-      toast({ title: 'Usuario Agregado', description: `El usuario ${userData.name} (${userData.role}) ha sido agregado.` });
-    }
-    setIsAddEditUserDialogOpen(false);
-  };
-
-  const handleOpenDeleteUserDialog = (user: User) => {
-    if (loggedInUser && user.id === loggedInUser.id) {
-      toast({ variant: "destructive", title: "Operación no permitida", description: "No puedes eliminarte a ti mismo." });
-      return;
-    }
-    setUserToDelete(user);
-    setIsConfirmDeleteUserOpen(true);
-  };
-
-  const executeDeleteUser = () => {
-    if (!userToDelete) return;
-
-    setUsers(prevUsers => prevUsers.filter(user => user.id !== userToDelete.id));
-    if (userToDelete.role === 'repartidor') {
-      setInvoices(prevInvoices =>
-        prevInvoices.map(inv =>
-          inv.assigneeId === userToDelete.id ? { ...inv, assigneeId: undefined } : inv
-        )
-      );
-      if (selectedRepartidorIdBySupervisor === userToDelete.id) {
-        setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
-      }
-      toast({ title: 'Usuario Eliminado', description: `El repartidor ${userToDelete.name} ha sido eliminado. Sus facturas han sido desasignadas.` });
-    } else {
-      toast({ title: 'Usuario Eliminado', description: `El usuario ${userToDelete.name} ha sido eliminado.` });
-    }
-    
-    setUserToDelete(null);
-    setIsConfirmDeleteUserOpen(false);
-  };
-
+  // --- All User Management (for Administrador role) will now be on a separate page ---
 
   const getAssigneeName = (assigneeId?: string): string | undefined => {
     if (!assigneeId) return undefined;
@@ -356,14 +269,6 @@ export default function HomePage() {
     }
     return [];
   }, [loggedInUser, invoices, selectedRepartidorIdBySupervisor, selectedStatusBySupervisor, searchTerm]);
-
-
-  const filteredAdminUsers = useMemo(() => {
-    if (adminUserListRoleFilter === 'all') {
-      return users.sort((a, b) => a.name.localeCompare(b.name)); 
-    }
-    return users.filter(user => user.role === adminUserListRoleFilter).sort((a, b) => a.name.localeCompare(b.name));
-  }, [users, adminUserListRoleFilter]);
 
 
   const getInvoicesTitleForSupervisorOrAdmin = () => {
@@ -492,7 +397,7 @@ export default function HomePage() {
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Agregar Factura
                   </Button>
-                  {isSupervisor && (
+                  {isSupervisor && ( // Only supervisor will see these specific buttons now
                     <>
                       <Button onClick={handleOpenAddRepartidorDialog} variant="outline">
                         <UserPlus className="mr-2 h-4 w-4" />
@@ -505,13 +410,12 @@ export default function HomePage() {
                     </>
                   )}
                   {isAdmin && (
-                    <>
-                      <Button onClick={handleOpenAddUserDialog} variant="outline">
-                        <UserPlus className="mr-2 h-4 w-4" />
-                        Agregar Usuario
+                    <Link href="/admin/manage-users" passHref>
+                      <Button variant="outline">
+                        <UsersIconLucide className="mr-2 h-4 w-4" />
+                        Gestionar Usuarios del Sistema
                       </Button>
-                      {/* Button to open ManageAllUsersDialog removed as per making it an inline section */}
-                    </>
+                    </Link>
                   )}
                 </div>
               </div>
@@ -681,119 +585,7 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* Admin User Management Section */}
-        {isAdmin && (
-            <section className="mt-12 pt-8 border-t">
-                 <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
-                    <h2 className="text-xl sm:text-2xl font-semibold text-foreground flex items-center">
-                        <UsersIconLucide className="mr-3 h-7 w-7 text-primary" />
-                        Gestión de Usuarios del Sistema
-                    </h2>
-                    {/* "Agregar Usuario" button moved here from the top admin actions */}
-                    <Button onClick={handleOpenAddUserDialog} variant="outline">
-                        <UserPlus className="mr-2 h-4 w-4" />
-                        Agregar Nuevo Usuario
-                    </Button>
-                </div>
-
-                <Card className="shadow-md">
-                    <CardHeader>
-                        <CardTitle>Lista de Usuarios</CardTitle>
-                        <CardDescription>Filtra, edita o elimina usuarios del sistema.</CardDescription>
-                        <div className="pt-4">
-                            <Label htmlFor="admin-user-role-filter" className="mb-2 block text-xs font-medium text-muted-foreground">
-                                <Filter className="inline-block h-4 w-4 mr-1" />
-                                Filtrar por Rol:
-                            </Label>
-                            <Select
-                                value={adminUserListRoleFilter}
-                                onValueChange={(value) => setAdminUserListRoleFilter(value as UserRole | 'all')}
-                                name="admin-user-role-filter"
-                            >
-                                <SelectTrigger className="w-full sm:w-[220px] h-9 text-sm">
-                                <SelectValue placeholder="Seleccionar rol para filtrar..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                <SelectItem value="all">Todos los Roles</SelectItem>
-                                {adminAvailableRolesForFilter.map(role => (
-                                    <SelectItem key={role} value={role}>
-                                    {adminRoleDisplayInfo[role]?.label || role.charAt(0).toUpperCase() + role.slice(1)}
-                                    </SelectItem>
-                                ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="max-h-[500px] min-h-[200px] pr-1"> {/* Container for ScrollArea with max-height */}
-                             <ScrollArea className="h-full" scrollbarProps={{ type: "always" }}>
-                                <div className="space-y-3">
-                                {filteredAdminUsers.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground text-center py-4">
-                                    No hay usuarios que coincidan con el filtro "{adminUserListRoleFilter === 'all' ? 'Todos los Roles' : adminRoleDisplayInfo[adminUserListRoleFilter]?.label}".
-                                    </p>
-                                ) : (
-                                    filteredAdminUsers.map((user) => {
-                                    const displayInfo = adminRoleDisplayInfo[user.role] || { Icon: UserIconLucide, label: user.role };
-                                    const isCurrentUser = user.id === loggedInUser?.id;
-                                    const isEditingOtherAdmin = user.role === 'administrador' && user.id !== loggedInUser?.id;
-                                    const canEdit = !((isCurrentUser && user.role === 'administrador') || isEditingOtherAdmin);
-
-                                    return (
-                                        <Card key={user.id} className="shadow-sm hover:shadow-md transition-shadow">
-                                        <CardContent className="p-3 flex items-center justify-between gap-2">
-                                            <div className="flex items-center gap-3 min-w-0">
-                                            <displayInfo.Icon className={cn("h-7 w-7 flex-shrink-0",
-                                                user.role === 'administrador' ? 'text-purple-600' :
-                                                user.role === 'supervisor' ? 'text-blue-500' :
-                                                user.role === 'repartidor' ? 'text-green-500' : 'text-primary'
-                                            )} />
-                                            <div className="flex-grow min-w-0">
-                                                <span className="font-medium block truncate text-foreground" title={user.name}>{user.name}</span>
-                                                <Badge variant={user.role === 'administrador' || user.role === 'supervisor' || user.role === 'repartidor' ? "default" : "secondary"}
-                                                        className={cn("text-xs", displayInfo.badgeClass)}>
-                                                {displayInfo.label}
-                                                </Badge>
-                                            </div>
-                                            </div>
-                                            <div className="flex items-center gap-2 flex-shrink-0">
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                onClick={() => handleOpenEditUserDialog(user)}
-                                                aria-label={`Editar ${user.name}`}
-                                                className="h-8 w-8"
-                                                disabled={!canEdit}
-                                                title={
-                                                !canEdit ? (user.role === 'administrador' ? "El rol de administrador no se puede cambiar aquí." : `Editar ${user.name}`) : `Editar ${user.name}`
-                                                }
-                                            >
-                                                <Pencil className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="destructive"
-                                                size="icon"
-                                                onClick={() => handleOpenDeleteUserDialog(user)}
-                                                aria-label={`Eliminar ${user.name}`}
-                                                className="h-8 w-8"
-                                                disabled={isCurrentUser}
-                                                title={isCurrentUser ? "No puedes eliminarte a ti mismo" : `Eliminar ${user.name}`}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                            </div>
-                                        </CardContent>
-                                        </Card>
-                                    );
-                                    })
-                                )}
-                                </div>
-                            </ScrollArea>
-                        </div>
-                    </CardContent>
-                </Card>
-            </section>
-        )}
+        {/* Admin User Management Section has been moved to /admin/manage-users */}
 
       </main>
       <footer className="py-6 text-center text-sm text-muted-foreground border-t">
@@ -810,11 +602,11 @@ export default function HomePage() {
         isOpen={isAddEditInvoiceDialogOpen}
         onOpenChange={setIsAddEditInvoiceDialogOpen}
         invoiceToEdit={invoiceToEdit}
-        users={users}
+        users={users} // This dialog is still used by Supervisor/Admin for invoices
         onSave={handleSaveInvoice}
       />
       {/* Dialogs for Supervisor role */}
-      {isSupervisor && !isAdmin && ( // Ensure these only show for supervisor, not admin if admin has different UI
+      {isSupervisor && ( 
         <>
           <AddRepartidorDialog
             isOpen={isAddRepartidorDialogOpen}
@@ -841,33 +633,9 @@ export default function HomePage() {
           )}
         </>
       )}
-      {/* Dialogs for Administrador role (user add/edit and delete confirmation) */}
-      {isAdmin && (
-         <>
-            <AddEditUserDialog
-                isOpen={isAddEditUserDialogOpen}
-                onOpenChange={setIsAddEditUserDialogOpen}
-                userToEdit={userToEdit}
-                onSave={handleSaveUser}
-                availableRoles={manageableUserRoles}
-                currentUser={loggedInUser}
-            />
-            {/* ManageAllUsersDialog component is not directly opened by a button for admin anymore */}
-            {userToDelete && (
-                <ConfirmDialog
-                    isOpen={isConfirmDeleteUserOpen}
-                    onOpenChange={setIsConfirmDeleteUserOpen}
-                    title={`Confirmar Eliminación de ${userToDelete.name}`}
-                    description={`¿Estás seguro de que quieres eliminar a ${userToDelete.name} (${userToDelete.role})? Esta acción no se puede deshacer.${userToDelete.role === 'repartidor' ? ' Las facturas asignadas a este repartidor pasarán a estar "Sin asignar".' : ''}`}
-                    onConfirm={executeDeleteUser}
-                    confirmButtonText="Eliminar Usuario"
-                />
-            )}
-         </>
-      )}
+      {/* Dialogs for Administrador role (user add/edit and delete confirmation) are now mainly on /admin/manage-users page */}
+      {/* However, ConfirmDialog for deleting repartidor might still be triggered by a supervisor. */}
       <Toaster />
     </div>
   );
 }
-
-    
