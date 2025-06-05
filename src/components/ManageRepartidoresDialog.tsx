@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card, CardContent } from '@/components/ui/card'; // CardHeader, CardTitle were not used
+import { Card, CardContent } from '@/components/ui/card'; 
 import { User, Pencil, Trash2 } from 'lucide-react';
 import type { User as UserType } from '@/lib/types';
 
@@ -35,16 +35,14 @@ export function ManageRepartidoresDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md max-h-[80vh] flex flex-col">
-        <DialogHeader>
+        <DialogHeader className="p-4 sm:p-6 border-b">
           <DialogTitle>Gestionar Repartidores</DialogTitle>
           <DialogDescription>
             Edita o elimina repartidores existentes en el sistema.
           </DialogDescription>
         </DialogHeader>
-        {/* ScrollArea now has flex-grow and min-h-0 for better flex behavior */}
         <ScrollArea className="flex-grow min-h-0">
-          {/* Added pr-1 to the content div for slight spacing from scrollbar track */}
-          <div className="space-y-3 pr-1 py-1"> 
+          <div className="space-y-3 p-4 sm:p-6"> 
             {repartidores.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
                 No hay repartidores en el sistema.
@@ -83,7 +81,7 @@ export function ManageRepartidoresDialog({
             )}
           </div>
         </ScrollArea>
-        <DialogFooter className="mt-auto pt-4 border-t">
+        <DialogFooter className="p-4 sm:p-6 border-t">
           <DialogClose asChild>
             <Button type="button" variant="outline">
               Cerrar
