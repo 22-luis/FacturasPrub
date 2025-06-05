@@ -33,6 +33,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 
 const UNASSIGNED_KEY = "unassigned_invoices_key";
@@ -87,6 +92,7 @@ export default function HomePage() {
   const [selectedRepartidorIdBySupervisor, setSelectedRepartidorIdBySupervisor] = useState<string | null>(ALL_REPARTIDORES_KEY);
   const [selectedStatusBySupervisor, setSelectedStatusBySupervisor] = useState<InvoiceStatus | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isRepartidorFilterOpen, setIsRepartidorFilterOpen] = useState(false);
 
 
   useEffect(() => {
@@ -198,19 +204,19 @@ export default function HomePage() {
   };
 
   const handleSaveRepartidor = (name: string, idToEdit?: string, password?: string) => {
-    if (idToEdit) { // Editing existing repartidor (only name)
+    if (idToEdit) { 
       setUsers(prevUsers =>
         prevUsers.map(user =>
           user.id === idToEdit ? { ...user, name } : user
         )
       );
       toast({ title: 'Repartidor Actualizado', description: `El nombre del repartidor ha sido actualizado a ${name}.` });
-    } else { // Adding new repartidor
+    } else { 
       const newRepartidor: User = {
         id: generateUserId(),
         name,
         role: 'repartidor',
-        password: password || '123', // Use provided password, or default if somehow not provided
+        password: password || '123', 
       };
       setUsers(prevUsers => [...prevUsers, newRepartidor]);
       toast({ title: 'Repartidor Agregado', description: `El repartidor ${name} ha sido agregado al sistema.` });
@@ -282,7 +288,7 @@ export default function HomePage() {
         )
       );
       toast({ title: 'Usuario Actualizado', description: `Los datos de ${userData.name} han sido actualizados.` });
-    } else { // Adding new user
+    } else { 
       const newUser: User = {
         id: generateUserId(),
         name: userData.name,
@@ -439,6 +445,17 @@ export default function HomePage() {
     }
 
     return baseTitle;
+  };
+
+  const getRepartidorFilterTriggerLabel = () => {
+    if (selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY) {
+      return "Todos los Repartidores";
+    }
+    if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) {
+      return "Facturas sin Asignar";
+    }
+    const repartidor = repartidores.find(r => r.id === selectedRepartidorIdBySupervisor);
+    return repartidor ? repartidor.name : "Filtrar por Repartidor...";
   };
 
 
@@ -613,57 +630,79 @@ export default function HomePage() {
 
                           <div>
                             <h3 className="text-base font-medium text-foreground mb-3">Filtrar Facturas por Repartidor:</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                              {repartidores.map(repartidor => (
-                                <Card
-                                  key={repartidor.id}
-                                  className={cn(
-                                      "cursor-pointer transition-shadow",
-                                      selectedRepartidorIdBySupervisor === repartidor.id ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md'
+                            <DropdownMenu open={isRepartidorFilterOpen} onOpenChange={setIsRepartidorFilterOpen}>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="w-full sm:w-auto justify-between min-w-[250px]">
+                                  <span>{getRepartidorFilterTriggerLabel()}</span>
+                                  <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)] p-2 max-h-96">
+                                <ScrollArea className="h-auto max-h-80"> {/* Adjusted height for scroll area */}
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2"> {/* Grid inside dropdown */}
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
+                                        setIsRepartidorFilterOpen(false);
+                                      }}
+                                      className={cn(
+                                        "h-full whitespace-normal text-left justify-start items-center transition-shadow hover:shadow-md text-xs py-2 px-3 col-span-full", // Span full width for this button
+                                        selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-md' : 'hover:bg-background hover:text-foreground'
+                                      )}
+                                    >
+                                      <Users className="mr-2 h-3 w-3" />
+                                      Mostrar Todas las Facturas
+                                    </Button>
+
+                                    {repartidores.map(repartidor => (
+                                      <Card
+                                        key={repartidor.id}
+                                        className={cn(
+                                            "cursor-pointer transition-shadow",
+                                            selectedRepartidorIdBySupervisor === repartidor.id ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md'
+                                        )}
+                                        onClick={() => {
+                                          setSelectedRepartidorIdBySupervisor(prev => prev === repartidor.id ? ALL_REPARTIDORES_KEY : repartidor.id);
+                                          setIsRepartidorFilterOpen(false);
+                                        }}
+                                      >
+                                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
+                                          <CardTitle className="text-xs font-medium">{repartidor.name}</CardTitle>
+                                          <UserSquare2 className="h-4 w-4 text-muted-foreground" />
+                                        </CardHeader>
+                                        <CardContent className="px-3 pb-2">
+                                          <div className="text-xs text-muted-foreground">Rol: repartidor</div>
+                                        </CardContent>
+                                      </Card>
+                                    ))}
+                                    <Card
+                                      key={UNASSIGNED_KEY}
+                                      className={cn(
+                                        "cursor-pointer transition-shadow",
+                                        selectedRepartidorIdBySupervisor === UNASSIGNED_KEY ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md'
+                                      )}
+                                      onClick={() => {
+                                        setSelectedRepartidorIdBySupervisor(prev => prev === UNASSIGNED_KEY ? ALL_REPARTIDORES_KEY : UNASSIGNED_KEY);
+                                        setIsRepartidorFilterOpen(false);
+                                      }}
+                                    >
+                                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
+                                        <CardTitle className="text-xs font-medium">Facturas sin Asignar</CardTitle>
+                                        <Archive className="h-4 w-4 text-muted-foreground" />
+                                      </CardHeader>
+                                      <CardContent className="px-3 pb-2">
+                                        <div className="text-xs text-muted-foreground">Ver no asignadas</div>
+                                      </CardContent>
+                                    </Card>
+                                  </div>
+                                </ScrollArea>
+                                {repartidores.length === 0 && (
+                                     <p className="text-muted-foreground mt-2 text-sm p-2">No hay repartidores. Agrega uno para asignar facturas.</p>
                                   )}
-                                  onClick={() => setSelectedRepartidorIdBySupervisor(prev => prev === repartidor.id ? ALL_REPARTIDORES_KEY : repartidor.id)}
-                                >
-                                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
-                                    <CardTitle className="text-xs font-medium">{repartidor.name}</CardTitle>
-                                    <UserSquare2 className="h-4 w-4 text-muted-foreground" />
-                                  </CardHeader>
-                                  <CardContent className="px-3 pb-2">
-                                    <div className="text-xs text-muted-foreground">Rol: repartidor</div>
-                                  </CardContent>
-                                </Card>
-                              ))}
-                              <Card
-                                key={UNASSIGNED_KEY}
-                                className={cn(
-                                  "cursor-pointer transition-shadow",
-                                  selectedRepartidorIdBySupervisor === UNASSIGNED_KEY ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md'
-                                )}
-                                onClick={() => setSelectedRepartidorIdBySupervisor(prev => prev === UNASSIGNED_KEY ? ALL_REPARTIDORES_KEY : UNASSIGNED_KEY)}
-                              >
-                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
-                                  <CardTitle className="text-xs font-medium">Facturas sin Asignar</CardTitle>
-                                  <Archive className="h-4 w-4 text-muted-foreground" />
-                                </CardHeader>
-                                <CardContent className="px-3 pb-2">
-                                  <div className="text-xs text-muted-foreground">Ver no asignadas</div>
-                                </CardContent>
-                              </Card>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
-                                className={cn(
-                                  "h-full whitespace-normal text-left justify-start items-center transition-shadow hover:shadow-md text-xs py-2 px-3",
-                                   selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-md' : 'hover:bg-background hover:text-foreground'
-                                )}
-                              >
-                                <Users className="mr-2 h-3 w-3" />
-                                Mostrar Todas las Facturas
-                              </Button>
-                            </div>
-                            {repartidores.length === 0 && (
-                               <p className="text-muted-foreground mt-2 text-sm">No hay repartidores. Agrega uno para asignar facturas.</p>
-                            )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </CardContent>
                       </AccordionContent>
