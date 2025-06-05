@@ -20,12 +20,13 @@ import type { User } from '@/lib/types';
 interface AddRepartidorDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (name: string, idToEdit?: string) => void;
+  onSave: (name: string, idToEdit?: string, password?: string) => void;
   repartidorToEdit?: User | null;
 }
 
 export function AddRepartidorDialog({ isOpen, onOpenChange, onSave, repartidorToEdit }: AddRepartidorDialogProps) {
   const [repartidorName, setRepartidorName] = useState('');
+  const [password, setPassword] = useState('');
   const { toast } = useToast();
 
   const isEditing = !!repartidorToEdit;
@@ -34,8 +35,10 @@ export function AddRepartidorDialog({ isOpen, onOpenChange, onSave, repartidorTo
     if (isOpen) {
       if (isEditing && repartidorToEdit) {
         setRepartidorName(repartidorToEdit.name);
+        setPassword(''); // Password field is not for editing here
       } else {
-        setRepartidorName(''); // Reset name for adding or if dialog opens without edit context
+        setRepartidorName('');
+        setPassword(''); // Reset for new repartidor
       }
     }
   }, [isOpen, repartidorToEdit, isEditing]);
@@ -50,19 +53,32 @@ export function AddRepartidorDialog({ isOpen, onOpenChange, onSave, repartidorTo
       });
       return;
     }
-    onSave(repartidorName.trim(), repartidorToEdit?.id);
+    if (!isEditing && !password.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Error de Validación',
+        description: 'La contraseña es obligatoria para nuevos repartidores.',
+      });
+      return;
+    }
+    onSave(repartidorName.trim(), repartidorToEdit?.id, !isEditing ? password : undefined);
+  };
+
+  const resetForm = () => {
+    setRepartidorName('');
+    setPassword('');
   };
 
   const dialogTitle = isEditing ? "Editar Repartidor" : "Agregar Nuevo Repartidor";
-  const dialogDescription = isEditing 
-    ? `Actualiza el nombre para ${repartidorToEdit?.name}.`
-    : "Introduce el nombre del nuevo repartidor. Se asignará automáticamente el rol de 'repartidor'.";
+  const dialogDescription = isEditing
+    ? `Actualiza el nombre para ${repartidorToEdit?.name}. La contraseña no se modifica desde este diálogo.`
+    : "Introduce el nombre y la contraseña para el nuevo repartidor. Se asignará automáticamente el rol de 'repartidor'.";
   const buttonText = isEditing ? "Guardar Cambios" : "Guardar Repartidor";
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
-      if (!open) { // Ensure state resets if dialog is closed by clicking outside or X
-        setRepartidorName(''); 
+      if (!open) {
+        resetForm();
       }
       onOpenChange(open);
     }}>
@@ -75,21 +91,37 @@ export function AddRepartidorDialog({ isOpen, onOpenChange, onSave, repartidorTo
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div>
-            <Label htmlFor="repartidorName" className="text-right">
+            <Label htmlFor="repartidorName-addrepartidor">
               Nombre del Repartidor
             </Label>
             <Input
-              id="repartidorName"
+              id="repartidorName-addrepartidor"
               value={repartidorName}
               onChange={(e) => setRepartidorName(e.target.value)}
               className="col-span-3"
               autoFocus
             />
           </div>
+          {!isEditing && (
+            <div>
+              <Label htmlFor="password-addrepartidor">
+                Contraseña
+              </Label>
+              <Input
+                id="password-addrepartidor"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="col-span-3"
+                placeholder="Contraseña para el nuevo repartidor"
+                required
+              />
+            </div>
+          )}
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline" onClick={() => {
-                  setRepartidorName(''); // Also reset on explicit cancel
+                  resetForm();
                   onOpenChange(false);
               }}>
                 Cancelar

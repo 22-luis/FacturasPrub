@@ -197,20 +197,20 @@ export default function HomePage() {
     setIsAddRepartidorDialogOpen(true);
   };
 
-  const handleSaveRepartidor = (name: string, idToEdit?: string) => {
-    if (idToEdit) {
+  const handleSaveRepartidor = (name: string, idToEdit?: string, password?: string) => {
+    if (idToEdit) { // Editing existing repartidor (only name)
       setUsers(prevUsers =>
         prevUsers.map(user =>
           user.id === idToEdit ? { ...user, name } : user
         )
       );
       toast({ title: 'Repartidor Actualizado', description: `El nombre del repartidor ha sido actualizado a ${name}.` });
-    } else {
+    } else { // Adding new repartidor
       const newRepartidor: User = {
         id: generateUserId(),
         name,
         role: 'repartidor',
-        password: '123', // Default password for new repartidores created by supervisor
+        password: password || '123', // Use provided password, or default if somehow not provided
       };
       setUsers(prevUsers => [...prevUsers, newRepartidor]);
       toast({ title: 'Repartidor Agregado', description: `El repartidor ${name} ha sido agregado al sistema.` });
