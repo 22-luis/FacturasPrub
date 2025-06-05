@@ -9,10 +9,11 @@ export interface User {
   id: string;
   name: string;
   role: UserRole;
+  password?: string; // Added password field
 }
 
 export interface AssignedInvoice {
-  id: string;
+  id:string;
   invoiceNumber: string;
   date: string;
   totalAmount: number;
@@ -42,18 +43,18 @@ export interface VerificationResult {
 }
 
 export const mockUsers: User[] = [
-  { id: 'user-adm-1', name: 'Admin User', role: 'administrador' },
-  { id: 'user-sup-1', name: 'Ana Supervisora', role: 'supervisor' },
-  { id: 'user-rep-1', name: 'Juan Repartidor', role: 'repartidor' },
-  { id: 'user-rep-2', name: 'Luisa Repartidora', role: 'repartidor' },
-  { id: 'user-rep-3', name: 'Carlos Vendedor', role: 'repartidor' },
-  { id: 'user-sup-2', name: 'Sofia Encargada', role: 'supervisor' },
-  { id: 'user-rep-4', name: 'Pedro Entregas', role: 'repartidor' },
-  { id: 'user-rep-5', name: 'Maria Logistica', role: 'repartidor' },
-  { id: 'user-adm-2', name: 'Laura Admin', role: 'administrador' },
-  { id: 'user-rep-6', name: 'Ricardo Movil', role: 'repartidor' },
-  { id: 'user-rep-7', name: 'Elena Despacho', role: 'repartidor' },
-  { id: 'user-sup-3', name: 'Miguel Coordinador', role: 'supervisor' },
+  { id: 'user-adm-1', name: 'Admin User', role: 'administrador', password: '123' },
+  { id: 'user-sup-1', name: 'Ana Supervisora', role: 'supervisor', password: '123' },
+  { id: 'user-rep-1', name: 'Juan Repartidor', role: 'repartidor', password: '123' },
+  { id: 'user-rep-2', name: 'Luisa Repartidora', role: 'repartidor', password: '123' },
+  { id: 'user-rep-3', name: 'Carlos Vendedor', role: 'repartidor', password: '123' },
+  { id: 'user-sup-2', name: 'Sofia Encargada', role: 'supervisor', password: '123' },
+  { id: 'user-rep-4', name: 'Pedro Entregas', role: 'repartidor', password: '123' },
+  { id: 'user-rep-5', name: 'Maria Logistica', role: 'repartidor', password: '123' },
+  { id: 'user-adm-2', name: 'Laura Admin', role: 'administrador', password: '123' },
+  { id: 'user-rep-6', name: 'Ricardo Movil', role: 'repartidor', password: '123' },
+  { id: 'user-rep-7', name: 'Elena Despacho', role: 'repartidor', password: '123' },
+  { id: 'user-sup-3', name: 'Miguel Coordinador', role: 'supervisor', password: '123' },
 ];
 
 export const mockInvoices: AssignedInvoice[] = [

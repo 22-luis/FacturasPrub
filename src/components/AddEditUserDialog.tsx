@@ -22,9 +22,9 @@ interface AddEditUserDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   userToEdit: User | null;
-  onSave: (userData: { name: string; role: UserRole }, idToEdit?: string) => void;
-  availableRoles: UserRole[]; // Roles that can be assigned/changed to (e.g., 'supervisor', 'repartidor')
-  currentUser: User | null; // To prevent admin from changing own role
+  onSave: (userData: { name: string; role: UserRole; password?: string }, idToEdit?: string) => void;
+  availableRoles: UserRole[]; 
+  currentUser: User | null; 
 }
 
 export function AddEditUserDialog({
@@ -37,6 +37,7 @@ export function AddEditUserDialog({
 }: AddEditUserDialogProps) {
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState<UserRole>(availableRoles.includes('repartidor') ? 'repartidor' : availableRoles[0]);
+  const [password, setPassword] = useState('');
   const { toast } = useToast();
 
   const isEditing = !!userToEdit;
@@ -49,10 +50,11 @@ export function AddEditUserDialog({
       if (isEditing && userToEdit) {
         setUserName(userToEdit.name);
         setUserRole(userToEdit.role);
-      } else { // Adding new user
+        setPassword(''); // Do not prefill password for editing
+      } else { 
         setUserName('');
-        // Default to 'repartidor' if available, otherwise first in list
         setUserRole(availableRoles.includes('repartidor') ? 'repartidor' : availableRoles[0] || 'repartidor');
+        setPassword('');
       }
     }
   }, [isOpen, userToEdit, isEditing, availableRoles]);
@@ -75,14 +77,28 @@ export function AddEditUserDialog({
       });
       return;
     }
+    if (!isEditing && !password.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Error de Validación',
+        description: 'La contraseña es obligatoria para nuevos usuarios.',
+      });
+      return;
+    }
 
-    onSave({ name: userName.trim(), role: userRole }, userToEdit?.id);
+    onSave({ name: userName.trim(), role: userRole, password: !isEditing ? password : undefined }, userToEdit?.id);
+  };
+
+  const resetForm = () => {
+    setUserName('');
+    setUserRole(availableRoles.includes('repartidor') ? 'repartidor' : availableRoles[0] || 'repartidor');
+    setPassword('');
   };
 
   const dialogTitle = isEditing ? `Editar Usuario: ${userToEdit?.name}` : "Agregar Nuevo Usuario";
   const dialogDescription = isEditing
-    ? `Actualiza los detalles para ${userToEdit?.name}.`
-    : "Introduce los detalles del nuevo usuario.";
+    ? `Actualiza los detalles para ${userToEdit?.name}. El campo de contraseña se ignora al editar.`
+    : "Introduce los detalles del nuevo usuario, incluyendo una contraseña.";
   const buttonText = isEditing ? "Guardar Cambios" : "Guardar Usuario";
 
   const roleSelectionDisabled = isEditingSelfAdmin || isEditingOtherAdmin;
@@ -91,8 +107,7 @@ export function AddEditUserDialog({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
       if (!open) {
-        setUserName('');
-        setUserRole(availableRoles.includes('repartidor') ? 'repartidor' : availableRoles[0] || 'repartidor');
+        resetForm();
       }
       onOpenChange(open);
     }}>
@@ -112,6 +127,18 @@ export function AddEditUserDialog({
               autoFocus
             />
           </div>
+          {!isEditing && (
+            <div>
+              <Label htmlFor="password">Contraseña</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required={!isEditing}
+              />
+            </div>
+          )}
           <div>
             <Label htmlFor="userRole">Rol del Usuario</Label>
             <Select
@@ -143,8 +170,7 @@ export function AddEditUserDialog({
           <DialogFooter className="pt-2">
             <DialogClose asChild>
               <Button type="button" variant="outline" onClick={() => {
-                  setUserName('');
-                  setUserRole(availableRoles.includes('repartidor') ? 'repartidor' : availableRoles[0] || 'repartidor');
+                  resetForm();
                   onOpenChange(false);
               }}>
                 Cancelar

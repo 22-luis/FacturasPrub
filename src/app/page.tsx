@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import Link from 'next/link'; // Added Link for navigation
+import Link from 'next/link'; 
 import { AppHeader } from '@/components/AppHeader';
 import { InvoiceCard } from '@/components/InvoiceCard';
 import { ProcessInvoiceDialog } from '@/components/ProcessInvoiceDialog';
@@ -104,7 +104,7 @@ export default function HomePage() {
     }
     const user = users.find(u => u.name.toLowerCase() === usernameInput.trim().toLowerCase());
 
-    if (user && passwordInput === '123') {
+    if (user && user.password === passwordInput) { // Check against stored password
       setLoggedInUser(user);
       toast({ title: "Sesión Iniciada", description: `Bienvenido ${user.name}.` });
       setUsernameInput('');
@@ -210,6 +210,7 @@ export default function HomePage() {
         id: generateUserId(),
         name,
         role: 'repartidor',
+        password: '123', // Default password for new repartidores created by supervisor
       };
       setUsers(prevUsers => [...prevUsers, newRepartidor]);
       toast({ title: 'Repartidor Agregado', description: `El repartidor ${name} ha sido agregado al sistema.` });
@@ -246,12 +247,12 @@ export default function HomePage() {
     setIsAddEditUserDialogOpen(true);
   };
 
-  const handleOpenEditUserDialogFromMainPage = (user: User) => { 
+  const handleOpenEditUserDialogFromMainPageOrModal = (user: User) => { 
     setUserToEdit(user);
     setIsAddEditUserDialogOpen(true);
   };
 
-  const handleOpenDeleteUserDialogFromMainPage = (user: User) => { 
+  const handleOpenDeleteUserDialogFromMainPageOrModal = (user: User) => { 
     if (loggedInUser && user.id === loggedInUser.id) {
       toast({ variant: "destructive", title: "Operación no permitida", description: "No puedes eliminarte a ti mismo." });
       return;
@@ -261,7 +262,7 @@ export default function HomePage() {
   };
 
 
-  const handleSaveUser = (userData: { name: string; role: UserRole }, idToEdit?: string) => { 
+  const handleSaveUser = (userData: { name: string; role: UserRole; password?: string }, idToEdit?: string) => { 
     if (idToEdit) {
         if (loggedInUser?.id === idToEdit && loggedInUser.role === 'administrador' && userData.role !== 'administrador') {
             toast({ variant: "destructive", title: "Operación no permitida", description: "Un administrador no puede cambiar su propio rol." });
@@ -270,7 +271,8 @@ export default function HomePage() {
         }
       setUsers(prevUsers =>
         prevUsers.map(user =>
-          user.id === idToEdit ? { ...user, name: userData.name, role: userData.role } : user
+          user.id === idToEdit ? { ...user, name: userData.name, role: userData.role } : user 
+          // Password is not updated here for existing users via this flow
         )
       );
       toast({ title: 'Usuario Actualizado', description: `Los datos de ${userData.name} han sido actualizados.` });
@@ -279,6 +281,7 @@ export default function HomePage() {
         id: generateUserId(),
         name: userData.name,
         role: userData.role,
+        password: userData.password, // Save password for new user
       };
       setUsers(prevUsers => [...prevUsers, newUser]);
       toast({ title: 'Usuario Agregado', description: `El usuario ${userData.name} (${userData.role}) ha sido agregado.` });
@@ -340,12 +343,12 @@ export default function HomePage() {
       } else if (selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) {
         filteredInvoices = filteredInvoices.filter(inv => inv.assigneeId === selectedRepartidorIdBySupervisor);
       }
-      // Sort by date descending for supervisor/admin
+      
       return filteredInvoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
 
     if (loggedInUser.role === 'repartidor') {
-      // Sort by date ascending for repartidor
+      
       return invoices
         .filter(inv => inv.assigneeId === loggedInUser.id && inv.status === 'PENDIENTE')
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -712,7 +715,6 @@ export default function HomePage() {
             repartidores={repartidores}
             onEdit={handleOpenEditRepartidorDialog}
             onDelete={handleOpenDeleteRepartidorDialog}
-            scrollbarProps={{ type: "always" }}
           />
           {repartidorToDelete && (
             <ConfirmDialog
@@ -752,8 +754,8 @@ export default function HomePage() {
                 onOpenChange={setIsManageAllUsersDialogOpen}
                 allUsers={users}
                 currentUser={loggedInUser}
-                onEdit={handleOpenEditUserDialogFromMainPage}
-                onDelete={handleOpenDeleteUserDialogFromMainPage}
+                onEdit={handleOpenEditUserDialogFromMainPageOrModal}
+                onDelete={handleOpenDeleteUserDialogFromMainPageOrModal}
             />
           </>
       )}
@@ -761,4 +763,3 @@ export default function HomePage() {
     </div>
   );
 }
-
