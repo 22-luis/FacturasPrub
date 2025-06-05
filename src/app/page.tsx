@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, ArrowLeft, ShieldAlert, ShieldCheck } from 'lucide-react'; // ChevronDown removed as AccordionTrigger handles it
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, ArrowLeft, ShieldAlert, ShieldCheck, ChevronDown } from 'lucide-react'; 
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -246,10 +246,20 @@ export default function HomePage() {
     setIsAddEditUserDialogOpen(true);
   };
 
-  const handleOpenEditUserDialog = (user: User) => { 
+  const handleOpenEditUserDialogFromMainPage = (user: User) => { 
     setUserToEdit(user);
     setIsAddEditUserDialogOpen(true);
   };
+
+  const handleOpenDeleteUserDialogFromMainPage = (user: User) => { 
+    if (loggedInUser && user.id === loggedInUser.id) {
+      toast({ variant: "destructive", title: "Operación no permitida", description: "No puedes eliminarte a ti mismo." });
+      return;
+    }
+    setUserToDelete(user);
+    setIsConfirmDeleteUserOpen(true);
+  };
+
 
   const handleSaveUser = (userData: { name: string; role: UserRole }, idToEdit?: string) => { 
     if (idToEdit) {
@@ -274,15 +284,6 @@ export default function HomePage() {
       toast({ title: 'Usuario Agregado', description: `El usuario ${userData.name} (${userData.role}) ha sido agregado.` });
     }
     setIsAddEditUserDialogOpen(false); 
-  };
-
-  const handleOpenDeleteUserDialog = (user: User) => { 
-    if (loggedInUser && user.id === loggedInUser.id) {
-      toast({ variant: "destructive", title: "Operación no permitida", description: "No puedes eliminarte a ti mismo." });
-      return;
-    }
-    setUserToDelete(user);
-    setIsConfirmDeleteUserOpen(true);
   };
 
   const executeDeleteUser = () => { 
@@ -339,11 +340,15 @@ export default function HomePage() {
       } else if (selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) {
         filteredInvoices = filteredInvoices.filter(inv => inv.assigneeId === selectedRepartidorIdBySupervisor);
       }
-      return filteredInvoices;
+      // Sort by date descending for supervisor/admin
+      return filteredInvoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
 
     if (loggedInUser.role === 'repartidor') {
-      return invoices.filter(inv => inv.assigneeId === loggedInUser.id && inv.status === 'PENDIENTE');
+      // Sort by date ascending for repartidor
+      return invoices
+        .filter(inv => inv.assigneeId === loggedInUser.id && inv.status === 'PENDIENTE')
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }
     return [];
   }, [loggedInUser, invoices, selectedRepartidorIdBySupervisor, selectedStatusBySupervisor, searchTerm]);
@@ -493,7 +498,7 @@ export default function HomePage() {
                         <UserPlus className="mr-2 h-4 w-4" />
                         Agregar Usuario
                       </Button>
-                      <Button onClick={() => setIsManageAllUsersDialogOpen(true)} variant="outline">
+                       <Button onClick={() => setIsManageAllUsersDialogOpen(true)} variant="outline">
                         <UsersIconLucide className="mr-2 h-4 w-4" />
                         Gestionar Usuarios
                       </Button>
@@ -507,13 +512,11 @@ export default function HomePage() {
                   <Card className="shadow-sm border">
                     <AccordionTrigger className="w-full p-0 hover:no-underline">
                       <CardHeader className="flex-1">
-                          <CardTitle className="text-lg flex items-center justify-between w-full">
+                          <CardTitle className="text-lg flex items-center w-full">
                             <div className="flex items-center gap-2">
                               <Filter className="h-5 w-5 text-primary" />
                               Opciones de Filtrado y Búsqueda de Facturas
                             </div>
-                            {/* The manually added ChevronDown icon is removed from here,
-                                AccordionTrigger will render its own default icon */}
                           </CardTitle>
                       </CardHeader>
                     </AccordionTrigger>
@@ -749,8 +752,8 @@ export default function HomePage() {
                 onOpenChange={setIsManageAllUsersDialogOpen}
                 allUsers={users}
                 currentUser={loggedInUser}
-                onEdit={handleOpenEditUserDialog}
-                onDelete={handleOpenDeleteUserDialog}
+                onEdit={handleOpenEditUserDialogFromMainPage}
+                onDelete={handleOpenDeleteUserDialogFromMainPage}
             />
           </>
       )}
@@ -758,3 +761,4 @@ export default function HomePage() {
     </div>
   );
 }
+
