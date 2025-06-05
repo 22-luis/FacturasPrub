@@ -23,8 +23,8 @@ interface AddEditUserDialogProps {
   onOpenChange: (open: boolean) => void;
   userToEdit: User | null;
   onSave: (userData: { name: string; role: UserRole; password?: string }, idToEdit?: string) => void;
-  availableRoles: UserRole[]; 
-  currentUser: User | null; 
+  availableRoles: UserRole[];
+  currentUser: User | null;
 }
 
 export function AddEditUserDialog({
@@ -44,14 +44,13 @@ export function AddEditUserDialog({
   const isEditingSelfAdmin = isEditing && userToEdit?.id === currentUser?.id && currentUser?.role === 'administrador';
   const isEditingOtherAdmin = isEditing && userToEdit?.role === 'administrador' && userToEdit?.id !== currentUser?.id;
 
-
   useEffect(() => {
     if (isOpen) {
       if (isEditing && userToEdit) {
         setUserName(userToEdit.name);
         setUserRole(userToEdit.role);
-        setPassword(''); // Do not prefill password for editing
-      } else { 
+        setPassword(''); // Always clear password field on open for editing
+      } else {
         setUserName('');
         setUserRole(availableRoles.includes('repartidor') ? 'repartidor' : availableRoles[0] || 'repartidor');
         setPassword('');
@@ -70,13 +69,15 @@ export function AddEditUserDialog({
       return;
     }
     if (!userRole) {
-       toast({
+      toast({
         variant: 'destructive',
         title: 'Error de Validación',
         description: 'Debe seleccionar un rol para el usuario.',
       });
       return;
     }
+    // Password is required for new users.
+    // For editing, password is optional (if blank, it means no change).
     if (!isEditing && !password.trim()) {
       toast({
         variant: 'destructive',
@@ -86,7 +87,7 @@ export function AddEditUserDialog({
       return;
     }
 
-    onSave({ name: userName.trim(), role: userRole, password: !isEditing ? password : undefined }, userToEdit?.id);
+    onSave({ name: userName.trim(), role: userRole, password: password.trim() ? password : undefined }, userToEdit?.id);
   };
 
   const resetForm = () => {
@@ -97,12 +98,11 @@ export function AddEditUserDialog({
 
   const dialogTitle = isEditing ? `Editar Usuario: ${userToEdit?.name}` : "Agregar Nuevo Usuario";
   const dialogDescription = isEditing
-    ? `Actualiza los detalles para ${userToEdit?.name}. El campo de contraseña se ignora al editar.`
+    ? `Actualiza los detalles para ${userToEdit?.name}. Para cambiar la contraseña, ingresa una nueva. Si dejas el campo de contraseña vacío, la contraseña actual no se modificará.`
     : "Introduce los detalles del nuevo usuario, incluyendo una contraseña.";
   const buttonText = isEditing ? "Guardar Cambios" : "Guardar Usuario";
 
   const roleSelectionDisabled = isEditingSelfAdmin || isEditingOtherAdmin;
-
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
@@ -118,36 +118,39 @@ export function AddEditUserDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
           <div>
-            <Label htmlFor="userName">Nombre del Usuario</Label>
+            <Label htmlFor="userName-userdialog">Nombre del Usuario</Label>
             <Input
-              id="userName"
+              id="userName-userdialog"
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
               required
               autoFocus
             />
           </div>
-          {!isEditing && (
-            <div>
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required={!isEditing}
-              />
-            </div>
-          )}
+          
           <div>
-            <Label htmlFor="userRole">Rol del Usuario</Label>
+            <Label htmlFor="password-userdialog">
+              {isEditing ? "Nueva Contraseña (dejar en blanco para no cambiar)" : "Contraseña"}
+            </Label>
+            <Input
+              id="password-userdialog"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={isEditing ? "Ingresa nueva contraseña..." : "Contraseña requerida"}
+              required={!isEditing} // Required only when creating a new user
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="userRole-userdialog">Rol del Usuario</Label>
             <Select
               name="userRole"
               value={userRole}
               onValueChange={(value) => setUserRole(value as UserRole)}
               disabled={roleSelectionDisabled}
             >
-              <SelectTrigger id="userRole" className={roleSelectionDisabled ? "bg-muted/50" : ""}>
+              <SelectTrigger id="userRole-userdialog" className={roleSelectionDisabled ? "bg-muted/50" : ""}>
                 <SelectValue placeholder="Seleccionar rol..." />
               </SelectTrigger>
               <SelectContent>

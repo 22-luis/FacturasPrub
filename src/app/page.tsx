@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import Link from 'next/link'; 
+import Link from 'next/link';
 import { AppHeader } from '@/components/AppHeader';
 import { InvoiceCard } from '@/components/InvoiceCard';
 import { ProcessInvoiceDialog } from '@/components/ProcessInvoiceDialog';
@@ -11,7 +11,7 @@ import { AddRepartidorDialog } from '@/components/AddRepartidorDialog';
 import { ManageRepartidoresDialog } from '@/components/ManageRepartidoresDialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AddEditUserDialog } from '@/components/AddEditUserDialog';
-import { ManageAllUsersDialog } from '@/components/ManageAllUsersDialog'; 
+import { ManageAllUsersDialog } from '@/components/ManageAllUsersDialog';
 
 import { mockInvoices, mockUsers, generateInvoiceId, generateUserId } from '@/lib/types';
 import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, UserRole } from '@/lib/types';
@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, ArrowLeft, ShieldAlert, ShieldCheck, ChevronDown } from 'lucide-react'; 
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, ArrowLeft, ShieldAlert, ShieldCheck, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -52,7 +52,7 @@ const adminRoleDisplayInfo: Record<UserRole, { Icon: React.ElementType; label: s
   repartidor: { Icon: UserSquare2, label: 'Repartidor', badgeClass: 'bg-green-500 text-white hover:bg-green-600' },
 };
 const adminAvailableRolesForFilter: UserRole[] = ['administrador', 'supervisor', 'repartidor'];
-const manageableUserRoles: UserRole[] = ['supervisor', 'repartidor'];
+const manageableUserRoles: UserRole[] = ['supervisor', 'repartidor']; // Roles an admin can assign/create (excluding other admins)
 
 
 export default function HomePage() {
@@ -72,7 +72,7 @@ export default function HomePage() {
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [isConfirmDeleteUserOpen, setIsConfirmDeleteUserOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [isManageAllUsersDialogOpen, setIsManageAllUsersDialogOpen] = useState(false); 
+  const [isManageAllUsersDialogOpen, setIsManageAllUsersDialogOpen] = useState(false);
 
 
   const [users, setUsers] = useState<User[]>(mockUsers);
@@ -104,7 +104,7 @@ export default function HomePage() {
     }
     const user = users.find(u => u.name.toLowerCase() === usernameInput.trim().toLowerCase());
 
-    if (user && user.password === passwordInput) { // Check against stored password
+    if (user && user.password === passwordInput) {
       setLoggedInUser(user);
       toast({ title: "Sesión Iniciada", description: `Bienvenido ${user.name}.` });
       setUsernameInput('');
@@ -242,17 +242,17 @@ export default function HomePage() {
     setIsConfirmDeleteRepartidorOpen(false);
   };
 
-  const handleOpenAddUserDialog = () => { 
+  const handleOpenAddUserDialog = () => {
     setUserToEdit(null);
     setIsAddEditUserDialogOpen(true);
   };
 
-  const handleOpenEditUserDialogFromMainPageOrModal = (user: User) => { 
+  const handleOpenEditUserDialogFromMainPageOrModal = (user: User) => {
     setUserToEdit(user);
     setIsAddEditUserDialogOpen(true);
   };
 
-  const handleOpenDeleteUserDialogFromMainPageOrModal = (user: User) => { 
+  const handleOpenDeleteUserDialogFromMainPageOrModal = (user: User) => {
     if (loggedInUser && user.id === loggedInUser.id) {
       toast({ variant: "destructive", title: "Operación no permitida", description: "No puedes eliminarte a ti mismo." });
       return;
@@ -262,34 +262,41 @@ export default function HomePage() {
   };
 
 
-  const handleSaveUser = (userData: { name: string; role: UserRole; password?: string }, idToEdit?: string) => { 
+  const handleSaveUser = (userData: { name: string; role: UserRole; password?: string }, idToEdit?: string) => {
     if (idToEdit) {
         if (loggedInUser?.id === idToEdit && loggedInUser.role === 'administrador' && userData.role !== 'administrador') {
             toast({ variant: "destructive", title: "Operación no permitida", description: "Un administrador no puede cambiar su propio rol." });
-            setIsAddEditUserDialogOpen(false); 
+            setIsAddEditUserDialogOpen(false);
             return;
         }
       setUsers(prevUsers =>
         prevUsers.map(user =>
-          user.id === idToEdit ? { ...user, name: userData.name, role: userData.role } : user 
-          // Password is not updated here for existing users via this flow
+          user.id === idToEdit
+            ? {
+                ...user,
+                name: userData.name,
+                role: userData.role,
+                // Update password only if a new one is provided and it's not an empty string
+                password: (userData.password && userData.password.trim() !== '') ? userData.password : user.password,
+              }
+            : user
         )
       );
       toast({ title: 'Usuario Actualizado', description: `Los datos de ${userData.name} han sido actualizados.` });
-    } else {
+    } else { // Adding new user
       const newUser: User = {
         id: generateUserId(),
         name: userData.name,
         role: userData.role,
-        password: userData.password, // Save password for new user
+        password: userData.password || '123', // Ensure new users always have a password
       };
       setUsers(prevUsers => [...prevUsers, newUser]);
       toast({ title: 'Usuario Agregado', description: `El usuario ${userData.name} (${userData.role}) ha sido agregado.` });
     }
-    setIsAddEditUserDialogOpen(false); 
+    setIsAddEditUserDialogOpen(false);
   };
 
-  const executeDeleteUser = () => { 
+  const executeDeleteUser = () => {
     if (!userToDelete) return;
 
     setUsers(prevUsers => prevUsers.filter(user => user.id !== userToDelete.id));
@@ -308,7 +315,7 @@ export default function HomePage() {
     }
 
     setUserToDelete(null);
-    setIsConfirmDeleteUserOpen(false); 
+    setIsConfirmDeleteUserOpen(false);
   };
 
 
@@ -343,12 +350,12 @@ export default function HomePage() {
       } else if (selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) {
         filteredInvoices = filteredInvoices.filter(inv => inv.assigneeId === selectedRepartidorIdBySupervisor);
       }
-      
+
       return filteredInvoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
 
     if (loggedInUser.role === 'repartidor') {
-      
+
       return invoices
         .filter(inv => inv.assigneeId === loggedInUser.id && inv.status === 'PENDIENTE')
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -736,7 +743,7 @@ export default function HomePage() {
                 onOpenChange={setIsAddEditUserDialogOpen}
                 userToEdit={userToEdit}
                 onSave={handleSaveUser}
-                availableRoles={manageableUserRoles}
+                availableRoles={manageableUserRoles} // Admin can create supervisors and repartidores
                 currentUser={loggedInUser}
             />
             {userToDelete && (
