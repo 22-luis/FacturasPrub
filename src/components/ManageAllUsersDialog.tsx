@@ -65,7 +65,7 @@ export function ManageAllUsersDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-4 sm:px-6 pt-4 pb-2 border-b sticky top-[calc(3.5rem+2px)] bg-background z-10"> {/* Adjust top based on header height */}
+        <div className="px-4 sm:px-6 pt-4 pb-2 border-b sticky top-[calc(3.5rem+2px+1.5rem)] bg-background z-10"> {/* Adjusted top based on header height */}
           <Label htmlFor="role-filter-select" className="mb-2 block text-xs font-medium text-muted-foreground">
             <Filter className="inline-block h-4 w-4 mr-1" />
             Filtrar por Rol:
@@ -101,14 +101,13 @@ export function ManageAllUsersDialog({
                   const displayInfo = roleDisplayInfo[user.role] || { Icon: UserIconLucide, label: user.role };
                   const isCurrentUser = user.id === currentUser?.id;
                   const isEditingOtherAdmin = user.role === 'administrador' && user.id !== currentUser?.id;
-                  // Admin can edit any user unless it's another admin or themselves if they are an admin trying to change their own role (which is handled in AddEditUserDialog)
                   const canEdit = !isEditingOtherAdmin;
 
 
                   return (
                     <Card key={user.id} className="shadow-sm hover:shadow-md transition-shadow">
                       <CardContent className="p-3 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex flex-1 items-center gap-3 min-w-0"> {/* Added flex-1 here */}
                           <displayInfo.Icon className={cn("h-6 w-6 flex-shrink-0",
                             user.role === 'administrador' ? 'text-purple-600' :
                             user.role === 'supervisor' ? 'text-blue-500' :
@@ -165,4 +164,3 @@ export function ManageAllUsersDialog({
     </Dialog>
   );
 }
-
