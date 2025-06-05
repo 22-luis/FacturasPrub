@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
-import { User as UserIcon, Pencil, Trash2, ShieldAlert, ShieldCheck, UserSquare2, Filter } from 'lucide-react';
+import { User as UserIconLucide, Pencil, Trash2, ShieldAlert, ShieldCheck, UserSquare2, Filter } from 'lucide-react'; // Renamed User to UserIconLucide
 import type { User, UserRole } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -50,22 +50,22 @@ export function ManageAllUsersDialog({
 
   const filteredUsers = useMemo(() => {
     if (selectedRoleFilter === 'all') {
-      return allUsers;
+      return allUsers.sort((a, b) => a.name.localeCompare(b.name));
     }
-    return allUsers.filter(user => user.role === selectedRoleFilter);
+    return allUsers.filter(user => user.role === selectedRoleFilter).sort((a, b) => a.name.localeCompare(b.name));
   }, [allUsers, selectedRoleFilter]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col p-0">
-        <DialogHeader className="p-4 sm:p-6 border-b">
+        <DialogHeader className="p-4 sm:p-6 border-b sticky top-0 bg-background z-10">
           <DialogTitle>Gestionar Todos los Usuarios</DialogTitle>
           <DialogDescription>
             Edita o elimina usuarios existentes. Filtra por rol para refinar la lista.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-4 sm:px-6 pt-4">
+        <div className="px-4 sm:px-6 pt-4 pb-2 border-b sticky top-[calc(3.5rem+2px)] bg-background z-10"> {/* Adjust top based on header height */}
           <Label htmlFor="role-filter-select" className="mb-2 block text-xs font-medium text-muted-foreground">
             <Filter className="inline-block h-4 w-4 mr-1" />
             Filtrar por Rol:
@@ -89,19 +89,24 @@ export function ManageAllUsersDialog({
           </Select>
         </div>
 
-        <div className="flex-grow min-h-0 overflow-hidden px-4 sm:px-6 py-3"> {/* Container for ScrollArea with padding */}
+        <div className="flex-grow min-h-0 overflow-hidden">
           <ScrollArea className="h-full" scrollbarProps={{ type: "always" }}>
-            <div className="space-y-3 pr-1"> {/* Added pr-1 for scrollbar spacing */}
+            <div className="space-y-3 p-4 sm:p-6 pt-3">
               {filteredUsers.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No hay usuarios que coincidan con el filtro seleccionado.
                 </p>
               ) : (
                 filteredUsers.map((user) => {
-                  const displayInfo = roleDisplayInfo[user.role] || { Icon: UserIcon, label: user.role };
+                  const displayInfo = roleDisplayInfo[user.role] || { Icon: UserIconLucide, label: user.role };
                   const isCurrentUser = user.id === currentUser?.id;
+                  const isEditingOtherAdmin = user.role === 'administrador' && user.id !== currentUser?.id;
+                  // Admin can edit any user unless it's another admin or themselves if they are an admin trying to change their own role (which is handled in AddEditUserDialog)
+                  const canEdit = !isEditingOtherAdmin;
+
+
                   return (
-                    <Card key={user.id} className="shadow-sm">
+                    <Card key={user.id} className="shadow-sm hover:shadow-md transition-shadow">
                       <CardContent className="p-3 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-3 min-w-0">
                           <displayInfo.Icon className={cn("h-6 w-6 flex-shrink-0",
@@ -124,12 +129,8 @@ export function ManageAllUsersDialog({
                             onClick={() => onEdit(user)}
                             aria-label={`Editar ${user.name}`}
                             className="h-8 w-8"
-                            disabled={(isCurrentUser && user.role === 'administrador') || (user.role === 'administrador' && user.id !== currentUser?.id)}
-                            title={
-                              (isCurrentUser && user.role === 'administrador') ? "Los administradores no pueden cambiar su propio rol aquí" :
-                              (user.role === 'administrador' && user.id !== currentUser?.id) ? "El rol de otros administradores no se puede cambiar" :
-                              `Editar ${user.name}`
-                            }
+                            disabled={!canEdit}
+                            title={!canEdit ? "El rol de administrador no se puede cambiar aquí." : `Editar ${user.name}` }
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
@@ -153,7 +154,7 @@ export function ManageAllUsersDialog({
             </div>
           </ScrollArea>
         </div>
-        <DialogFooter className="p-4 sm:p-6 border-t">
+        <DialogFooter className="p-4 sm:p-6 border-t sticky bottom-0 bg-background z-10">
           <DialogClose asChild>
             <Button type="button" variant="outline">
               Cerrar
@@ -164,3 +165,4 @@ export function ManageAllUsersDialog({
     </Dialog>
   );
 }
+

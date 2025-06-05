@@ -2,15 +2,16 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-// Link ya no es necesario para la gestión de usuarios del admin aquí
+import Link from 'next/link'; // Added Link for navigation
 import { AppHeader } from '@/components/AppHeader';
 import { InvoiceCard } from '@/components/InvoiceCard';
 import { ProcessInvoiceDialog } from '@/components/ProcessInvoiceDialog';
 import { AddEditInvoiceDialog } from '@/components/AddEditInvoiceDialog';
 import { AddRepartidorDialog } from '@/components/AddRepartidorDialog';
 import { ManageRepartidoresDialog } from '@/components/ManageRepartidoresDialog';
-import { ConfirmDialog } from '@/components/ConfirmDialog'; 
-import { AddEditUserDialog } from '@/components/AddEditUserDialog'; // Necesario para el admin
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { AddEditUserDialog } from '@/components/AddEditUserDialog';
+import { ManageAllUsersDialog } from '@/components/ManageAllUsersDialog'; // Import the dialog
 
 import { mockInvoices, mockUsers, generateInvoiceId, generateUserId } from '@/lib/types';
 import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, UserRole } from '@/lib/types';
@@ -19,15 +20,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, Pencil, Trash2, ShieldAlert, ShieldCheck, User as UserIconLucide, ChevronDown } from 'lucide-react';
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
@@ -44,13 +40,13 @@ const statusCardDetails: Record<InvoiceStatus, { label: string; Icon: React.Elem
   CANCELADA: { label: 'Facturas Canceladas', Icon: XCircle, description: "Anuladas del sistema" },
 };
 
-// Constantes para la gestión de usuarios por el administrador (movidas aquí)
-const adminRoleDisplayInfo: Record<User['role'], { Icon: React.ElementType; label: string, badgeClass?: string }> = {
-  administrador: { Icon: ShieldAlert, label: 'Administrador', badgeClass: 'bg-purple-600 text-white hover:bg-purple-700' },
-  supervisor: { Icon: ShieldCheck, label: 'Supervisor', badgeClass: 'bg-blue-500 text-white hover:bg-blue-600' },
-  repartidor: { Icon: UserSquare2, label: 'Repartidor', badgeClass: 'bg-green-500 text-white hover:bg-green-600' },
-};
-const adminAvailableRolesForFilter: UserRole[] = ['administrador', 'supervisor', 'repartidor'];
+// This will be moved to ManageAllUsersDialog
+// const adminRoleDisplayInfo: Record<User['role'], { Icon: React.ElementType; label: string, badgeClass?: string }> = {
+//   administrador: { Icon: ShieldAlert, label: 'Administrador', badgeClass: 'bg-purple-600 text-white hover:bg-purple-700' },
+//   supervisor: { Icon: ShieldCheck, label: 'Supervisor', badgeClass: 'bg-blue-500 text-white hover:bg-blue-600' },
+//   repartidor: { Icon: UserSquare2, label: 'Repartidor', badgeClass: 'bg-green-500 text-white hover:bg-green-600' },
+// };
+// const adminAvailableRolesForFilter: UserRole[] = ['administrador', 'supervisor', 'repartidor'];
 const manageableUserRoles: UserRole[] = ['supervisor', 'repartidor']; // Roles que un admin puede asignar/cambiar
 
 
@@ -61,19 +57,17 @@ export default function HomePage() {
   const [isAddEditInvoiceDialogOpen, setIsAddEditInvoiceDialogOpen] = useState(false);
   const [invoiceToEdit, setInvoiceToEdit] = useState<AssignedInvoice | null>(null);
 
-  // Para Supervisor role (managing repartidores)
   const [isAddRepartidorDialogOpen, setIsAddRepartidorDialogOpen] = useState(false);
   const [repartidorToEditFromSupervisor, setRepartidorToEditFromSupervisor] = useState<User | null>(null);
   const [isManageRepartidoresOpen, setIsManageRepartidoresOpen] = useState(false);
   const [isConfirmDeleteRepartidorOpen, setIsConfirmDeleteRepartidorOpen] = useState(false);
   const [repartidorToDelete, setRepartidorToDelete] = useState<User | null>(null);
 
-  // Para Administrador role (managing all users) - Estados reintegrados aquí
   const [isAddEditUserDialogOpen, setIsAddEditUserDialogOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [isConfirmDeleteUserOpen, setIsConfirmDeleteUserOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<User | null>(null); // Renombrado para evitar colisión
-  const [adminUserListRoleFilter, setAdminUserListRoleFilter] = useState<UserRole | 'all'>('all');
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isManageAllUsersDialogOpen, setIsManageAllUsersDialogOpen] = useState(false); // State for the new modal
 
 
   const [users, setUsers] = useState<User[]>(mockUsers);
@@ -95,9 +89,6 @@ export default function HomePage() {
       setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
       setSelectedStatusBySupervisor(null);
       setSearchTerm('');
-      setAdminUserListRoleFilter('all'); // Reset admin filter on logout
-    } else if (loggedInUser.role === 'supervisor' || loggedInUser.role === 'administrador') {
-      // For supervisor/admin, reset filters on login
     }
   }, [loggedInUser]);
 
@@ -118,9 +109,6 @@ export default function HomePage() {
         setSelectedStatusBySupervisor(null);
         setSearchTerm('');
       }
-      if (user.role === 'administrador') {
-        setAdminUserListRoleFilter('all');
-      }
     } else {
       toast({ variant: "destructive", title: "Error de Inicio de Sesión", description: "Nombre de usuario o contraseña incorrectos." });
     }
@@ -132,7 +120,6 @@ export default function HomePage() {
     setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
     setSelectedStatusBySupervisor(null);
     setSearchTerm('');
-    setAdminUserListRoleFilter('all');
     setUsernameInput('');
     setPasswordInput('');
   };
@@ -195,7 +182,6 @@ export default function HomePage() {
     });
   };
 
-  // --- Repartidor Management (for Supervisor role) ---
   const handleOpenAddRepartidorDialog = () => {
     setRepartidorToEditFromSupervisor(null);
     setIsAddRepartidorDialogOpen(true);
@@ -250,22 +236,22 @@ export default function HomePage() {
     setIsConfirmDeleteRepartidorOpen(false);
   };
 
-  // --- All User Management (for Administrador role) - Funciones Reintegradas ---
-  const handleOpenAddUserDialog = () => {
-    setUserToEdit(null); // UserToEdit es para AddEditUserDialog
+  // --- All User Management (for Administrador role) ---
+  const handleOpenAddUserDialog = () => { // Used by Admin
+    setUserToEdit(null);
     setIsAddEditUserDialogOpen(true);
   };
 
-  const handleOpenEditUserDialog = (user: User) => {
+  const handleOpenEditUserDialog = (user: User) => { // Used by Admin (from ManageAllUsersDialog)
     setUserToEdit(user);
     setIsAddEditUserDialogOpen(true);
   };
-  
-  const handleSaveUser = (userData: { name: string; role: UserRole }, idToEdit?: string) => {
+
+  const handleSaveUser = (userData: { name: string; role: UserRole }, idToEdit?: string) => { // Used by Admin
     if (idToEdit) {
         if (loggedInUser?.id === idToEdit && loggedInUser.role === 'administrador' && userData.role !== 'administrador') {
             toast({ variant: "destructive", title: "Operación no permitida", description: "Un administrador no puede cambiar su propio rol." });
-            setIsAddEditUserDialogOpen(false);
+            setIsAddEditUserDialogOpen(false); // Close the AddEditUserDialog
             return;
         }
       setUsers(prevUsers =>
@@ -274,7 +260,7 @@ export default function HomePage() {
         )
       );
       toast({ title: 'Usuario Actualizado', description: `Los datos de ${userData.name} han sido actualizados.` });
-    } else { 
+    } else {
       const newUser: User = {
         id: generateUserId(),
         name: userData.name,
@@ -283,23 +269,22 @@ export default function HomePage() {
       setUsers(prevUsers => [...prevUsers, newUser]);
       toast({ title: 'Usuario Agregado', description: `El usuario ${userData.name} (${userData.role}) ha sido agregado.` });
     }
-    setIsAddEditUserDialogOpen(false);
+    setIsAddEditUserDialogOpen(false); // Close the AddEditUserDialog
   };
 
-  const handleOpenDeleteUserDialog = (user: User) => {
+  const handleOpenDeleteUserDialog = (user: User) => { // Used by Admin (from ManageAllUsersDialog)
     if (loggedInUser && user.id === loggedInUser.id) {
       toast({ variant: "destructive", title: "Operación no permitida", description: "No puedes eliminarte a ti mismo." });
       return;
     }
-    setUserToDelete(user); // Este es el userToDelete genérico
+    setUserToDelete(user);
     setIsConfirmDeleteUserOpen(true);
   };
 
-  const executeDeleteUser = () => { // Función genérica para eliminar cualquier usuario
+  const executeDeleteUser = () => { // Used by Admin
     if (!userToDelete) return;
 
     setUsers(prevUsers => prevUsers.filter(user => user.id !== userToDelete.id));
-    // Desasignar facturas si el usuario eliminado era repartidor
     if (userToDelete.role === 'repartidor') {
        setInvoices(prevInvoices =>
         prevInvoices.map(inv =>
@@ -313,9 +298,9 @@ export default function HomePage() {
     } else {
       toast({ title: 'Usuario Eliminado', description: `El usuario ${userToDelete.name} ha sido eliminado.` });
     }
-    
+
     setUserToDelete(null);
-    setIsConfirmDeleteUserOpen(false);
+    setIsConfirmDeleteUserOpen(false); // Close the ConfirmDialog
   };
 
 
@@ -350,8 +335,6 @@ export default function HomePage() {
       } else if (selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) {
         filteredInvoices = filteredInvoices.filter(inv => inv.assigneeId === selectedRepartidorIdBySupervisor);
       }
-      // La lista de facturas para el admin ya no se filtra por repartidor aquí,
-      // ya que tiene su propia sección de gestión de usuarios.
       return filteredInvoices;
     }
 
@@ -411,13 +394,6 @@ export default function HomePage() {
 
     return baseTitle;
   };
-
-  const filteredAdminUsers = useMemo(() => { // Para la lista de usuarios del admin
-    if (adminUserListRoleFilter === 'all') {
-      return users.sort((a, b) => a.name.localeCompare(b.name)); 
-    }
-    return users.filter(user => user.role === adminUserListRoleFilter).sort((a, b) => a.name.localeCompare(b.name));
-  }, [users, adminUserListRoleFilter]);
 
 
   if (!loggedInUser) {
@@ -495,7 +471,7 @@ export default function HomePage() {
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Agregar Factura
                   </Button>
-                  {isSupervisor && !isAdmin && ( // Supervisor pero no Admin
+                  {isSupervisor && !isAdmin && (
                     <>
                       <Button onClick={handleOpenAddRepartidorDialog} variant="outline">
                         <UserPlus className="mr-2 h-4 w-4" />
@@ -507,19 +483,30 @@ export default function HomePage() {
                       </Button>
                     </>
                   )}
-                  {/* El botón de "Agregar Nuevo Usuario" para el admin estará dentro del acordeón */}
+                  {isAdmin && (
+                    <>
+                      <Button onClick={handleOpenAddUserDialog} variant="outline">
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Agregar Usuario
+                      </Button>
+                      <Button onClick={() => setIsManageAllUsersDialogOpen(true)} variant="outline">
+                        <UsersIconLucide className="mr-2 h-4 w-4" />
+                        Gestionar Usuarios
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
 
-              <Accordion type="single" collapsible className="w-full mb-6 border rounded-md shadow-sm">
-                <AccordionItem value="filters-search">
-                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                    <div className="flex items-center gap-2 text-base font-medium">
-                      <Filter className="h-5 w-5 text-primary" />
-                      <span>Opciones de Filtrado y Búsqueda de Facturas</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="pt-4 px-4 space-y-6">
+              {/* Filter and Search Accordion - Kept for Supervisor/Admin invoice view */}
+              <Card className="shadow-sm border">
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                        <Filter className="h-5 w-5 text-primary" />
+                        Opciones de Filtrado y Búsqueda de Facturas
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-2 space-y-6">
                     <div className="relative">
                       <Label htmlFor="search-invoices" className="sr-only">Buscar facturas</Label>
                       <Input
@@ -534,8 +521,8 @@ export default function HomePage() {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-medium text-foreground mb-4">Filtrar Facturas por Estado:</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                      <h3 className="text-base font-medium text-foreground mb-3">Filtrar Facturas por Estado:</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                         {invoiceStatusesArray.map(status => {
                           const details = statusCardDetails[status];
                           return (
@@ -543,15 +530,15 @@ export default function HomePage() {
                               key={status}
                               className={cn(
                                 "cursor-pointer transition-shadow",
-                                selectedStatusBySupervisor === status ? 'ring-2 ring-primary shadow-lg' : 'border hover:shadow-lg'
+                                selectedStatusBySupervisor === status ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md'
                               )}
                               onClick={() => setSelectedStatusBySupervisor(prev => prev === status ? null : status)}
                             >
-                              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">{details.label}</CardTitle>
-                                <details.Icon className="h-5 w-5 text-muted-foreground" />
+                              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
+                                <CardTitle className="text-xs font-medium">{details.label}</CardTitle>
+                                <details.Icon className="h-4 w-4 text-muted-foreground" />
                               </CardHeader>
-                              <CardContent>
+                              <CardContent className="px-3 pb-2">
                                 <p className="text-xs text-muted-foreground">{details.description}</p>
                               </CardContent>
                             </Card>
@@ -562,33 +549,33 @@ export default function HomePage() {
                           size="sm"
                           onClick={() => setSelectedStatusBySupervisor(null)}
                           className={cn(
-                            "h-full whitespace-normal text-left justify-start items-center transition-shadow hover:shadow-lg",
-                            !selectedStatusBySupervisor ? 'ring-2 ring-primary shadow-lg' : 'hover:bg-background hover:text-foreground'
+                            "h-full whitespace-normal text-left justify-start items-center transition-shadow hover:shadow-md text-xs py-2 px-3",
+                            !selectedStatusBySupervisor ? 'ring-2 ring-primary shadow-md' : 'hover:bg-background hover:text-foreground'
                           )}
                         >
-                          <ListFilter className="mr-2 h-4 w-4" />
+                          <ListFilter className="mr-2 h-3 w-3" />
                           Mostrar Todos los Estados
                         </Button>
                       </div>
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-medium text-foreground mb-4">Filtrar Facturas por Repartidor:</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                      <h3 className="text-base font-medium text-foreground mb-3">Filtrar Facturas por Repartidor:</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                         {repartidores.map(repartidor => (
                           <Card
                             key={repartidor.id}
                             className={cn(
                                 "cursor-pointer transition-shadow",
-                                selectedRepartidorIdBySupervisor === repartidor.id ? 'ring-2 ring-primary shadow-lg' : 'border hover:shadow-lg'
+                                selectedRepartidorIdBySupervisor === repartidor.id ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md'
                             )}
                             onClick={() => setSelectedRepartidorIdBySupervisor(prev => prev === repartidor.id ? ALL_REPARTIDORES_KEY : repartidor.id)}
                           >
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                              <CardTitle className="text-sm font-medium">{repartidor.name}</CardTitle>
-                              <UserSquare2 className="h-5 w-5 text-muted-foreground" />
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
+                              <CardTitle className="text-xs font-medium">{repartidor.name}</CardTitle>
+                              <UserSquare2 className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="px-3 pb-2">
                               <div className="text-xs text-muted-foreground">Rol: repartidor</div>
                             </CardContent>
                           </Card>
@@ -597,16 +584,16 @@ export default function HomePage() {
                           key={UNASSIGNED_KEY}
                           className={cn(
                             "cursor-pointer transition-shadow",
-                            selectedRepartidorIdBySupervisor === UNASSIGNED_KEY ? 'ring-2 ring-primary shadow-lg' : 'border hover:shadow-lg'
+                            selectedRepartidorIdBySupervisor === UNASSIGNED_KEY ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md'
                           )}
                           onClick={() => setSelectedRepartidorIdBySupervisor(prev => prev === UNASSIGNED_KEY ? ALL_REPARTIDORES_KEY : UNASSIGNED_KEY)}
                         >
-                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Facturas sin Asignar</CardTitle>
-                            <Archive className="h-5 w-5 text-muted-foreground" />
+                           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
+                            <CardTitle className="text-xs font-medium">Facturas sin Asignar</CardTitle>
+                            <Archive className="h-4 w-4 text-muted-foreground" />
                           </CardHeader>
-                          <CardContent>
-                            <div className="text-xs text-muted-foreground">Ver facturas no asignadas</div>
+                          <CardContent className="px-3 pb-2">
+                            <div className="text-xs text-muted-foreground">Ver no asignadas</div>
                           </CardContent>
                         </Card>
                         <Button
@@ -614,21 +601,20 @@ export default function HomePage() {
                           size="sm"
                           onClick={() => setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
                           className={cn(
-                            "h-full whitespace-normal text-left justify-start items-center transition-shadow hover:shadow-lg",
-                             selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-lg' : 'hover:bg-background hover:text-foreground'
+                            "h-full whitespace-normal text-left justify-start items-center transition-shadow hover:shadow-md text-xs py-2 px-3",
+                             selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-md' : 'hover:bg-background hover:text-foreground'
                           )}
                         >
-                          <Users className="mr-2 h-4 w-4" />
+                          <Users className="mr-2 h-3 w-3" />
                           Mostrar Todas las Facturas
                         </Button>
                       </div>
                       {repartidores.length === 0 && (
-                         <p className="text-muted-foreground mt-2">No hay repartidores en el sistema. Agrega uno para asignar facturas.</p>
+                         <p className="text-muted-foreground mt-2 text-sm">No hay repartidores. Agrega uno para asignar facturas.</p>
                       )}
                     </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
+                  </CardContent>
+              </Card>
             </div>
 
             <div>
@@ -675,126 +661,6 @@ export default function HomePage() {
             )}
           </section>
         )}
-
-        {/* Sección de Gestión de Usuarios para Administrador (integrada con Accordion) */}
-        {isAdmin && (
-          <section className="mt-12">
-            <Accordion type="single" collapsible className="w-full border rounded-md shadow-sm" defaultValue="manage-users">
-              <AccordionItem value="manage-users">
-                <AccordionTrigger className="px-4 py-3 hover:no-underline bg-muted/30 rounded-t-md">
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                      <UsersIconLucide className="h-6 w-6 text-primary" />
-                      Gestión de Usuarios del Sistema
-                    </div>
-                    <ChevronDown className="h-5 w-5 transition-transform duration-200 accordion-chevron" />
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="px-4 pt-4 pb-2 border-t flex flex-col" style={{minHeight: '300px'}}> {/* Flexbox Column + minHeight */}
-                  <div className="flex flex-wrap justify-between items-center mb-4 gap-4"> {/* Reduced mb */}
-                    <CardDescription>Filtra, edita o elimina usuarios del sistema.</CardDescription>
-                    <Button onClick={handleOpenAddUserDialog} variant="default">
-                        <UserPlus className="mr-2 h-4 w-4" />
-                        Agregar Nuevo Usuario
-                    </Button>
-                  </div>
-                  
-                  <div className="mb-4"> {/* Added mb */}
-                      <Label htmlFor="admin-user-role-filter" className="mb-2 block text-sm font-medium text-muted-foreground">
-                          <Filter className="inline-block h-4 w-4 mr-1" />
-                          Filtrar por Rol:
-                      </Label>
-                      <Select
-                          value={adminUserListRoleFilter}
-                          onValueChange={(value) => setAdminUserListRoleFilter(value as UserRole | 'all')}
-                          name="admin-user-role-filter"
-                      >
-                          <SelectTrigger className="w-full sm:w-[240px] h-10 text-sm">
-                          <SelectValue placeholder="Seleccionar rol para filtrar..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                          <SelectItem value="all">Todos los Roles</SelectItem>
-                          {adminAvailableRolesForFilter.map(role => (
-                              <SelectItem key={role} value={role}>
-                              {adminRoleDisplayInfo[role]?.label || role.charAt(0).toUpperCase() + role.slice(1)}
-                              </SelectItem>
-                          ))}
-                          </SelectContent>
-                      </Select>
-                  </div>
-
-                  {/* User list container - Flex grow and min height 0 */}
-                  <div className="flex-grow min-h-0 overflow-hidden"> 
-                      <ScrollArea className="h-full" scrollbarProps={{ type: "always" }}>
-                          <div className="space-y-3 p-1"> {/* Padding for items */}
-                          {filteredAdminUsers.length === 0 ? (
-                              <p className="text-sm text-muted-foreground text-center py-6">
-                              No hay usuarios que coincidan con el filtro "{adminUserListRoleFilter === 'all' ? 'Todos los Roles' : adminRoleDisplayInfo[adminUserListRoleFilter]?.label}".
-                              </p>
-                          ) : (
-                              filteredAdminUsers.map((user) => {
-                              const displayInfo = adminRoleDisplayInfo[user.role] || { Icon: UserIconLucide, label: user.role };
-                              const isCurrentUser = user.id === loggedInUser?.id;
-                              const isEditingOtherAdmin = user.role === 'administrador' && user.id !== loggedInUser?.id;
-                              const canEdit = !((isCurrentUser && user.role === 'administrador') || isEditingOtherAdmin);
-
-                              return (
-                                  <Card key={user.id} className="shadow-md hover:shadow-lg transition-shadow duration-200">
-                                  <CardContent className="p-3 sm:p-4 flex items-center justify-between gap-2">
-                                      <div className="flex items-center gap-3 min-w-0">
-                                      <displayInfo.Icon className={cn("h-7 w-7 sm:h-8 sm:w-8 flex-shrink-0",
-                                          user.role === 'administrador' ? 'text-purple-600' :
-                                          user.role === 'supervisor' ? 'text-blue-500' :
-                                          user.role === 'repartidor' ? 'text-green-500' : 'text-primary'
-                                      )} />
-                                      <div className="flex-grow min-w-0">
-                                          <span className="font-semibold block truncate text-foreground text-sm sm:text-base" title={user.name}>{user.name}</span>
-                                          <Badge variant={user.role === 'administrador' || user.role === 'supervisor' || user.role === 'repartidor' ? "default" : "secondary"}
-                                                  className={cn("text-xs", displayInfo.badgeClass)}>
-                                          {displayInfo.label}
-                                          </Badge>
-                                      </div>
-                                      </div>
-                                      <div className="flex items-center gap-2 flex-shrink-0">
-                                      <Button
-                                          variant="outline"
-                                          size="icon"
-                                          onClick={() => handleOpenEditUserDialog(user)}
-                                          aria-label={`Editar ${user.name}`}
-                                          className="h-8 w-8 sm:h-9 sm:w-9"
-                                          disabled={!canEdit}
-                                          title={
-                                            !canEdit ? (user.role === 'administrador' ? "El rol de administrador no se puede cambiar aquí." : `Editar ${user.name}`) : `Editar ${user.name}`
-                                          }
-                                      >
-                                          <Pencil className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                          variant="destructive"
-                                          size="icon"
-                                          onClick={() => handleOpenDeleteUserDialog(user)} // Usa la función genérica
-                                          aria-label={`Eliminar ${user.name}`}
-                                          className="h-8 w-8 sm:h-9 sm:w-9"
-                                          disabled={isCurrentUser}
-                                          title={isCurrentUser ? "No puedes eliminarte a ti mismo" : `Eliminar ${user.name}`}
-                                      >
-                                          <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                      </div>
-                                  </CardContent>
-                                  </Card>
-                              );
-                              })
-                          )}
-                          </div>
-                      </ScrollArea>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </section>
-        )}
-
       </main>
       <footer className="py-6 text-center text-sm text-muted-foreground border-t">
         © 2025 SnapClaim. All rights reserved.
@@ -810,11 +676,11 @@ export default function HomePage() {
         isOpen={isAddEditInvoiceDialogOpen}
         onOpenChange={setIsAddEditInvoiceDialogOpen}
         invoiceToEdit={invoiceToEdit}
-        users={users} 
+        users={users}
         onSave={handleSaveInvoice}
       />
-      {/* Dialogs for Supervisor role */}
-      {isSupervisor && !isAdmin && ( 
+
+      {isSupervisor && !isAdmin && (
         <>
           <AddRepartidorDialog
             isOpen={isAddRepartidorDialogOpen}
@@ -827,16 +693,16 @@ export default function HomePage() {
             onOpenChange={setIsManageRepartidoresOpen}
             repartidores={repartidores}
             onEdit={handleOpenEditRepartidorDialog}
-            onDelete={handleOpenDeleteRepartidorDialog} // Pasa la función específica para repartidores
+            onDelete={handleOpenDeleteRepartidorDialog}
             scrollbarProps={{ type: "always" }}
           />
-          {repartidorToDelete && ( // Asegúrate que este estado es para el repartidor
+          {repartidorToDelete && (
             <ConfirmDialog
                 isOpen={isConfirmDeleteRepartidorOpen}
                 onOpenChange={setIsConfirmDeleteRepartidorOpen}
                 title={`Confirmar Eliminación de ${repartidorToDelete.name}`}
                 description={`¿Estás seguro de que quieres eliminar a ${repartidorToDelete.name}? Esta acción no se puede deshacer. Las facturas asignadas a este repartidor pasarán a estar "Sin asignar".`}
-                onConfirm={executeDeleteRepartidor} // Usa la función que maneja eliminación de repartidores
+                onConfirm={executeDeleteRepartidor}
                 confirmButtonText="Eliminar Repartidor"
             />
           )}
@@ -847,23 +713,31 @@ export default function HomePage() {
       {isAdmin && (
           <>
             <AddEditUserDialog
-                isOpen={isAddEditUserDialogOpen} // Asegúrate que este estado es para el admin
+                isOpen={isAddEditUserDialogOpen}
                 onOpenChange={setIsAddEditUserDialogOpen}
-                userToEdit={userToEdit} // UserToEdit para AddEditUserDialog
+                userToEdit={userToEdit}
                 onSave={handleSaveUser}
                 availableRoles={manageableUserRoles}
                 currentUser={loggedInUser}
             />
-            {userToDelete && ( // Este es el userToDelete genérico para el admin
+            {userToDelete && (
                 <ConfirmDialog
                     isOpen={isConfirmDeleteUserOpen}
                     onOpenChange={setIsConfirmDeleteUserOpen}
                     title={`Confirmar Eliminación de ${userToDelete.name}`}
                     description={`¿Estás seguro de que quieres eliminar a ${userToDelete.name} (${userToDelete.role})? Esta acción no se puede deshacer.${userToDelete.role === 'repartidor' ? ' Las facturas asignadas también se desasignarán.' : ''}`}
-                    onConfirm={executeDeleteUser} // Usa la función genérica para eliminar cualquier usuario
+                    onConfirm={executeDeleteUser}
                     confirmButtonText="Eliminar Usuario"
                 />
             )}
+            <ManageAllUsersDialog
+                isOpen={isManageAllUsersDialogOpen}
+                onOpenChange={setIsManageAllUsersDialogOpen}
+                allUsers={users}
+                currentUser={loggedInUser}
+                onEdit={handleOpenEditUserDialog}
+                onDelete={handleOpenDeleteUserDialog}
+            />
           </>
       )}
       <Toaster />
