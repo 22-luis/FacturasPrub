@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
-import { User as UserIconLucide, Pencil, Trash2, ShieldAlert, ShieldCheck, UserSquare2, Filter } from 'lucide-react'; // Renamed User to UserIconLucide
+import { User as UserIconLucide, Pencil, Trash2, ShieldAlert, ShieldCheck, UserSquare2, Filter } from 'lucide-react';
 import type { User, UserRole } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -56,14 +56,14 @@ export function ManageAllUsersDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col p-0">
-        <DialogHeader className="p-4 sm:p-6 border-b sticky top-0 bg-background z-10">
+        <DialogHeader className="p-4 sm:p-6 border-b bg-background">
           <DialogTitle>Gestionar Todos los Usuarios</DialogTitle>
           <DialogDescription>
             Edita o elimina usuarios existentes. Filtra por rol para refinar la lista.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-4 sm:px-6 pt-4 pb-2 border-b sticky top-[calc(3.5rem+2px+1.5rem)] bg-background z-10"> {/* Adjusted top based on header height */}
+        <div className="px-4 sm:px-6 pt-4 pb-2 border-b bg-background">
           <Label htmlFor="role-filter-select" className="mb-2 block text-xs font-medium text-muted-foreground">
             <Filter className="inline-block h-4 w-4 mr-1" />
             Filtrar por Rol:
@@ -151,7 +151,6 @@ export function ManageAllUsersDialog({
             </div>
           </ScrollArea>
         </div>
-        {/* DialogFooter with the Close button has been removed */}
       </DialogContent>
     </Dialog>
   );
