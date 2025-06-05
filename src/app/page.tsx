@@ -483,10 +483,7 @@ export default function HomePage() {
                         <UserPlus className="mr-2 h-4 w-4" />
                         Agregar Usuario
                       </Button>
-                      <Button onClick={() => setIsManageAllUsersDialogOpen(true)} variant="outline">
-                        <Users2 className="mr-2 h-4 w-4" />
-                        Gestionar Usuarios
-                      </Button>
+                      {/* Button to manage all users was here */}
                     </>
                   )}
                 </div>
