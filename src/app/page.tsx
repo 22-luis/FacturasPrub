@@ -8,17 +8,16 @@ import { ProcessInvoiceDialog } from '@/components/ProcessInvoiceDialog';
 import { AddEditInvoiceDialog } from '@/components/AddEditInvoiceDialog';
 import { AddRepartidorDialog } from '@/components/AddRepartidorDialog';
 import { ManageRepartidoresDialog } from '@/components/ManageRepartidoresDialog';
-import { AddEditUserDialog } from '@/components/AddEditUserDialog'; // New
-import { ManageAllUsersDialog } from '@/components/ManageAllUsersDialog'; // New
+import { AddEditUserDialog } from '@/components/AddEditUserDialog';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { mockInvoices, mockUsers, generateInvoiceId, generateUserId } from '@/lib/types';
 import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, UserRole } from '@/lib/types';
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 } from 'lucide-react';
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, Pencil, Trash2, ShieldAlert, ShieldCheck, User as UserIconLucide } from 'lucide-react'; // Added UserIconLucide
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
@@ -27,6 +26,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+
 
 const UNASSIGNED_KEY = "unassigned_invoices_key";
 const ALL_REPARTIDORES_KEY = "all_repartidores_filter_key";
@@ -40,6 +44,14 @@ const statusCardDetails: Record<InvoiceStatus, { label: string; Icon: React.Elem
   CANCELADA: { label: 'Facturas Canceladas', Icon: XCircle, description: "Anuladas del sistema" },
 };
 
+// Copied from ManageAllUsersDialog.tsx for inline admin user management
+const adminRoleDisplayInfo: Record<User['role'], { Icon: React.ElementType; label: string, badgeClass?: string }> = {
+  administrador: { Icon: ShieldAlert, label: 'Administrador', badgeClass: 'bg-purple-600 text-white hover:bg-purple-700' },
+  supervisor: { Icon: ShieldCheck, label: 'Supervisor', badgeClass: 'bg-blue-500 text-white hover:bg-blue-600' },
+  repartidor: { Icon: UserSquare2, label: 'Repartidor', badgeClass: 'bg-green-500 text-white hover:bg-green-600' },
+};
+const adminAvailableRolesForFilter: UserRole[] = ['administrador', 'supervisor', 'repartidor'];
+
 
 export default function HomePage() {
   const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
@@ -50,7 +62,7 @@ export default function HomePage() {
 
   // For Supervisor role (managing repartidores)
   const [isAddRepartidorDialogOpen, setIsAddRepartidorDialogOpen] = useState(false);
-  const [repartidorToEditFromSupervisor, setRepartidorToEditFromSupervisor] = useState<User | null>(null); // Renamed to avoid conflict
+  const [repartidorToEditFromSupervisor, setRepartidorToEditFromSupervisor] = useState<User | null>(null);
   const [isManageRepartidoresOpen, setIsManageRepartidoresOpen] = useState(false);
   const [isConfirmDeleteRepartidorOpen, setIsConfirmDeleteRepartidorOpen] = useState(false);
   const [repartidorToDelete, setRepartidorToDelete] = useState<User | null>(null);
@@ -58,9 +70,9 @@ export default function HomePage() {
   // For Administrador role (managing all users)
   const [isAddEditUserDialogOpen, setIsAddEditUserDialogOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
-  const [isManageAllUsersDialogOpen, setIsManageAllUsersDialogOpen] = useState(false);
   const [isConfirmDeleteUserOpen, setIsConfirmDeleteUserOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [adminUserListRoleFilter, setAdminUserListRoleFilter] = useState<UserRole | 'all'>('all');
 
 
   const [users, setUsers] = useState<User[]>(mockUsers);
@@ -82,6 +94,7 @@ export default function HomePage() {
       setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
       setSelectedStatusBySupervisor(null);
       setSearchTerm('');
+      setAdminUserListRoleFilter('all');
     } else if (loggedInUser.role === 'supervisor' || loggedInUser.role === 'administrador') {
       // For supervisor/admin, reset filters on login, or maintain if needed
     }
@@ -104,6 +117,9 @@ export default function HomePage() {
         setSelectedStatusBySupervisor(null);
         setSearchTerm('');
       }
+      if (user.role === 'administrador') {
+        setAdminUserListRoleFilter('all');
+      }
     } else {
       toast({ variant: "destructive", title: "Error de Inicio de Sesión", description: "Nombre de usuario o contraseña incorrectos." });
     }
@@ -115,6 +131,7 @@ export default function HomePage() {
     setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
     setSelectedStatusBySupervisor(null);
     setSearchTerm('');
+    setAdminUserListRoleFilter('all');
     setUsernameInput('');
     setPasswordInput('');
   };
@@ -232,7 +249,7 @@ export default function HomePage() {
     setIsConfirmDeleteRepartidorOpen(false);
   };
 
-  // --- All User Management (for Administrador role) ---
+  // --- All User Management (for Administrador role, used by inline section and dialogs) ---
   const handleOpenAddUserDialog = () => {
     setUserToEdit(null);
     setIsAddEditUserDialogOpen(true);
@@ -245,7 +262,6 @@ export default function HomePage() {
   
   const handleSaveUser = (userData: { name: string; role: UserRole }, idToEdit?: string) => {
     if (idToEdit) {
-        // Prevent admin from changing their own role via UI
         if (loggedInUser?.id === idToEdit && loggedInUser.role === 'administrador' && userData.role !== 'administrador') {
             toast({ variant: "destructive", title: "Operación no permitida", description: "Un administrador no puede cambiar su propio rol." });
             setIsAddEditUserDialogOpen(false);
@@ -257,7 +273,7 @@ export default function HomePage() {
         )
       );
       toast({ title: 'Usuario Actualizado', description: `Los datos de ${userData.name} han sido actualizados.` });
-    } else { // Adding new user
+    } else { 
       const newUser: User = {
         id: generateUserId(),
         name: userData.name,
@@ -340,6 +356,15 @@ export default function HomePage() {
     }
     return [];
   }, [loggedInUser, invoices, selectedRepartidorIdBySupervisor, selectedStatusBySupervisor, searchTerm]);
+
+
+  const filteredAdminUsers = useMemo(() => {
+    if (adminUserListRoleFilter === 'all') {
+      return users.sort((a, b) => a.name.localeCompare(b.name)); 
+    }
+    return users.filter(user => user.role === adminUserListRoleFilter).sort((a, b) => a.name.localeCompare(b.name));
+  }, [users, adminUserListRoleFilter]);
+
 
   const getInvoicesTitleForSupervisorOrAdmin = () => {
     let titleParts: string[] = [];
@@ -447,7 +472,9 @@ export default function HomePage() {
     );
   }
 
-  const isSupervisorOrAdmin = loggedInUser.role === 'supervisor' || loggedInUser.role === 'administrador';
+  const isSupervisor = loggedInUser.role === 'supervisor';
+  const isAdmin = loggedInUser.role === 'administrador';
+  const isSupervisorOrAdmin = isSupervisor || isAdmin;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -458,14 +485,14 @@ export default function HomePage() {
             <div>
               <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
                 <h2 className="text-xl sm:text-2xl font-semibold text-foreground">
-                  {loggedInUser.role === 'administrador' ? 'Panel de Administrador' : 'Panel de Supervisor'}
+                  {isAdmin ? 'Panel de Administrador' : 'Panel de Supervisor'}
                 </h2>
                 <div className="flex gap-2 flex-wrap">
                   <Button onClick={handleAddInvoiceClick}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Agregar Factura
                   </Button>
-                  {loggedInUser.role === 'supervisor' && (
+                  {isSupervisor && (
                     <>
                       <Button onClick={handleOpenAddRepartidorDialog} variant="outline">
                         <UserPlus className="mr-2 h-4 w-4" />
@@ -477,16 +504,13 @@ export default function HomePage() {
                       </Button>
                     </>
                   )}
-                  {loggedInUser.role === 'administrador' && (
+                  {isAdmin && (
                     <>
                       <Button onClick={handleOpenAddUserDialog} variant="outline">
                         <UserPlus className="mr-2 h-4 w-4" />
                         Agregar Usuario
                       </Button>
-                      <Button onClick={() => setIsManageAllUsersDialogOpen(true)} variant="outline">
-                        <Users2 className="mr-2 h-4 w-4" />
-                        Gestionar Usuarios
-                      </Button>
+                      {/* Button to open ManageAllUsersDialog removed as per making it an inline section */}
                     </>
                   )}
                 </div>
@@ -497,7 +521,7 @@ export default function HomePage() {
                   <AccordionTrigger className="px-4 py-3 hover:no-underline">
                     <div className="flex items-center gap-2 text-base font-medium">
                       <Filter className="h-5 w-5 text-primary" />
-                      <span>Opciones de Filtrado y Búsqueda</span>
+                      <span>Opciones de Filtrado y Búsqueda de Facturas</span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="pt-4 px-4 space-y-6">
@@ -515,7 +539,7 @@ export default function HomePage() {
                     </div>
 
                     <div>
-                      <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-4">Filtrar por Estado:</h3>
+                      <h3 className="text-lg font-medium text-foreground mb-4">Filtrar Facturas por Estado:</h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                         {invoiceStatusesArray.map(status => {
                           const details = statusCardDetails[status];
@@ -554,7 +578,7 @@ export default function HomePage() {
                     </div>
 
                     <div>
-                      <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-4">Filtrar por Repartidor:</h3>
+                      <h3 className="text-lg font-medium text-foreground mb-4">Filtrar Facturas por Repartidor:</h3>
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                         {repartidores.map(repartidor => (
                           <Card
@@ -610,7 +634,6 @@ export default function HomePage() {
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
-
             </div>
 
             <div>
@@ -657,6 +680,121 @@ export default function HomePage() {
             )}
           </section>
         )}
+
+        {/* Admin User Management Section */}
+        {isAdmin && (
+            <section className="mt-12 pt-8 border-t">
+                 <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
+                    <h2 className="text-xl sm:text-2xl font-semibold text-foreground flex items-center">
+                        <UsersIconLucide className="mr-3 h-7 w-7 text-primary" />
+                        Gestión de Usuarios del Sistema
+                    </h2>
+                    {/* "Agregar Usuario" button moved here from the top admin actions */}
+                    <Button onClick={handleOpenAddUserDialog} variant="outline">
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Agregar Nuevo Usuario
+                    </Button>
+                </div>
+
+                <Card className="shadow-md">
+                    <CardHeader>
+                        <CardTitle>Lista de Usuarios</CardTitle>
+                        <CardDescription>Filtra, edita o elimina usuarios del sistema.</CardDescription>
+                        <div className="pt-4">
+                            <Label htmlFor="admin-user-role-filter" className="mb-2 block text-xs font-medium text-muted-foreground">
+                                <Filter className="inline-block h-4 w-4 mr-1" />
+                                Filtrar por Rol:
+                            </Label>
+                            <Select
+                                value={adminUserListRoleFilter}
+                                onValueChange={(value) => setAdminUserListRoleFilter(value as UserRole | 'all')}
+                                name="admin-user-role-filter"
+                            >
+                                <SelectTrigger className="w-full sm:w-[220px] h-9 text-sm">
+                                <SelectValue placeholder="Seleccionar rol para filtrar..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                <SelectItem value="all">Todos los Roles</SelectItem>
+                                {adminAvailableRolesForFilter.map(role => (
+                                    <SelectItem key={role} value={role}>
+                                    {adminRoleDisplayInfo[role]?.label || role.charAt(0).toUpperCase() + role.slice(1)}
+                                    </SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="max-h-[500px] min-h-[200px] pr-1"> {/* Container for ScrollArea with max-height */}
+                             <ScrollArea className="h-full" scrollbarProps={{ type: "always" }}>
+                                <div className="space-y-3">
+                                {filteredAdminUsers.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground text-center py-4">
+                                    No hay usuarios que coincidan con el filtro "{adminUserListRoleFilter === 'all' ? 'Todos los Roles' : adminRoleDisplayInfo[adminUserListRoleFilter]?.label}".
+                                    </p>
+                                ) : (
+                                    filteredAdminUsers.map((user) => {
+                                    const displayInfo = adminRoleDisplayInfo[user.role] || { Icon: UserIconLucide, label: user.role };
+                                    const isCurrentUser = user.id === loggedInUser?.id;
+                                    const isEditingOtherAdmin = user.role === 'administrador' && user.id !== loggedInUser?.id;
+                                    const canEdit = !((isCurrentUser && user.role === 'administrador') || isEditingOtherAdmin);
+
+                                    return (
+                                        <Card key={user.id} className="shadow-sm hover:shadow-md transition-shadow">
+                                        <CardContent className="p-3 flex items-center justify-between gap-2">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                            <displayInfo.Icon className={cn("h-7 w-7 flex-shrink-0",
+                                                user.role === 'administrador' ? 'text-purple-600' :
+                                                user.role === 'supervisor' ? 'text-blue-500' :
+                                                user.role === 'repartidor' ? 'text-green-500' : 'text-primary'
+                                            )} />
+                                            <div className="flex-grow min-w-0">
+                                                <span className="font-medium block truncate text-foreground" title={user.name}>{user.name}</span>
+                                                <Badge variant={user.role === 'administrador' || user.role === 'supervisor' || user.role === 'repartidor' ? "default" : "secondary"}
+                                                        className={cn("text-xs", displayInfo.badgeClass)}>
+                                                {displayInfo.label}
+                                                </Badge>
+                                            </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 flex-shrink-0">
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                onClick={() => handleOpenEditUserDialog(user)}
+                                                aria-label={`Editar ${user.name}`}
+                                                className="h-8 w-8"
+                                                disabled={!canEdit}
+                                                title={
+                                                !canEdit ? (user.role === 'administrador' ? "El rol de administrador no se puede cambiar aquí." : `Editar ${user.name}`) : `Editar ${user.name}`
+                                                }
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="destructive"
+                                                size="icon"
+                                                onClick={() => handleOpenDeleteUserDialog(user)}
+                                                aria-label={`Eliminar ${user.name}`}
+                                                className="h-8 w-8"
+                                                disabled={isCurrentUser}
+                                                title={isCurrentUser ? "No puedes eliminarte a ti mismo" : `Eliminar ${user.name}`}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                            </div>
+                                        </CardContent>
+                                        </Card>
+                                    );
+                                    })
+                                )}
+                                </div>
+                            </ScrollArea>
+                        </div>
+                    </CardContent>
+                </Card>
+            </section>
+        )}
+
       </main>
       <footer className="py-6 text-center text-sm text-muted-foreground border-t">
         © 2025 SnapClaim. All rights reserved.
@@ -676,7 +814,7 @@ export default function HomePage() {
         onSave={handleSaveInvoice}
       />
       {/* Dialogs for Supervisor role */}
-      {loggedInUser?.role === 'supervisor' && (
+      {isSupervisor && !isAdmin && ( // Ensure these only show for supervisor, not admin if admin has different UI
         <>
           <AddRepartidorDialog
             isOpen={isAddRepartidorDialogOpen}
@@ -703,8 +841,8 @@ export default function HomePage() {
           )}
         </>
       )}
-      {/* Dialogs for Administrador role */}
-      {loggedInUser?.role === 'administrador' && (
+      {/* Dialogs for Administrador role (user add/edit and delete confirmation) */}
+      {isAdmin && (
          <>
             <AddEditUserDialog
                 isOpen={isAddEditUserDialogOpen}
@@ -714,14 +852,7 @@ export default function HomePage() {
                 availableRoles={manageableUserRoles}
                 currentUser={loggedInUser}
             />
-            <ManageAllUsersDialog
-                isOpen={isManageAllUsersDialogOpen}
-                onOpenChange={setIsManageAllUsersDialogOpen}
-                allUsers={users}
-                currentUser={loggedInUser}
-                onEdit={handleOpenEditUserDialog}
-                onDelete={handleOpenDeleteUserDialog}
-            />
+            {/* ManageAllUsersDialog component is not directly opened by a button for admin anymore */}
             {userToDelete && (
                 <ConfirmDialog
                     isOpen={isConfirmDeleteUserOpen}
@@ -738,3 +869,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
