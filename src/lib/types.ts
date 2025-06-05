@@ -42,10 +42,18 @@ export interface VerificationResult {
 }
 
 export const mockUsers: User[] = [
-  { id: 'user-adm-1', name: 'admin', role: 'administrador' }, // Changed name to 'admin'
+  { id: 'user-adm-1', name: 'Admin User', role: 'administrador' },
   { id: 'user-sup-1', name: 'Ana Supervisora', role: 'supervisor' },
   { id: 'user-rep-1', name: 'Juan Repartidor', role: 'repartidor' },
   { id: 'user-rep-2', name: 'Luisa Repartidora', role: 'repartidor' },
+  { id: 'user-rep-3', name: 'Carlos Vendedor', role: 'repartidor' },
+  { id: 'user-sup-2', name: 'Sofia Encargada', role: 'supervisor' },
+  { id: 'user-rep-4', name: 'Pedro Entregas', role: 'repartidor' },
+  { id: 'user-rep-5', name: 'Maria Logistica', role: 'repartidor' },
+  { id: 'user-adm-2', name: 'Laura Admin', role: 'administrador' },
+  { id: 'user-rep-6', name: 'Ricardo Movil', role: 'repartidor' },
+  { id: 'user-rep-7', name: 'Elena Despacho', role: 'repartidor' },
+  { id: 'user-sup-3', name: 'Miguel Coordinador', role: 'supervisor' },
 ];
 
 export const mockInvoices: AssignedInvoice[] = [
@@ -108,4 +116,3 @@ export const mockInvoices: AssignedInvoice[] = [
 export const generateInvoiceId = () => `inv_${Date.now().toString()}_${Math.random().toString(36).substring(2, 7)}`;
 
 export const generateUserId = () => `user_${Date.now().toString()}_${Math.random().toString(36).substring(2, 7)}`;
-

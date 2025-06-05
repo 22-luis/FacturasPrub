@@ -48,7 +48,7 @@ const statusCardDetails: Record<InvoiceStatus, { label: string; Icon: React.Elem
 const adminRoleDisplayInfo: Record<User['role'], { Icon: React.ElementType; label: string, badgeClass?: string }> = {
   administrador: { Icon: ShieldAlert, label: 'Administrador', badgeClass: 'bg-purple-600 text-white hover:bg-purple-700' },
   supervisor: { Icon: ShieldCheck, label: 'Supervisor', badgeClass: 'bg-blue-500 text-white hover:bg-blue-600' },
-  repartidor: { Icon: UserSquare2, label: 'Repartidor', badgeClass: 'bg-green-500 text-white hover:bg-green-600' }, // FIX: Replaced RepartidorIcon with UserSquare2
+  repartidor: { Icon: UserSquare2, label: 'Repartidor', badgeClass: 'bg-green-500 text-white hover:bg-green-600' },
 };
 const adminAvailableRolesForFilter: UserRole[] = ['administrador', 'supervisor', 'repartidor'];
 const manageableUserRoles: UserRole[] = ['supervisor', 'repartidor']; // Roles que un admin puede asignar/cambiar
@@ -690,8 +690,8 @@ export default function HomePage() {
                     <ChevronDown className="h-5 w-5 transition-transform duration-200 accordion-chevron" />
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pt-4 px-4 space-y-6 border-t">
-                  <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
+                <AccordionContent className="px-4 pt-4 pb-2 border-t flex flex-col" style={{minHeight: '300px'}}> {/* Flexbox Column + minHeight */}
+                  <div className="flex flex-wrap justify-between items-center mb-4 gap-4"> {/* Reduced mb */}
                     <CardDescription>Filtra, edita o elimina usuarios del sistema.</CardDescription>
                     <Button onClick={handleOpenAddUserDialog} variant="default">
                         <UserPlus className="mr-2 h-4 w-4" />
@@ -699,7 +699,7 @@ export default function HomePage() {
                     </Button>
                   </div>
                   
-                  <div className="pt-4">
+                  <div className="mb-4"> {/* Added mb */}
                       <Label htmlFor="admin-user-role-filter" className="mb-2 block text-sm font-medium text-muted-foreground">
                           <Filter className="inline-block h-4 w-4 mr-1" />
                           Filtrar por Rol:
@@ -723,9 +723,10 @@ export default function HomePage() {
                       </Select>
                   </div>
 
-                  <div className="max-h-[60vh] min-h-[300px] pr-1"> {/* Container para ScrollArea */}
+                  {/* User list container - Flex grow and min height 0 */}
+                  <div className="flex-grow min-h-0 overflow-hidden"> 
                       <ScrollArea className="h-full" scrollbarProps={{ type: "always" }}>
-                          <div className="space-y-3">
+                          <div className="space-y-3 p-1"> {/* Padding for items */}
                           {filteredAdminUsers.length === 0 ? (
                               <p className="text-sm text-muted-foreground text-center py-6">
                               No hay usuarios que coincidan con el filtro "{adminUserListRoleFilter === 'all' ? 'Todos los Roles' : adminRoleDisplayInfo[adminUserListRoleFilter]?.label}".
@@ -735,7 +736,6 @@ export default function HomePage() {
                               const displayInfo = adminRoleDisplayInfo[user.role] || { Icon: UserIconLucide, label: user.role };
                               const isCurrentUser = user.id === loggedInUser?.id;
                               const isEditingOtherAdmin = user.role === 'administrador' && user.id !== loggedInUser?.id;
-                              // Un admin no puede cambiar su propio rol, ni el rol de otro admin desde esta UI.
                               const canEdit = !((isCurrentUser && user.role === 'administrador') || isEditingOtherAdmin);
 
                               return (
@@ -870,5 +870,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    
