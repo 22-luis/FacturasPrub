@@ -57,7 +57,7 @@ export function ManageAllUsersDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col p-0">
         <DialogHeader className="p-4 sm:p-6 border-b">
           <DialogTitle>Gestionar Todos los Usuarios</DialogTitle>
           <DialogDescription>
@@ -89,64 +89,70 @@ export function ManageAllUsersDialog({
           </Select>
         </div>
 
-        <ScrollArea className="flex-grow min-h-0">
-          <div className="space-y-3 p-4 sm:p-6 pt-3">
-            {filteredUsers.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No hay usuarios que coincidan con el filtro seleccionado.
-              </p>
-            ) : (
-              filteredUsers.map((user) => {
-                const displayInfo = roleDisplayInfo[user.role] || { Icon: UserIcon, label: user.role };
-                const isCurrentUser = user.id === currentUser?.id;
-                return (
-                  <Card key={user.id} className="shadow-sm">
-                    <CardContent className="p-3 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <displayInfo.Icon className={cn("h-6 w-6 flex-shrink-0",
-                          user.role === 'administrador' ? 'text-purple-600' :
-                          user.role === 'supervisor' ? 'text-blue-500' :
-                          user.role === 'repartidor' ? 'text-green-500' : 'text-primary'
-                        )} />
-                        <div className="flex-grow min-w-0">
-                           <span className="font-medium block truncate" title={user.name}>{user.name}</span>
-                           <Badge variant={user.role === 'administrador' || user.role === 'supervisor' || user.role === 'repartidor' ? "default" : "secondary"}
-                                  className={cn("text-xs", displayInfo.badgeClass)}>
-                            {displayInfo.label}
-                           </Badge>
+        <div className="flex-grow min-h-0 overflow-hidden px-4 sm:px-6 py-3"> {/* Container for ScrollArea with padding */}
+          <ScrollArea className="h-full" scrollbarProps={{ type: "always" }}>
+            <div className="space-y-3 pr-1"> {/* Added pr-1 for scrollbar spacing */}
+              {filteredUsers.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No hay usuarios que coincidan con el filtro seleccionado.
+                </p>
+              ) : (
+                filteredUsers.map((user) => {
+                  const displayInfo = roleDisplayInfo[user.role] || { Icon: UserIcon, label: user.role };
+                  const isCurrentUser = user.id === currentUser?.id;
+                  return (
+                    <Card key={user.id} className="shadow-sm">
+                      <CardContent className="p-3 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <displayInfo.Icon className={cn("h-6 w-6 flex-shrink-0",
+                            user.role === 'administrador' ? 'text-purple-600' :
+                            user.role === 'supervisor' ? 'text-blue-500' :
+                            user.role === 'repartidor' ? 'text-green-500' : 'text-primary'
+                          )} />
+                          <div className="flex-grow min-w-0">
+                            <span className="font-medium block truncate" title={user.name}>{user.name}</span>
+                            <Badge variant={user.role === 'administrador' || user.role === 'supervisor' || user.role === 'repartidor' ? "default" : "secondary"}
+                                    className={cn("text-xs", displayInfo.badgeClass)}>
+                              {displayInfo.label}
+                            </Badge>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => onEdit(user)}
-                          aria-label={`Editar ${user.name}`}
-                          className="h-8 w-8"
-                          disabled={isCurrentUser && user.role === 'administrador'}
-                          title={isCurrentUser && user.role === 'administrador' ? "Los administradores no pueden cambiar su propio rol aquí" : `Editar ${user.name}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          onClick={() => onDelete(user)}
-                          aria-label={`Eliminar ${user.name}`}
-                          className="h-8 w-8"
-                          disabled={isCurrentUser}
-                          title={isCurrentUser ? "No puedes eliminarte a ti mismo" : `Eliminar ${user.name}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            )}
-          </div>
-        </ScrollArea>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => onEdit(user)}
+                            aria-label={`Editar ${user.name}`}
+                            className="h-8 w-8"
+                            disabled={(isCurrentUser && user.role === 'administrador') || (user.role === 'administrador' && user.id !== currentUser?.id)}
+                            title={
+                              (isCurrentUser && user.role === 'administrador') ? "Los administradores no pueden cambiar su propio rol aquí" :
+                              (user.role === 'administrador' && user.id !== currentUser?.id) ? "El rol de otros administradores no se puede cambiar" :
+                              `Editar ${user.name}`
+                            }
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            onClick={() => onDelete(user)}
+                            aria-label={`Eliminar ${user.name}`}
+                            className="h-8 w-8"
+                            disabled={isCurrentUser}
+                            title={isCurrentUser ? "No puedes eliminarte a ti mismo" : `Eliminar ${user.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          </ScrollArea>
+        </div>
         <DialogFooter className="p-4 sm:p-6 border-t">
           <DialogClose asChild>
             <Button type="button" variant="outline">
