@@ -51,26 +51,24 @@ export function ManageAllUsersDialog({
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<UserRole | 'all'>('all');
 
   const filteredUsers = useMemo(() => {
-    let usersToFilter = [...allUsers]; // Create a mutable copy for sorting if needed based on main list order
+    let usersToFilter = [...allUsers]; 
     if (selectedRoleFilter === 'all') {
-      // No role filter, use the order from allUsers prop (which can be reordered)
       return usersToFilter;
     }
-    // Filter by role, then ensure the order within that filtered list reflects the main list order
     return usersToFilter.filter(user => user.role === selectedRoleFilter);
   }, [allUsers, selectedRoleFilter]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col p-0">
-        <DialogHeader className="p-4 sm:p-6 border-b bg-background">
+        <DialogHeader className="p-4 sm:p-6 border-b">
           <DialogTitle>Gestionar Todos los Usuarios</DialogTitle>
           <DialogDescription>
             Edita, elimina o reordena usuarios existentes. Filtra por rol para refinar la lista.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="px-4 sm:px-6 pt-4 pb-2 border-b bg-background">
+        <div className="px-4 sm:px-6 pt-4 pb-2 border-b">
           <Label htmlFor="role-filter-select" className="mb-2 block text-xs font-medium text-muted-foreground">
             <Filter className="inline-block h-4 w-4 mr-1" />
             Filtrar por Rol:
@@ -96,21 +94,21 @@ export function ManageAllUsersDialog({
 
         <div className="flex-grow min-h-0 overflow-hidden">
           <ScrollArea className="h-full" scrollbarProps={{ type: "always" }}>
-            <div className="space-y-3 p-4 sm:p-6 pt-3">
+            <div className="space-y-3 p-4 sm:p-6">
               {filteredUsers.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No hay usuarios que coincidan con el filtro seleccionado.
                 </p>
               ) : (
-                filteredUsers.map((user, index) => {
+                filteredUsers.map((user) => {
                   const displayInfo = roleDisplayInfo[user.role] || { Icon: UserIconLucide, label: user.role };
                   const isCurrentUser = user.id === currentUser?.id;
                   const isEditingOtherAdmin = user.role === 'administrador' && user.id !== currentUser?.id;
                   const canEdit = !isEditingOtherAdmin;
                   
-                  const isFirstUser = allUsers.findIndex(u => u.id === user.id) === 0;
-                  const isLastUser = allUsers.findIndex(u => u.id === user.id) === allUsers.length - 1;
-
+                  const userIndexInAllUsers = allUsers.findIndex(u => u.id === user.id);
+                  const isFirstUser = userIndexInAllUsers === 0;
+                  const isLastUser = userIndexInAllUsers === allUsers.length - 1;
 
                   return (
                     <Card key={user.id} className="shadow-sm hover:shadow-md transition-shadow">
