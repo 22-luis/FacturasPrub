@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, ArrowLeft, ChevronDown, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, ArrowLeft, ShieldAlert, ShieldCheck } from 'lucide-react'; // ChevronDown removed as AccordionTrigger handles it
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -512,7 +512,8 @@ export default function HomePage() {
                               <Filter className="h-5 w-5 text-primary" />
                               Opciones de Filtrado y Búsqueda de Facturas
                             </div>
-                            <ChevronDown className="h-5 w-5 transition-transform duration-200 accordion-chevron" />
+                            {/* The manually added ChevronDown icon is removed from here,
+                                AccordionTrigger will render its own default icon */}
                           </CardTitle>
                       </CardHeader>
                     </AccordionTrigger>
