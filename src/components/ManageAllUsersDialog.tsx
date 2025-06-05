@@ -7,8 +7,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogClose,
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -107,7 +105,7 @@ export function ManageAllUsersDialog({
                   return (
                     <Card key={user.id} className="shadow-sm hover:shadow-md transition-shadow">
                       <CardContent className="p-3 flex items-center justify-between gap-2">
-                        <div className="flex flex-1 items-center gap-3 min-w-0"> {/* Added flex-1 here */}
+                        <div className="flex flex-1 items-center gap-3 min-w-0">
                           <displayInfo.Icon className={cn("h-6 w-6 flex-shrink-0",
                             user.role === 'administrador' ? 'text-purple-600' :
                             user.role === 'supervisor' ? 'text-blue-500' :
@@ -153,13 +151,7 @@ export function ManageAllUsersDialog({
             </div>
           </ScrollArea>
         </div>
-        <DialogFooter className="p-4 sm:p-6 border-t sticky bottom-0 bg-background z-10">
-          <DialogClose asChild>
-            <Button type="button" variant="outline">
-              Cerrar
-            </Button>
-          </DialogClose>
-        </DialogFooter>
+        {/* DialogFooter with the Close button has been removed */}
       </DialogContent>
     </Dialog>
   );
