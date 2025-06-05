@@ -247,12 +247,12 @@ export default function HomePage() {
     setIsAddEditUserDialogOpen(true);
   };
 
-  const handleOpenEditUserDialogFromMainPageOrModal = (user: User) => {
+  const handleOpenEditUserDialog = (user: User) => {
     setUserToEdit(user);
     setIsAddEditUserDialogOpen(true);
   };
 
-  const handleOpenDeleteUserDialogFromMainPageOrModal = (user: User) => {
+  const handleOpenDeleteUserDialog = (user: User) => {
     if (loggedInUser && user.id === loggedInUser.id) {
       toast({ variant: "destructive", title: "Operación no permitida", description: "No puedes eliminarte a ti mismo." });
       return;
@@ -276,7 +276,6 @@ export default function HomePage() {
                 ...user,
                 name: userData.name,
                 role: userData.role,
-                // Update password only if a new one is provided and it's not an empty string
                 password: (userData.password && userData.password.trim() !== '') ? userData.password : user.password,
               }
             : user
@@ -288,7 +287,7 @@ export default function HomePage() {
         id: generateUserId(),
         name: userData.name,
         role: userData.role,
-        password: userData.password || '123', // Ensure new users always have a password
+        password: userData.password || '123', 
       };
       setUsers(prevUsers => [...prevUsers, newUser]);
       toast({ title: 'Usuario Agregado', description: `El usuario ${userData.name} (${userData.role}) ha sido agregado.` });
@@ -316,6 +315,34 @@ export default function HomePage() {
 
     setUserToDelete(null);
     setIsConfirmDeleteUserOpen(false);
+  };
+  
+  const handleMoveUserUp = (userId: string) => {
+    setUsers(prevUsers => {
+      const index = prevUsers.findIndex(u => u.id === userId);
+      if (index > 0) {
+        const newUsers = [...prevUsers];
+        const temp = newUsers[index];
+        newUsers[index] = newUsers[index - 1];
+        newUsers[index - 1] = temp;
+        return newUsers;
+      }
+      return prevUsers;
+    });
+  };
+
+  const handleMoveUserDown = (userId: string) => {
+    setUsers(prevUsers => {
+      const index = prevUsers.findIndex(u => u.id === userId);
+      if (index !== -1 && index < prevUsers.length - 1) {
+        const newUsers = [...prevUsers];
+        const temp = newUsers[index];
+        newUsers[index] = newUsers[index + 1];
+        newUsers[index + 1] = temp;
+        return newUsers;
+      }
+      return prevUsers;
+    });
   };
 
 
@@ -743,7 +770,7 @@ export default function HomePage() {
                 onOpenChange={setIsAddEditUserDialogOpen}
                 userToEdit={userToEdit}
                 onSave={handleSaveUser}
-                availableRoles={manageableUserRoles} // Admin can create supervisors and repartidores
+                availableRoles={manageableUserRoles} 
                 currentUser={loggedInUser}
             />
             {userToDelete && (
@@ -761,8 +788,10 @@ export default function HomePage() {
                 onOpenChange={setIsManageAllUsersDialogOpen}
                 allUsers={users}
                 currentUser={loggedInUser}
-                onEdit={handleOpenEditUserDialogFromMainPageOrModal}
-                onDelete={handleOpenDeleteUserDialogFromMainPageOrModal}
+                onEdit={handleOpenEditUserDialog}
+                onDelete={handleOpenDeleteUserDialog}
+                onMoveUp={handleMoveUserUp}
+                onMoveDown={handleMoveUserDown}
             />
           </>
       )}
@@ -770,3 +799,4 @@ export default function HomePage() {
     </div>
   );
 }
+
