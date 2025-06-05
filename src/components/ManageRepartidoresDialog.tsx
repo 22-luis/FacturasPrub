@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card'; // CardHeader, CardTitle were not used
 import { User, Pencil, Trash2 } from 'lucide-react';
 import type { User as UserType } from '@/lib/types';
 
@@ -41,8 +41,10 @@ export function ManageRepartidoresDialog({
             Edita o elimina repartidores existentes en el sistema.
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-grow pr-4 -mr-4 my-4">
-          <div className="space-y-3">
+        {/* ScrollArea now has flex-grow and min-h-0 for better flex behavior */}
+        <ScrollArea className="flex-grow min-h-0">
+          {/* Added pr-1 to the content div for slight spacing from scrollbar track */}
+          <div className="space-y-3 pr-1 py-1"> 
             {repartidores.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
                 No hay repartidores en el sistema.

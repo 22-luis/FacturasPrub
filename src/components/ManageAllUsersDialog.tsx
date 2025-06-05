@@ -52,8 +52,8 @@ export function ManageAllUsersDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="flex-grow min-h-0 overflow-hidden px-4 sm:px-6 py-4">
-          <ScrollArea className="h-full pr-4 -mr-4"> 
-            <div className="space-y-3">
+          <ScrollArea className="h-full"> {/* ScrollArea takes full height of the parent div */}
+            <div className="space-y-3 pr-1"> {/* Added pr-1 to give slight space for scrollbar track */}
               {allUsers.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No hay usuarios en el sistema.
