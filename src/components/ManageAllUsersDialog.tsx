@@ -92,8 +92,8 @@ export function ManageAllUsersDialog({
           </Select>
         </div>
 
-        <div className="flex-grow min-h-0 overflow-hidden">
-          <ScrollArea className="h-full" scrollbarProps={{ type: "always" }}>
+        <div className="flex-grow min-h-0 overflow-auto">
+          <ScrollArea className="max-h-[60vh]">
             <div className="space-y-3 p-4 sm:p-6">
               {filteredUsers.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
