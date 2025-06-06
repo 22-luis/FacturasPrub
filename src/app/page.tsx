@@ -317,34 +317,6 @@ export default function HomePage() {
     setIsConfirmDeleteUserOpen(false);
   };
   
-  const handleMoveUserUp = (userId: string) => {
-    setUsers(prevUsers => {
-      const index = prevUsers.findIndex(u => u.id === userId);
-      if (index > 0) {
-        const newUsers = [...prevUsers];
-        const temp = newUsers[index];
-        newUsers[index] = newUsers[index - 1];
-        newUsers[index - 1] = temp;
-        return newUsers;
-      }
-      return prevUsers;
-    });
-  };
-
-  const handleMoveUserDown = (userId: string) => {
-    setUsers(prevUsers => {
-      const index = prevUsers.findIndex(u => u.id === userId);
-      if (index !== -1 && index < prevUsers.length - 1) {
-        const newUsers = [...prevUsers];
-        const temp = newUsers[index];
-        newUsers[index] = newUsers[index + 1];
-        newUsers[index + 1] = temp;
-        return newUsers;
-      }
-      return prevUsers;
-    });
-  };
-
 
   const getAssigneeName = (assigneeId?: string): string | undefined => {
     if (!assigneeId) return undefined;
@@ -791,8 +763,6 @@ export default function HomePage() {
                 currentUser={loggedInUser}
                 onEdit={handleOpenEditUserDialog}
                 onDelete={handleOpenDeleteUserDialog}
-                onMoveUp={handleMoveUserUp}
-                onMoveDown={handleMoveUserDown}
             />
           </>
       )}

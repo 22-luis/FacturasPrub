@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -12,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
-import { User as UserIconLucide, Pencil, Trash2, ShieldAlert, ShieldCheck, UserSquare2, Filter, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { User as UserIconLucide, Pencil, Trash2, ShieldAlert, ShieldCheck, UserSquare2, Filter } from 'lucide-react';
 import type { User, UserRole } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -26,8 +25,6 @@ interface ManageAllUsersDialogProps {
   currentUser: User | null;
   onEdit: (user: User) => void;
   onDelete: (user: User) => void;
-  onMoveUp: (userId: string) => void;
-  onMoveDown: (userId: string) => void;
 }
 
 const roleDisplayInfo: Record<User['role'], { Icon: React.ElementType; label: string, badgeClass?: string }> = {
@@ -45,8 +42,6 @@ export function ManageAllUsersDialog({
   currentUser,
   onEdit,
   onDelete,
-  onMoveUp,
-  onMoveDown,
 }: ManageAllUsersDialogProps) {
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<UserRole | 'all'>('all');
 
@@ -64,7 +59,7 @@ export function ManageAllUsersDialog({
         <DialogHeader className="p-4 sm:p-6 border-b">
           <DialogTitle>Gestionar Todos los Usuarios</DialogTitle>
           <DialogDescription>
-            Edita, elimina o reordena usuarios existentes. Filtra por rol para refinar la lista.
+            Edita o elimina usuarios existentes. Filtra por rol para refinar la lista.
           </DialogDescription>
         </DialogHeader>
 
@@ -93,7 +88,7 @@ export function ManageAllUsersDialog({
         </div>
 
         <div className="flex-grow min-h-0 overflow-auto">
-          <ScrollArea className="max-h-[60vh]">
+          <ScrollArea className="h-full"> {/* Changed from max-h-[60vh] to h-full */}
             <div className="space-y-3 p-4 sm:p-6">
               {filteredUsers.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
@@ -106,10 +101,6 @@ export function ManageAllUsersDialog({
                   const isEditingOtherAdmin = user.role === 'administrador' && user.id !== currentUser?.id;
                   const canEdit = !isEditingOtherAdmin;
                   
-                  const userIndexInAllUsers = allUsers.findIndex(u => u.id === user.id);
-                  const isFirstUser = userIndexInAllUsers === 0;
-                  const isLastUser = userIndexInAllUsers === allUsers.length - 1;
-
                   return (
                     <Card key={user.id} className="shadow-sm hover:shadow-md transition-shadow">
                       <CardContent className="p-3 flex items-center justify-between gap-2">
@@ -128,28 +119,6 @@ export function ManageAllUsersDialog({
                           </div>
                         </div>
                         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                           <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => onMoveUp(user.id)}
-                            aria-label={`Subir ${user.name}`}
-                            className="h-8 w-8"
-                            disabled={isFirstUser}
-                            title={isFirstUser ? "Este es el primer usuario" : `Subir ${user.name}`}
-                          >
-                            <ArrowUpCircle className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => onMoveDown(user.id)}
-                            aria-label={`Bajar ${user.name}`}
-                            className="h-8 w-8"
-                            disabled={isLastUser}
-                            title={isLastUser ? "Este es el último usuario" : `Bajar ${user.name}`}
-                          >
-                            <ArrowDownCircle className="h-4 w-4" />
-                          </Button>
                           <Button
                             variant="outline"
                             size="icon"
