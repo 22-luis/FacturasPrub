@@ -1,8 +1,9 @@
 
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
-import Link from 'next/link';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+// Link component might be used later, keeping it for now.
+// import Link from 'next/link'; 
 import { AppHeader } from '@/components/AppHeader';
 import { InvoiceCard } from '@/components/InvoiceCard';
 import { ProcessInvoiceDialog } from '@/components/ProcessInvoiceDialog';
@@ -13,26 +14,17 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AddEditUserDialog } from '@/components/AddEditUserDialog';
 import { ManageAllUsersDialog } from '@/components/ManageAllUsersDialog';
 
-import { mockInvoices, mockUsers, generateInvoiceId, generateUserId } from '@/lib/types';
 import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, UserRole } from '@/lib/types';
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, ArrowLeft, ShieldAlert, ShieldCheck, ChevronDown } from 'lucide-react';
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 
 const UNASSIGNED_KEY = "unassigned_invoices_key";
@@ -46,13 +38,8 @@ const statusCardDetails: Record<InvoiceStatus, { label: string; Icon: React.Elem
   CANCELADA: { label: 'Facturas Canceladas', Icon: XCircle, description: "Anuladas del sistema" },
 };
 
-const adminRoleDisplayInfo: Record<UserRole, { Icon: React.ElementType; label: string, badgeClass?: string }> = {
-  administrador: { Icon: ShieldAlert, label: 'Administrador', badgeClass: 'bg-purple-600 text-white hover:bg-purple-700' },
-  supervisor: { Icon: ShieldCheck, label: 'Supervisor', badgeClass: 'bg-blue-500 text-white hover:bg-blue-600' },
-  repartidor: { Icon: UserSquare2, label: 'Repartidor', badgeClass: 'bg-green-500 text-white hover:bg-green-600' },
-};
-const adminAvailableRolesForFilter: UserRole[] = ['administrador', 'supervisor', 'repartidor'];
-const manageableUserRoles: UserRole[] = ['supervisor', 'repartidor']; // Roles an admin can assign/create (excluding other admins)
+// const adminRoleDisplayInfo is now defined in ManageAllUsersDialog
+const manageableUserRoles: UserRole[] = ['supervisor', 'repartidor']; 
 
 
 export default function HomePage() {
@@ -74,57 +61,113 @@ export default function HomePage() {
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isManageAllUsersDialogOpen, setIsManageAllUsersDialogOpen] = useState(false);
 
-
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
   const [loggedInUser, setLoggedInUser] = useState<User | null>(null);
 
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
 
-  const [invoices, setInvoices] = useState<AssignedInvoice[]>(mockInvoices);
+  const [invoices, setInvoices] = useState<AssignedInvoice[]>([]);
   const { toast } = useToast();
 
   const [selectedRepartidorIdBySupervisor, setSelectedRepartidorIdBySupervisor] = useState<string | null>(ALL_REPARTIDORES_KEY);
   const [selectedStatusBySupervisor, setSelectedStatusBySupervisor] = useState<InvoiceStatus | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
+  const fetchUsers = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/users');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch users' }));
+        throw new Error(errorData.error || 'Failed to fetch users');
+      }
+      const data: User[] = await response.json();
+      setUsers(data);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error al Cargar Usuarios', description: error.message });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+  const fetchInvoices = useCallback(async (queryParams: Record<string, string> = {}) => {
+    setIsLoading(true);
+    try {
+      const url = new URL('/api/invoices', window.location.origin);
+      Object.entries(queryParams).forEach(([key, value]) => {
+        if (value) url.searchParams.append(key, value);
+      });
+
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch invoices' }));
+        throw new Error(errorData.error || 'Failed to fetch invoices');
+      }
+      const data: AssignedInvoice[] = await response.json();
+      setInvoices(data);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error al Cargar Facturas', description: error.message });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+  
+  useEffect(() => {
+    fetchUsers();
+    fetchInvoices();
+  }, [fetchUsers, fetchInvoices]);
 
   useEffect(() => {
     if (!loggedInUser) {
       setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
       setSelectedStatusBySupervisor(null);
       setSearchTerm('');
+    } else {
+        // Potentially refetch invoices based on loggedInUser role or specific needs
+        // For now, global fetchInvoices covers this, can be refined.
+        // Example: if (loggedInUser.role === 'repartidor') fetchInvoices({ assigneeId: loggedInUser.id, status: 'PENDIENTE' });
+        // else fetchInvoices();
+        fetchInvoices(); 
     }
-  }, [loggedInUser]);
+  }, [loggedInUser, fetchInvoices]);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!usernameInput.trim() || !passwordInput) {
       toast({ variant: "destructive", title: "Error", description: "Por favor, ingresa tu nombre de usuario y contraseña." });
       return;
     }
-    const user = users.find(u => u.name.toLowerCase() === usernameInput.trim().toLowerCase());
-
-    if (user && user.password === passwordInput) {
-      setLoggedInUser(user);
-      toast({ title: "Sesión Iniciada", description: `Bienvenido ${user.name}.` });
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: usernameInput.trim(), password: passwordInput }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+      setLoggedInUser(data);
+      toast({ title: "Sesión Iniciada", description: `Bienvenido ${data.name}.` });
       setUsernameInput('');
       setPasswordInput('');
-      if (user.role === 'supervisor' || user.role === 'administrador') {
+      if (data.role === 'supervisor' || data.role === 'administrador') {
         setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
         setSelectedStatusBySupervisor(null);
         setSearchTerm('');
       }
-    } else {
-      toast({ variant: "destructive", title: "Error de Inicio de Sesión", description: "Nombre de usuario o contraseña incorrectos." });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Error de Inicio de Sesión", description: error.message });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleLogout = () => {
     toast({ title: "Sesión Cerrada", description: `Hasta luego ${loggedInUser?.name}.` });
     setLoggedInUser(null);
-    setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
-    setSelectedStatusBySupervisor(null);
-    setSearchTerm('');
     setUsernameInput('');
     setPasswordInput('');
   };
@@ -150,43 +193,52 @@ export default function HomePage() {
     }
   };
 
-  const handleSaveInvoice = (invoiceData: InvoiceFormData, id?: string) => {
-    if (id) {
-      setInvoices(prevInvoices =>
-        prevInvoices.map(inv =>
-          inv.id === id ? { ...inv, ...invoiceData, id: inv.id } : inv
-        )
-      );
-      toast({ title: "Factura Actualizada", description: `La factura #${invoiceData.invoiceNumber} ha sido actualizada.` });
-    } else {
-      const newInvoice: AssignedInvoice = {
-        ...invoiceData,
-        id: generateInvoiceId(),
-      };
-      setInvoices(prevInvoices => [newInvoice, ...prevInvoices]);
-      toast({ title: "Factura Agregada", description: `La nueva factura #${newInvoice.invoiceNumber} ha sido agregada.` });
+  const handleSaveInvoice = async (invoiceData: InvoiceFormData, id?: string) => {
+    setIsLoading(true);
+    const method = id ? 'PUT' : 'POST';
+    const endpoint = id ? `/api/invoices/${id}` : '/api/invoices';
+
+    try {
+      const response = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invoiceData),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || (id ? 'Failed to update invoice' : 'Failed to create invoice'));
+      }
+      toast({ title: id ? "Factura Actualizada" : "Factura Agregada", description: `La factura #${result.invoiceNumber} ha sido ${id ? 'actualizada' : 'agregada'}.` });
+      setIsAddEditInvoiceDialogOpen(false);
+      fetchInvoices(); // Refetch invoices
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error al Guardar Factura', description: error.message });
+    } finally {
+      setIsLoading(false);
     }
-    setIsAddEditInvoiceDialogOpen(false);
   };
 
-  const handleUpdateInvoiceStatus = (invoiceId: string, newStatus: InvoiceStatus, cancellationReason?: string) => {
-    setInvoices(prevInvoices =>
-      prevInvoices.map(inv =>
-        inv.id === invoiceId
-          ? {
-              ...inv,
-              status: newStatus,
-              cancellationReason: newStatus === 'CANCELADA' ? cancellationReason : inv.cancellationReason
-            }
-          : inv
-      )
-    );
-     toast({
-      title: 'Estado Actualizado',
-      description: `La factura ha sido actualizada a ${newStatus.toLowerCase()}.`,
-    });
+  const handleUpdateInvoiceStatus = async (invoiceId: string, newStatus: InvoiceStatus, cancellationReason?: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/invoices/${invoiceId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus, cancellationReason }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update invoice status');
+      }
+      toast({ title: 'Estado Actualizado', description: `La factura #${result.invoiceNumber} ha sido actualizada a ${newStatus.toLowerCase()}.`});
+      fetchInvoices(); // Refetch invoices
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error al Actualizar Estado', description: error.message });
+    } finally {
+      setIsLoading(false);
+    }
   };
-
+  
   const handleOpenAddRepartidorDialog = () => {
     setRepartidorToEditFromSupervisor(null);
     setIsAddRepartidorDialogOpen(true);
@@ -197,50 +249,23 @@ export default function HomePage() {
     setIsAddRepartidorDialogOpen(true);
   };
 
-  const handleSaveRepartidor = (name: string, idToEdit?: string, password?: string) => {
-    if (idToEdit) { 
-      setUsers(prevUsers =>
-        prevUsers.map(user =>
-          user.id === idToEdit ? { ...user, name } : user
-        )
-      );
-      toast({ title: 'Repartidor Actualizado', description: `El nombre del repartidor ha sido actualizado a ${name}.` });
-    } else { 
-      const newRepartidor: User = {
-        id: generateUserId(),
-        name,
-        role: 'repartidor',
-        password: password || '123', 
-      };
-      setUsers(prevUsers => [...prevUsers, newRepartidor]);
-      toast({ title: 'Repartidor Agregado', description: `El repartidor ${name} ha sido agregado al sistema.` });
-    }
-    setIsAddRepartidorDialogOpen(false);
+  // For supervisor adding/editing repartidor (role is fixed to 'repartidor')
+  const handleSaveRepartidorBySupervisor = async (name: string, idToEdit?: string, password?: string) => {
+    const userData = { name, role: 'repartidor' as UserRole, password };
+    await handleSaveUser(userData, idToEdit, true); // Pass a flag or specific logic if supervisor save needs different toast
   };
+
 
   const handleOpenDeleteRepartidorDialog = (repartidor: User) => {
     setRepartidorToDelete(repartidor);
     setIsConfirmDeleteRepartidorOpen(true);
   };
 
-  const executeDeleteRepartidor = () => {
+  const executeDeleteRepartidorBySupervisor = async () => {
     if (!repartidorToDelete) return;
-
-    setUsers(prevUsers => prevUsers.filter(user => user.id !== repartidorToDelete.id));
-    setInvoices(prevInvoices =>
-      prevInvoices.map(inv =>
-        inv.assigneeId === repartidorToDelete.id ? { ...inv, assigneeId: undefined } : inv
-      )
-    );
-    toast({ title: 'Repartidor Eliminado', description: `El repartidor ${repartidorToDelete.name} ha sido eliminado. Sus facturas han sido desasignadas.` });
-
-    if (selectedRepartidorIdBySupervisor === repartidorToDelete.id) {
-      setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
-    }
-
-    setRepartidorToDelete(null);
-    setIsConfirmDeleteRepartidorOpen(false);
+    await executeDeleteUser(repartidorToDelete, true); // Pass flag or specific logic for supervisor delete toast
   };
+
 
   const handleOpenAddUserDialog = () => {
     setUserToEdit(null);
@@ -261,67 +286,95 @@ export default function HomePage() {
     setIsConfirmDeleteUserOpen(true);
   };
 
+  const handleSaveUser = async (userData: { name: string; role: UserRole; password?: string }, idToEdit?: string, isSupervisorAction: boolean = false) => {
+    setIsLoading(true);
+    const method = idToEdit ? 'PUT' : 'POST';
+    const endpoint = idToEdit ? `/api/users/${idToEdit}` : '/api/users';
 
-  const handleSaveUser = (userData: { name: string; role: UserRole; password?: string }, idToEdit?: string) => {
-    if (idToEdit) {
-        if (loggedInUser?.id === idToEdit && loggedInUser.role === 'administrador' && userData.role !== 'administrador') {
-            toast({ variant: "destructive", title: "Operación no permitida", description: "Un administrador no puede cambiar su propio rol." });
-            setIsAddEditUserDialogOpen(false);
-            return;
-        }
-      setUsers(prevUsers =>
-        prevUsers.map(user =>
-          user.id === idToEdit
-            ? {
-                ...user,
-                name: userData.name,
-                role: userData.role,
-                password: (userData.password && userData.password.trim() !== '') ? userData.password : user.password,
-              }
-            : user
-        )
-      );
-      toast({ title: 'Usuario Actualizado', description: `Los datos de ${userData.name} han sido actualizados.` });
-    } else { 
-      const newUser: User = {
-        id: generateUserId(),
-        name: userData.name,
-        role: userData.role,
-        password: userData.password || '123', 
-      };
-      setUsers(prevUsers => [...prevUsers, newUser]);
-      toast({ title: 'Usuario Agregado', description: `El usuario ${userData.name} (${userData.role}) ha sido agregado.` });
+    try {
+      const response = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || (idToEdit ? 'Failed to update user' : 'Failed to create user'));
+      }
+      
+      const actionText = isSupervisorAction ? (idToEdit ? 'Repartidor Actualizado' : 'Repartidor Agregado') : (idToEdit ? 'Usuario Actualizado' : 'Usuario Agregado');
+      const descriptionText = isSupervisorAction 
+        ? (idToEdit ? `El repartidor ${result.name} ha sido actualizado.` : `El repartidor ${result.name} ha sido agregado.`)
+        : (idToEdit ? `Los datos de ${result.name} han sido actualizados.` : `El usuario ${result.name} (${result.role}) ha sido agregado.`);
+      
+      toast({ title: actionText, description: descriptionText });
+      
+      if (isSupervisorAction) setIsAddRepartidorDialogOpen(false);
+      else setIsAddEditUserDialogOpen(false);
+      
+      fetchUsers();
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: isSupervisorAction ? 'Error al Guardar Repartidor' : 'Error al Guardar Usuario', description: error.message });
+    } finally {
+      setIsLoading(false);
     }
-    setIsAddEditUserDialogOpen(false);
   };
 
-  const executeDeleteUser = () => {
-    if (!userToDelete) return;
+  const executeDeleteUser = async (userToDeleteParam?: User, isSupervisorAction: boolean = false) => {
+    const targetUser = userToDeleteParam || userToDelete;
+    if (!targetUser) return;
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/users/${targetUser.id}`, { method: 'DELETE' });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete user');
+      }
+      
+      const titleText = isSupervisorAction ? 'Repartidor Eliminado' : 'Usuario Eliminado';
+      const descriptionText = isSupervisorAction 
+        ? `El repartidor ${targetUser.name} ha sido eliminado.`
+        : `El usuario ${targetUser.name} ha sido eliminado.`;
 
-    setUsers(prevUsers => prevUsers.filter(user => user.id !== userToDelete.id));
-    if (userToDelete.role === 'repartidor') {
-       setInvoices(prevInvoices =>
-        prevInvoices.map(inv =>
-          inv.assigneeId === userToDelete.id ? { ...inv, assigneeId: undefined } : inv
-        )
-      );
-       toast({ title: 'Repartidor Eliminado', description: `El repartidor ${userToDelete.name} ha sido eliminado. Sus facturas han sido desasignadas.` });
-       if (selectedRepartidorIdBySupervisor === userToDelete.id) {
-         setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
-       }
-    } else {
-      toast({ title: 'Usuario Eliminado', description: `El usuario ${userToDelete.name} ha sido eliminado.` });
+      toast({ title: titleText, description: descriptionText });
+
+      fetchUsers();
+      if (targetUser.role === 'repartidor') {
+        fetchInvoices(); // Refetch invoices as assignments might change
+        if (selectedRepartidorIdBySupervisor === targetUser.id) {
+          setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
+        }
+      }
+      
+      if (isSupervisorAction) {
+        setRepartidorToDelete(null);
+        setIsConfirmDeleteRepartidorOpen(false);
+      } else {
+        setUserToDelete(null);
+        setIsConfirmDeleteUserOpen(false);
+      }
+
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: isSupervisorAction ? 'Error al Eliminar Repartidor' : 'Error al Eliminar Usuario', description: error.message });
+    } finally {
+      setIsLoading(false);
     }
-
-    setUserToDelete(null);
-    setIsConfirmDeleteUserOpen(false);
   };
   
-
-  const getAssigneeName = (assigneeId?: string): string | undefined => {
+  const getAssigneeName = (assigneeId?: string | null): string | undefined => {
     if (!assigneeId) return undefined;
-    return users.find(u => u.id === assigneeId)?.name;
+    // First try finding in the main users list (which should be comprehensive)
+    let repartidor = users.find(u => u.id === assigneeId && u.role === 'repartidor');
+    if (repartidor) return repartidor.name;
+
+    // If not found, check if invoice.assignee is populated (from API include)
+    const invoiceWithAssignee = invoices.find(inv => inv.id === processingInvoice?.id || inv.id === invoiceToEdit?.id);
+    if (invoiceWithAssignee?.assignee?.id === assigneeId) {
+        return invoiceWithAssignee.assignee.name;
+    }
+    return users.find(u => u.id === assigneeId)?.name; // Fallback to any user if not found as repartidor explicitly
   };
+
 
   const repartidores = useMemo(() => users.filter(user => user.role === 'repartidor'), [users]);
 
@@ -354,7 +407,6 @@ export default function HomePage() {
     }
 
     if (loggedInUser.role === 'repartidor') {
-
       return invoices
         .filter(inv => inv.assigneeId === loggedInUser.id && inv.status === 'PENDIENTE')
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -437,6 +489,7 @@ export default function HomePage() {
                     placeholder="Ej: admin"
                     required
                     className="w-full"
+                    disabled={isLoading}
                   />
                 </div>
                 <div>
@@ -448,14 +501,14 @@ export default function HomePage() {
                     type="password"
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
-                    placeholder="Contraseña (ej: 123)"
+                    placeholder="Contraseña"
                     required
                     className="w-full"
+                    disabled={isLoading}
                   />
                 </div>
-                <Button type="submit" className="w-full" size="lg">
-                  <LogIn className="mr-2 h-5 w-5" />
-                  Entrar
+                <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+                  {isLoading ? 'Ingresando...' : <><LogIn className="mr-2 h-5 w-5" /> Entrar</>}
                 </Button>
               </form>
             </CardContent>
@@ -485,17 +538,17 @@ export default function HomePage() {
                   {isAdmin ? 'Panel de Administrador' : 'Panel de Supervisor'}
                 </h2>
                 <div className="flex gap-2 flex-wrap">
-                  <Button onClick={handleAddInvoiceClick}>
+                  <Button onClick={handleAddInvoiceClick} disabled={isLoading}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Agregar Factura
                   </Button>
                   {isSupervisor && !isAdmin && (
                     <>
-                      <Button onClick={handleOpenAddRepartidorDialog} variant="outline">
+                      <Button onClick={handleOpenAddRepartidorDialog} variant="outline" disabled={isLoading}>
                         <UserPlus className="mr-2 h-4 w-4" />
                         Agregar Repartidor
                       </Button>
-                      <Button onClick={() => setIsManageRepartidoresOpen(true)} variant="outline">
+                      <Button onClick={() => setIsManageRepartidoresOpen(true)} variant="outline" disabled={isLoading || repartidores.length === 0}>
                         <Settings2 className="mr-2 h-4 w-4" />
                         Gestionar Repartidores
                       </Button>
@@ -503,11 +556,11 @@ export default function HomePage() {
                   )}
                   {isAdmin && (
                     <>
-                      <Button onClick={handleOpenAddUserDialog} variant="outline">
+                      <Button onClick={handleOpenAddUserDialog} variant="outline" disabled={isLoading}>
                         <UserPlus className="mr-2 h-4 w-4" />
                         Agregar Usuario
                       </Button>
-                       <Button onClick={() => setIsManageAllUsersDialogOpen(true)} variant="outline">
+                       <Button onClick={() => setIsManageAllUsersDialogOpen(true)} variant="outline" disabled={isLoading || users.length === 0}>
                         <UsersIconLucide className="mr-2 h-4 w-4" />
                         Gestionar Usuarios
                       </Button>
@@ -540,6 +593,7 @@ export default function HomePage() {
                               value={searchTerm}
                               onChange={(e) => setSearchTerm(e.target.value)}
                               className="pl-10 w-full"
+                              disabled={isLoading}
                             />
                             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                           </div>
@@ -554,9 +608,10 @@ export default function HomePage() {
                                     key={status}
                                     className={cn(
                                       "cursor-pointer transition-shadow",
-                                      selectedStatusBySupervisor === status ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md'
+                                      selectedStatusBySupervisor === status ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md',
+                                      isLoading && 'opacity-50 cursor-not-allowed'
                                     )}
-                                    onClick={() => setSelectedStatusBySupervisor(prev => prev === status ? null : status)}
+                                    onClick={() => !isLoading && setSelectedStatusBySupervisor(prev => prev === status ? null : status)}
                                   >
                                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
                                       <CardTitle className="text-xs font-medium">{details.label}</CardTitle>
@@ -571,11 +626,13 @@ export default function HomePage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setSelectedStatusBySupervisor(null)}
+                                onClick={() => !isLoading && setSelectedStatusBySupervisor(null)}
                                 className={cn(
                                   "h-full whitespace-normal text-left justify-start items-center transition-shadow hover:shadow-md text-xs py-2 px-3",
-                                  !selectedStatusBySupervisor ? 'ring-2 ring-primary shadow-md' : 'hover:bg-background hover:text-foreground'
+                                  !selectedStatusBySupervisor ? 'ring-2 ring-primary shadow-md' : 'hover:bg-background hover:text-foreground',
+                                   isLoading && 'opacity-50 cursor-not-allowed'
                                 )}
+                                disabled={isLoading}
                               >
                                 <ListFilter className="mr-2 h-3 w-3" />
                                 Mostrar Todos los Estados
@@ -589,11 +646,13 @@ export default function HomePage() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
+                                    onClick={() => !isLoading && setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
                                     className={cn(
                                       "h-full whitespace-normal text-left justify-start items-center transition-shadow hover:shadow-md text-xs py-2 px-3",
-                                      selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-md' : 'hover:bg-background hover:text-foreground'
+                                      selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-md' : 'hover:bg-background hover:text-foreground',
+                                      isLoading && 'opacity-50 cursor-not-allowed'
                                     )}
+                                    disabled={isLoading}
                                   >
                                     <Users className="mr-2 h-3 w-3" />
                                     Mostrar Todas las Facturas
@@ -604,9 +663,10 @@ export default function HomePage() {
                                     key={repartidor.id}
                                     className={cn(
                                         "cursor-pointer transition-shadow",
-                                        selectedRepartidorIdBySupervisor === repartidor.id ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md'
+                                        selectedRepartidorIdBySupervisor === repartidor.id ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md',
+                                        isLoading && 'opacity-50 cursor-not-allowed'
                                     )}
-                                    onClick={() => setSelectedRepartidorIdBySupervisor(prev => prev === repartidor.id ? ALL_REPARTIDORES_KEY : repartidor.id)}
+                                    onClick={() => !isLoading && setSelectedRepartidorIdBySupervisor(prev => prev === repartidor.id ? ALL_REPARTIDORES_KEY : repartidor.id)}
                                   >
                                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
                                       <CardTitle className="text-xs font-medium">{repartidor.name}</CardTitle>
@@ -621,9 +681,10 @@ export default function HomePage() {
                                   key={UNASSIGNED_KEY}
                                   className={cn(
                                     "cursor-pointer transition-shadow",
-                                    selectedRepartidorIdBySupervisor === UNASSIGNED_KEY ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md'
+                                    selectedRepartidorIdBySupervisor === UNASSIGNED_KEY ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md',
+                                     isLoading && 'opacity-50 cursor-not-allowed'
                                   )}
-                                  onClick={() => setSelectedRepartidorIdBySupervisor(prev => prev === UNASSIGNED_KEY ? ALL_REPARTIDORES_KEY : UNASSIGNED_KEY)}
+                                  onClick={() => !isLoading && setSelectedRepartidorIdBySupervisor(prev => prev === UNASSIGNED_KEY ? ALL_REPARTIDORES_KEY : UNASSIGNED_KEY)}
                                 >
                                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
                                     <CardTitle className="text-xs font-medium">Facturas sin Asignar</CardTitle>
@@ -633,7 +694,7 @@ export default function HomePage() {
                                     <div className="text-xs text-muted-foreground">Ver no asignadas</div>
                                     </CardContent>
                                 </Card>
-                                {repartidores.length === 0 && (
+                                {repartidores.length === 0 && !isLoading && (
                                      <p className="text-muted-foreground mt-2 text-sm p-2 md:col-span-4 text-center">No hay repartidores. Agrega uno para asignar facturas.</p>
                                 )}
                             </div>
@@ -649,20 +710,21 @@ export default function HomePage() {
               <h3 className="text-lg sm:text-xl font-semibold text-foreground my-6">
                 {getInvoicesTitleForSupervisorOrAdmin()}
               </h3>
-              {displayedInvoices.length > 0 ? (
+              {isLoading && displayedInvoices.length === 0 && <p className="text-muted-foreground">Cargando facturas...</p>}
+              {!isLoading && displayedInvoices.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {displayedInvoices.map(invoice => (
                     <InvoiceCard
                       key={invoice.id}
                       invoice={invoice}
-                      onAction={handleEditInvoiceClick}
+                      onAction={isAdmin || isSupervisor ? handleEditInvoiceClick : handleProcessInvoiceClick}
                       currentUserRole={loggedInUser?.role}
-                      assigneeName={getAssigneeName(invoice.assigneeId)}
+                      assigneeName={invoice.assignee?.name || getAssigneeName(invoice.assigneeId)}
                     />
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground">
+                !isLoading && <p className="text-muted-foreground">
                   {searchTerm.trim() ? `No se encontraron facturas para "${searchTerm.trim()}" con los filtros seleccionados.` : `No se encontraron facturas que coincidan con los filtros seleccionados.`}
                 </p>
               )}
@@ -673,7 +735,8 @@ export default function HomePage() {
         {loggedInUser.role === 'repartidor' && (
            <section>
             <h2 className="text-xl sm:text-2xl font-semibold mb-6 text-foreground">Mis Facturas Pendientes</h2>
-            {displayedInvoices.length > 0 ? (
+            {isLoading && displayedInvoices.length === 0 && <p className="text-muted-foreground">Cargando tus facturas...</p>}
+            {!isLoading && displayedInvoices.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {displayedInvoices.map(invoice => (
                   <InvoiceCard
@@ -685,7 +748,7 @@ export default function HomePage() {
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground">No tienes facturas pendientes asignadas en este momento.</p>
+             !isLoading && <p className="text-muted-foreground">No tienes facturas pendientes asignadas en este momento.</p>
             )}
           </section>
         )}
@@ -704,7 +767,7 @@ export default function HomePage() {
         isOpen={isAddEditInvoiceDialogOpen}
         onOpenChange={setIsAddEditInvoiceDialogOpen}
         invoiceToEdit={invoiceToEdit}
-        users={users}
+        users={repartidores} // Pass only repartidores for assignment
         onSave={handleSaveInvoice}
       />
 
@@ -713,7 +776,7 @@ export default function HomePage() {
           <AddRepartidorDialog
             isOpen={isAddRepartidorDialogOpen}
             onOpenChange={setIsAddRepartidorDialogOpen}
-            onSave={handleSaveRepartidor}
+            onSave={handleSaveRepartidorBySupervisor}
             repartidorToEdit={repartidorToEditFromSupervisor}
           />
           <ManageRepartidoresDialog
@@ -729,7 +792,7 @@ export default function HomePage() {
                 onOpenChange={setIsConfirmDeleteRepartidorOpen}
                 title={`Confirmar Eliminación de ${repartidorToDelete.name}`}
                 description={`¿Estás seguro de que quieres eliminar a ${repartidorToDelete.name}? Esta acción no se puede deshacer. Las facturas asignadas a este repartidor pasarán a estar "Sin asignar".`}
-                onConfirm={executeDeleteRepartidor}
+                onConfirm={executeDeleteRepartidorBySupervisor}
                 confirmButtonText="Eliminar Repartidor"
             />
           )}
@@ -752,7 +815,7 @@ export default function HomePage() {
                     onOpenChange={setIsConfirmDeleteUserOpen}
                     title={`Confirmar Eliminación de ${userToDelete.name}`}
                     description={`¿Estás seguro de que quieres eliminar a ${userToDelete.name} (${userToDelete.role})? Esta acción no se puede deshacer.${userToDelete.role === 'repartidor' ? ' Las facturas asignadas también se desasignarán.' : ''}`}
-                    onConfirm={executeDeleteUser}
+                    onConfirm={() => executeDeleteUser()}
                     confirmButtonText="Eliminar Usuario"
                 />
             )}
