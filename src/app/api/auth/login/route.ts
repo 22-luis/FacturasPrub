@@ -2,6 +2,7 @@
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import type { UserRole } from '@/lib/types';
 
 export async function POST(request: Request) {
   try {
@@ -25,10 +26,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    // Exclude password from the returned user object
-    const { password: _, ...userWithoutPassword } = user;
+    // Exclude password from the returned user object and convert role to lowercase
+    const { password: _, ...userFromDb } = user;
+    const userToReturn = {
+      ...userFromDb,
+      role: userFromDb.role.toLowerCase() as UserRole,
+    };
 
-    return NextResponse.json(userWithoutPassword);
+    return NextResponse.json(userToReturn);
   } catch (error) {
     console.error('Login failed:', error);
     return NextResponse.json({ error: 'Login failed' }, { status: 500 });

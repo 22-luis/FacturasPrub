@@ -108,6 +108,7 @@ export default function HomePage() {
       const data: AssignedInvoice[] = await response.json();
       setInvoices(data);
     } catch (error: any) {
+      setInvoices([]); // Clear invoices on error to avoid displaying stale data
       toast({ variant: 'destructive', title: 'Error al Cargar Facturas', description: error.message });
     } finally {
       setIsLoading(false);
@@ -116,22 +117,27 @@ export default function HomePage() {
   
   useEffect(() => {
     fetchUsers();
-    fetchInvoices();
-  }, [fetchUsers, fetchInvoices]);
+    // Invoices are now fetched based on loggedInUser state changes
+  }, [fetchUsers]);
 
   useEffect(() => {
-    if (!loggedInUser) {
+    if (loggedInUser) {
+      if (loggedInUser.role === 'repartidor') {
+        fetchInvoices({ assigneeId: loggedInUser.id, status: 'PENDIENTE' });
+      } else if (loggedInUser.role === 'supervisor' || loggedInUser.role === 'administrador') {
+        fetchInvoices(); // Fetch all for supervisor/admin
+        setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY); // Reset filters
+        setSelectedStatusBySupervisor(null);
+        setSearchTerm('');
+      }
+    } else { // When loggedInUser becomes null (logout or initial state)
+      setInvoices([]); // Clear invoices
       setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
       setSelectedStatusBySupervisor(null);
       setSearchTerm('');
-    } else {
-        // Potentially refetch invoices based on loggedInUser role or specific needs
-        // For now, global fetchInvoices covers this, can be refined.
-        // Example: if (loggedInUser.role === 'repartidor') fetchInvoices({ assigneeId: loggedInUser.id, status: 'PENDIENTE' });
-        // else fetchInvoices();
-        fetchInvoices(); 
     }
   }, [loggedInUser, fetchInvoices]);
+
 
   const handleLogin = async () => {
     if (!usernameInput.trim() || !passwordInput) {
@@ -145,7 +151,7 @@ export default function HomePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: usernameInput.trim(), password: passwordInput }),
       });
-      const data = await response.json();
+      const data = await response.json(); // data.role should be lowercase now
       if (!response.ok) {
         throw new Error(data.error || 'Login failed');
       }
@@ -153,11 +159,7 @@ export default function HomePage() {
       toast({ title: "Sesión Iniciada", description: `Bienvenido ${data.name}.` });
       setUsernameInput('');
       setPasswordInput('');
-      if (data.role === 'supervisor' || data.role === 'administrador') {
-        setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
-        setSelectedStatusBySupervisor(null);
-        setSearchTerm('');
-      }
+      // No need to call fetchInvoices here, the useEffect for loggedInUser will handle it.
     } catch (error: any) {
       toast({ variant: "destructive", title: "Error de Inicio de Sesión", description: error.message });
     } finally {
@@ -167,7 +169,7 @@ export default function HomePage() {
 
   const handleLogout = () => {
     toast({ title: "Sesión Cerrada", description: `Hasta luego ${loggedInUser?.name}.` });
-    setLoggedInUser(null);
+    setLoggedInUser(null); // This will trigger the useEffect to clear invoices and filters
     setUsernameInput('');
     setPasswordInput('');
   };
@@ -210,7 +212,14 @@ export default function HomePage() {
       }
       toast({ title: id ? "Factura Actualizada" : "Factura Agregada", description: `La factura #${result.invoiceNumber} ha sido ${id ? 'actualizada' : 'agregada'}.` });
       setIsAddEditInvoiceDialogOpen(false);
-      fetchInvoices(); // Refetch invoices
+      // Refetch invoices based on current user's role and filters
+      if (loggedInUser) {
+        if (loggedInUser.role === 'repartidor') {
+          fetchInvoices({ assigneeId: loggedInUser.id, status: 'PENDIENTE' });
+        } else {
+          fetchInvoices(); // Or apply current supervisor/admin filters if any
+        }
+      }
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error al Guardar Factura', description: error.message });
     } finally {
@@ -231,7 +240,14 @@ export default function HomePage() {
         throw new Error(result.error || 'Failed to update invoice status');
       }
       toast({ title: 'Estado Actualizado', description: `La factura #${result.invoiceNumber} ha sido actualizada a ${newStatus.toLowerCase()}.`});
-      fetchInvoices(); // Refetch invoices
+      // Refetch invoices based on current user's role and filters
+      if (loggedInUser) {
+         if (loggedInUser.role === 'repartidor') {
+          fetchInvoices({ assigneeId: loggedInUser.id, status: 'PENDIENTE' });
+        } else {
+          fetchInvoices(); // Or apply current supervisor/admin filters if any
+        }
+      }
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error al Actualizar Estado', description: error.message });
     } finally {
@@ -251,8 +267,8 @@ export default function HomePage() {
 
   // For supervisor adding/editing repartidor (role is fixed to 'repartidor')
   const handleSaveRepartidorBySupervisor = async (name: string, idToEdit?: string, password?: string) => {
-    const userData = { name, role: 'repartidor' as UserRole, password };
-    await handleSaveUser(userData, idToEdit, true); // Pass a flag or specific logic if supervisor save needs different toast
+    const userData = { name, role: 'repartidor' as UserRole, password }; // role is lowercase
+    await handleSaveUser(userData, idToEdit, true); 
   };
 
 
@@ -263,7 +279,7 @@ export default function HomePage() {
 
   const executeDeleteRepartidorBySupervisor = async () => {
     if (!repartidorToDelete) return;
-    await executeDeleteUser(repartidorToDelete, true); // Pass flag or specific logic for supervisor delete toast
+    await executeDeleteUser(repartidorToDelete, true); 
   };
 
 
@@ -291,13 +307,14 @@ export default function HomePage() {
     const method = idToEdit ? 'PUT' : 'POST';
     const endpoint = idToEdit ? `/api/users/${idToEdit}` : '/api/users';
 
+    // userData.role is already lowercase here from AddEditUserDialog or AddRepartidorDialog
     try {
       const response = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData),
+        body: JSON.stringify(userData), // Sending lowercase role
       });
-      const result = await response.json();
+      const result = await response.json(); // API will return lowercase role
       if (!response.ok) {
         throw new Error(result.error || (idToEdit ? 'Failed to update user' : 'Failed to create user'));
       }
@@ -312,7 +329,7 @@ export default function HomePage() {
       if (isSupervisorAction) setIsAddRepartidorDialogOpen(false);
       else setIsAddEditUserDialogOpen(false);
       
-      fetchUsers();
+      fetchUsers(); // Refetch all users
     } catch (error: any) {
       toast({ variant: 'destructive', title: isSupervisorAction ? 'Error al Guardar Repartidor' : 'Error al Guardar Usuario', description: error.message });
     } finally {
@@ -338,11 +355,12 @@ export default function HomePage() {
 
       toast({ title: titleText, description: descriptionText });
 
-      fetchUsers();
-      if (targetUser.role === 'repartidor') {
-        fetchInvoices(); // Refetch invoices as assignments might change
+      fetchUsers(); // Refetch users
+      // If a repartidor was deleted, their invoices become unassigned, refetch invoices for supervisor/admin
+      if (targetUser.role === 'repartidor' && loggedInUser && (loggedInUser.role === 'supervisor' || loggedInUser.role === 'administrador')) {
+        fetchInvoices(); 
         if (selectedRepartidorIdBySupervisor === targetUser.id) {
-          setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
+          setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY); // Reset filter if deleted repartidor was selected
         }
       }
       
@@ -363,27 +381,26 @@ export default function HomePage() {
   
   const getAssigneeName = (assigneeId?: string | null): string | undefined => {
     if (!assigneeId) return undefined;
-    // First try finding in the main users list (which should be comprehensive)
+    // Users list should have all users with lowercase roles
     let repartidor = users.find(u => u.id === assigneeId && u.role === 'repartidor');
     if (repartidor) return repartidor.name;
 
-    // If not found, check if invoice.assignee is populated (from API include)
     const invoiceWithAssignee = invoices.find(inv => inv.id === processingInvoice?.id || inv.id === invoiceToEdit?.id);
     if (invoiceWithAssignee?.assignee?.id === assigneeId) {
-        return invoiceWithAssignee.assignee.name;
+        return invoiceWithAssignee.assignee.name; // API includes assignee with lowercase role
     }
-    return users.find(u => u.id === assigneeId)?.name; // Fallback to any user if not found as repartidor explicitly
+    return users.find(u => u.id === assigneeId)?.name; 
   };
 
 
-  const repartidores = useMemo(() => users.filter(user => user.role === 'repartidor'), [users]);
+  const repartidores = useMemo(() => users.filter(user => user.role === 'repartidor'), [users]); // Role check is lowercase
 
   const displayedInvoices = useMemo(() => {
     if (!loggedInUser) return [];
 
     let filteredInvoices = [...invoices];
 
-    if (loggedInUser.role === 'supervisor' || loggedInUser.role === 'administrador') {
+    if (loggedInUser.role === 'supervisor' || loggedInUser.role === 'administrador') { // lowercase check
       if (searchTerm.trim()) {
         const lowerSearchTerm = searchTerm.trim().toLowerCase();
         filteredInvoices = filteredInvoices.filter(inv =>
@@ -406,10 +423,9 @@ export default function HomePage() {
       return filteredInvoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
 
-    if (loggedInUser.role === 'repartidor') {
-      return invoices
-        .filter(inv => inv.assigneeId === loggedInUser.id && inv.status === 'PENDIENTE')
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    if (loggedInUser.role === 'repartidor') { // lowercase check
+      // For repartidor, invoices state should already be filtered by API call in useEffect
+      return invoices.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }
     return [];
   }, [loggedInUser, invoices, selectedRepartidorIdBySupervisor, selectedStatusBySupervisor, searchTerm]);
@@ -433,7 +449,7 @@ export default function HomePage() {
     if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) {
         repartidorDescription = "Facturas sin Asignar";
     } else if (selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) {
-        const repartidor = users.find(u => u.id === selectedRepartidorIdBySupervisor);
+        const repartidor = users.find(u => u.id === selectedRepartidorIdBySupervisor); // users have lowercase roles
         if (repartidor) {
             repartidorDescription = `Asignadas a: ${repartidor.name}`;
         } else {
@@ -444,7 +460,9 @@ export default function HomePage() {
     if (searchTerm.trim()) {
         let specifics = [];
         if (selectedStatusBySupervisor) specifics.push(statusDescription.toLowerCase());
-        if (selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) specifics.push(repartidorDescription.toLowerCase());
+        if (selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY && selectedRepartidorIdBySupervisor !== UNASSIGNED_KEY) specifics.push(repartidorDescription.toLowerCase());
+        else if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) specifics.push("sin asignar");
+
 
         if (specifics.length > 0) {
           return `${titleParts[0]} (${specifics.join(', ')})`;
@@ -522,6 +540,7 @@ export default function HomePage() {
     );
   }
 
+  // These role checks will now work correctly because loggedInUser.role is lowercase
   const isSupervisor = loggedInUser.role === 'supervisor';
   const isAdmin = loggedInUser.role === 'administrador';
   const isSupervisorOrAdmin = isSupervisor || isAdmin;
@@ -718,7 +737,7 @@ export default function HomePage() {
                       key={invoice.id}
                       invoice={invoice}
                       onAction={isAdmin || isSupervisor ? handleEditInvoiceClick : handleProcessInvoiceClick}
-                      currentUserRole={loggedInUser?.role}
+                      currentUserRole={loggedInUser?.role} // Role is lowercase
                       assigneeName={invoice.assignee?.name || getAssigneeName(invoice.assigneeId)}
                     />
                   ))}
@@ -732,7 +751,7 @@ export default function HomePage() {
           </section>
         )}
 
-        {loggedInUser.role === 'repartidor' && (
+        {loggedInUser.role === 'repartidor' && ( // Role check is lowercase
            <section>
             <h2 className="text-xl sm:text-2xl font-semibold mb-6 text-foreground">Mis Facturas Pendientes</h2>
             {isLoading && displayedInvoices.length === 0 && <p className="text-muted-foreground">Cargando tus facturas...</p>}
@@ -743,7 +762,7 @@ export default function HomePage() {
                     key={invoice.id}
                     invoice={invoice}
                     onAction={handleProcessInvoiceClick}
-                    currentUserRole={loggedInUser?.role}
+                    currentUserRole={loggedInUser?.role} // Role is lowercase
                   />
                 ))}
               </div>
@@ -771,7 +790,7 @@ export default function HomePage() {
         onSave={handleSaveInvoice}
       />
 
-      {isSupervisor && !isAdmin && (
+      {isSupervisor && !isAdmin && ( // Role checks are lowercase
         <>
           <AddRepartidorDialog
             isOpen={isAddRepartidorDialogOpen}
@@ -799,7 +818,7 @@ export default function HomePage() {
         </>
       )}
 
-      {isAdmin && (
+      {isAdmin && ( // Role check is lowercase
           <>
             <AddEditUserDialog
                 isOpen={isAddEditUserDialogOpen}
@@ -822,8 +841,8 @@ export default function HomePage() {
             <ManageAllUsersDialog
                 isOpen={isManageAllUsersDialogOpen}
                 onOpenChange={setIsManageAllUsersDialogOpen}
-                allUsers={users}
-                currentUser={loggedInUser}
+                allUsers={users} // Pass all users (roles are lowercase)
+                currentUser={loggedInUser} // Role is lowercase
                 onEdit={handleOpenEditUserDialog}
                 onDelete={handleOpenDeleteUserDialog}
             />

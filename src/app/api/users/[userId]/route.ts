@@ -2,7 +2,8 @@
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import type { UserRole } from '@prisma/client';
+import type { UserRole as PrismaUserRole } from '@prisma/client'; // Prisma's uppercase enum
+import type { UserRole } from '@/lib/types'; // Frontend's lowercase type
 
 interface Params {
   params: { userId: string };
@@ -11,7 +12,7 @@ interface Params {
 // GET a single user by ID
 export async function GET(request: Request, { params }: Params) {
   try {
-    const user = await prisma.user.findUnique({
+    const userFromDb = await prisma.user.findUnique({
       where: { id: params.userId },
       select: {
         id: true,
@@ -22,10 +23,15 @@ export async function GET(request: Request, { params }: Params) {
       },
     });
 
-    if (!user) {
+    if (!userFromDb) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-    return NextResponse.json(user);
+    // Convert role to lowercase for frontend consistency
+    const userToReturn = {
+      ...userFromDb,
+      role: userFromDb.role.toLowerCase() as UserRole,
+    };
+    return NextResponse.json(userToReturn);
   } catch (error) {
     console.error(`Failed to fetch user ${params.userId}:`, error);
     return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
@@ -35,15 +41,21 @@ export async function GET(request: Request, { params }: Params) {
 // PUT update a user by ID
 export async function PUT(request: Request, { params }: Params) {
   try {
-    const { name, role, password } = await request.json();
+    const { name, role, password } = await request.json(); // 'role' from client is lowercase
 
-    if (role && !['repartidor', 'supervisor', 'administrador'].includes(role)) {
-        return NextResponse.json({ error: 'Invalid user role' }, { status: 400 });
-    }
-    
-    const updateData: { name?: string; role?: UserRole; password?: string } = {};
+    // Define Prisma's UserRole enum type if not already globally available
+    // type PrismaUserRole = 'REPARTIDOR' | 'SUPERVISOR' | 'ADMINISTRADOR';
+
+    const updateData: { name?: string; role?: PrismaUserRole; password?: string } = {};
+
     if (name) updateData.name = name;
-    if (role) updateData.role = role as UserRole;
+    if (role) {
+      const lowerCaseRole = role.toLowerCase();
+      if (!['repartidor', 'supervisor', 'administrador'].includes(lowerCaseRole)) {
+          return NextResponse.json({ error: 'Invalid user role' }, { status: 400 });
+      }
+      updateData.role = lowerCaseRole.toUpperCase() as PrismaUserRole; // Store as uppercase
+    }
     if (password) {
       updateData.password = await bcrypt.hash(password, 10);
     }
@@ -60,8 +72,7 @@ export async function PUT(request: Request, { params }: Params) {
         }
     }
 
-
-    const updatedUser = await prisma.user.update({
+    const updatedUserFromDb = await prisma.user.update({
       where: { id: params.userId },
       data: updateData,
       select: {
@@ -73,7 +84,13 @@ export async function PUT(request: Request, { params }: Params) {
       },
     });
 
-    return NextResponse.json(updatedUser);
+    // Convert role to lowercase for response
+    const userToReturn = {
+      ...updatedUserFromDb,
+      role: updatedUserFromDb.role.toLowerCase() as UserRole,
+    };
+
+    return NextResponse.json(userToReturn);
   } catch (error: any) {
     console.error(`Failed to update user ${params.userId}:`, error);
     if (error.code === 'P2025') { // Prisma error code for record not found
