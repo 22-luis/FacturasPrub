@@ -1,6 +1,8 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
+  output: 'standalone', // Ensures a smaller Docker image for Cloud Run
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
