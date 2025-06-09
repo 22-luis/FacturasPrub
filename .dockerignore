@@ -1,0 +1,35 @@
+
+# General
+.DS_Store
+.env
+.env*.local
+.git
+.gitattributes
+.github
+.vscode
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build artifacts
+.next
+dist
+build
+
+# Node modules
+node_modules
+
+# Prisma
+prisma/dev.db
+prisma/dev.db-journal
+
+# Docker specific
+Dockerfile
+docker-compose.yml
+
+# Project specific (add any other files/directories you don't want in the image)
+README.md
+apphosting.yaml
+*.pem
+*.key
