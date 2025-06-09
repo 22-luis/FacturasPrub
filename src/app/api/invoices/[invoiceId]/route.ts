@@ -10,7 +10,7 @@ interface Params {
 // GET a single invoice by ID
 export async function GET(request: Request, { params }: Params) {
   try {
-    const invoice = await prisma.invoice.findUnique({
+    const invoiceFromDb = await prisma.invoice.findUnique({
       where: { id: params.invoiceId },
       include: {
         assignee: {
@@ -22,9 +22,13 @@ export async function GET(request: Request, { params }: Params) {
       },
     });
 
-    if (!invoice) {
+    if (!invoiceFromDb) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
+    const invoice = {
+      ...invoiceFromDb,
+      totalAmount: Number(invoiceFromDb.totalAmount), // Convert Decimal to Number
+    };
     return NextResponse.json(invoice);
   } catch (error) {
     console.error(`Failed to fetch invoice ${params.invoiceId}:`, error);
@@ -51,7 +55,7 @@ export async function PUT(request: Request, { params }: Params) {
     const updateData: any = {};
     if (invoiceNumber !== undefined) updateData.invoiceNumber = invoiceNumber;
     if (date !== undefined) updateData.date = new Date(date);
-    if (totalAmount !== undefined) updateData.totalAmount = totalAmount;
+    if (totalAmount !== undefined) updateData.totalAmount = totalAmount; // totalAmount should be a number here
     if (supplierName !== undefined) updateData.supplierName = supplierName;
     if (uniqueCode !== undefined) updateData.uniqueCode = uniqueCode;
     if (address !== undefined) updateData.address = address;
@@ -66,10 +70,15 @@ export async function PUT(request: Request, { params }: Params) {
     if (assigneeId !== undefined) updateData.assigneeId = assigneeId;
 
 
-    const updatedInvoice = await prisma.invoice.update({
+    const updatedInvoiceFromDb = await prisma.invoice.update({
       where: { id: params.invoiceId },
       data: updateData,
     });
+
+    const updatedInvoice = {
+      ...updatedInvoiceFromDb,
+      totalAmount: Number(updatedInvoiceFromDb.totalAmount), // Convert Decimal to Number
+    };
 
     return NextResponse.json(updatedInvoice);
   } catch (error: any) {
@@ -99,3 +108,4 @@ export async function DELETE(request: Request, { params }: Params) {
     return NextResponse.json({ error: 'Failed to delete invoice' }, { status: 500 });
   }
 }
+

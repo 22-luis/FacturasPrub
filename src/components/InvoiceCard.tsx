@@ -42,6 +42,7 @@ export function InvoiceCard({ invoice, onAction, currentUserRole, assigneeName }
   }
 
   const currentStatusStyle = statusStyles[invoice.status] || statusStyles.PENDIENTE;
+  const displayTotalAmount = invoice.totalAmount != null ? Number(invoice.totalAmount).toFixed(2) : '0.00';
 
   return (
     <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
@@ -77,7 +78,7 @@ export function InvoiceCard({ invoice, onAction, currentUserRole, assigneeName }
           <BadgeDollarSign className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
           <div className="min-w-0 flex-1">
            <span className="text-muted-foreground mr-1">Monto:</span>
-            <span className="font-medium text-foreground break-words">${invoice.totalAmount.toFixed(2)}</span>
+            <span className="font-medium text-foreground break-words">${displayTotalAmount}</span>
           </div>
         </div>
          <div className="flex items-start">
@@ -115,3 +116,4 @@ export function InvoiceCard({ invoice, onAction, currentUserRole, assigneeName }
     </Card>
   );
 }
+

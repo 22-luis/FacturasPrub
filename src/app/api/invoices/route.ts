@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     }
     // Add more filters like date range, supplierName, etc. as needed
 
-    const invoices = await prisma.invoice.findMany({
+    const invoicesFromDb = await prisma.invoice.findMany({
       where: whereClause,
       orderBy: {
         createdAt: 'desc',
@@ -33,6 +33,10 @@ export async function GET(request: Request) {
         },
       },
     });
+    const invoices = invoicesFromDb.map(invoice => ({
+      ...invoice,
+      totalAmount: Number(invoice.totalAmount), // Convert Decimal to Number
+    }));
     return NextResponse.json(invoices);
   } catch (error) {
     console.error('Failed to fetch invoices:', error);
@@ -64,11 +68,11 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Invalid invoice status' }, { status: 400 });
     }
     
-    const newInvoice = await prisma.invoice.create({
+    const newInvoiceFromDb = await prisma.invoice.create({
       data: {
         invoiceNumber,
         date: new Date(date), // Prisma expects DateTime
-        totalAmount, // Prisma will handle Decimal conversion
+        totalAmount, // Prisma will handle Decimal conversion from number
         supplierName,
         uniqueCode,
         address,
@@ -77,6 +81,10 @@ export async function POST(request: Request) {
         assigneeId: assigneeId || null, // Ensure it's null if undefined/empty
       },
     });
+    const newInvoice = {
+      ...newInvoiceFromDb,
+      totalAmount: Number(newInvoiceFromDb.totalAmount), // Convert Decimal to Number
+    };
     return NextResponse.json(newInvoice, { status: 201 });
   } catch (error: any) {
     console.error('Failed to create invoice:', error);
@@ -86,3 +94,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to create invoice' }, { status: 500 });
   }
 }
+
