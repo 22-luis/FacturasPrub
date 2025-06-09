@@ -9,9 +9,9 @@ generator client {
 }
 
 enum UserRole {
-  repartidor
-  supervisor
-  administrador
+  REPARTIDOR
+  SUPERVISOR
+  ADMINISTRADOR
 }
 
 enum InvoiceStatus {

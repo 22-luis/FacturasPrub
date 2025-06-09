@@ -32,11 +32,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields: name, role, password' }, { status: 400 });
     }
 
-    if (!['repartidor', 'supervisor', 'administrador'].includes(role)) {
+    if (!['REPARTIDOR', 'SUPERVISOR', 'ADMINISTRADOR'].includes(role)) {
         return NextResponse.json({ error: 'Invalid user role' }, { status: 400 });
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { name } });
+    const existingUser = await prisma.user.findFirst({ where: { name } });
     if (existingUser) {
       return NextResponse.json({ error: 'User with this name already exists' }, { status: 409 });
     }
