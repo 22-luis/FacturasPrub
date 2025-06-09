@@ -1,7 +1,43 @@
 # Settings to manage and configure a Firebase App Hosting backend.
 # https://firebase.google.com/docs/app-hosting/configure
 
+# El 'runtime' se infiere automáticamente para Next.js por Firebase App Hosting.
+# runtime: nodejs20 # O la versión LTS de Node.js que prefieras
+
 runConfig:
-  # Increase this value if you'd like to automatically spin up
-  # more instances in response to increased traffic.
-  maxInstances: 1
+  # Aumenta este valor para escalar automáticamente a más instancias
+  # en respuesta al aumento del tráfico.
+  maxInstances: 10 # Ejemplo: hasta 10 instancias
+  minInstances: 0 # Ejemplo: escalar a cero para ahorrar costos, o 1 para tener una instancia siempre activa
+  cpu: 1 # Número de CPUs
+  memoryMiB: 512 # Memoria en MiB
+
+# Variables de entorno disponibles para tu aplicación en tiempo de ejecución.
+# Estas se configuran directamente en la consola de Firebase App Hosting
+# o mediante la CLI de Firebase para mayor seguridad, especialmente para secretos.
+# environmentVariables:
+#   NODE_ENV: production
+#   DB_HOST_PART: /cloudsql/YOUR_PROJECT_ID:YOUR_REGION:YOUR_INSTANCE_NAME # Ejemplo, no incluir la contraseña aquí
+#   DB_USER: your_db_user
+#   DB_NAME: your_db_name
+#   DATABASE_URL: postgresql://${DB_USER}@${DB_HOST_PART}/${DB_NAME} # Construida sin contraseña
+
+# Para secretos como contraseñas de base de datos, usa Secret Manager.
+# Primero, crea el secreto en Google Cloud Secret Manager.
+# Luego, otorga a la cuenta de servicio de App Hosting
+# (PROJECT_NUMBER-compute@developer.gserviceaccount.com)
+# el rol "Secret Manager Secret Accessor" para ese secreto.
+# secretEnvironmentVariables:
+#   - key: DB_PASSWORD # La variable de entorno que recibirá el valor del secreto
+#     secret: projects/YOUR_PROJECT_ID/secrets/YOUR_DB_PASSWORD_SECRET_NAME/versions/latest # La referencia al secreto
+
+# buildConfig:
+#   buildCommand: npm run build # Este es el comando por defecto si usas npm.
+                               # Ya hemos actualizado "build" en package.json para incluir "prisma generate".
+                               # Firebase App Hosting típicamente ejecuta "npm run build".
+
+# Nota: La DATABASE_URL final se construirá en tu código o se configurará completamente
+# en las variables de entorno de App Hosting, usando el valor de DB_PASSWORD
+# obtenido de Secret Manager. Por ejemplo:
+# DATABASE_URL="postgresql://${DB_USER}:${DB_PASSWORD}@localhost/${DB_NAME}?host=${DB_HOST_PART}"
+# (El "@localhost" se usa cuando se conecta a través del socket del proxy de Cloud SQL)
