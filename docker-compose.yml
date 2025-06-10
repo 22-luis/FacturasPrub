@@ -1,0 +1,58 @@
+
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: facturas_db_compose
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: facturas_user
+      POSTGRES_PASSWORD: facturas_password
+      POSTGRES_DB: facturas_dev_db
+    ports:
+      - "5433:5432" # Map host port 5433 to container port 5432 to avoid conflicts if local PG is on 5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U facturas_user -d facturas_dev_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - facturas_network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: facturas_app_compose
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy # Wait for db to be healthy
+    environment:
+      DATABASE_URL: "postgresql://facturas_user:facturas_password@db:5432/facturas_dev_db"
+      PORT: "3000" # The port Next.js standalone server will listen on inside the container
+      NODE_ENV: "production"
+      # For NextAuth.js if you add it later:
+      # NEXTAUTH_URL: "http://localhost:3000" # URL of your app
+      # NEXTAUTH_SECRET: "your_super_secret_nextauth_value" # Generate a strong secret
+    ports:
+      - "3000:3000" # Map host port 3000 to container port 3000
+    networks:
+      - facturas_network
+    # Optional: For development, you might mount volumes for hot-reloading
+    # but for a production-like build, relying on the Dockerfile build is better.
+    # volumes:
+    #   - .:/app
+    #   - /app/node_modules
+    #   - /app/.next
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  facturas_network:
+    driver: bridge
