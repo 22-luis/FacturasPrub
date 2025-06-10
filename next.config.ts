@@ -5,10 +5,10 @@ const nextConfig: NextConfig = {
   output: 'standalone', // Ensures a smaller Docker image for Cloud Run
   /* config options here */
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   images: {
     remotePatterns: [
