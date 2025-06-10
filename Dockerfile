@@ -1,75 +1,56 @@
+# Dockerfile
 
-# Stage 1: Builder
+# 1. Builder Stage: Install dependencies and build the Next.js app
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Set environment variables for Prisma
-# These might be needed if your schema relies on them during generation,
-# but actual connection string for runtime will be set in Cloud Run.
-# ENV DATABASE_URL="placeholder_for_build_if_needed"
-
 # Install dependencies
-# Copy package.json and lock file
-COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
-
-# Determine package manager and install dependencies
-RUN \
-  if [ -f package-lock.json ]; then \
-    echo "Using npm" && npm ci; \
-  elif [ -f pnpm-lock.yaml ]; then \
-    echo "Using pnpm" && npm install -g pnpm && pnpm install --frozen-lockfile; \
-  elif [ -f yarn.lock ]; then \
-    echo "Using yarn" && yarn install --frozen-lockfile; \
-  else \
-    echo "No lockfile found, using npm install. Warning: This might lead to non-reproducible builds." && npm install; \
-  fi
-
-# Copy Prisma schema and generate Prisma Client
-COPY prisma ./prisma/
-RUN npx prisma generate
+COPY package*.json ./
+# Choose one of the following based on your package manager:
+# If you use npm:
+RUN npm ci
+# If you use pnpm:
+# RUN apk add --no-cache libc6-compat
+# RUN corepack enable
+# RUN pnpm install --frozen-lockfile
+# If you use yarn:
+# RUN yarn install --frozen-lockfile
 
 # Copy the rest of the application code
 COPY . .
 
-# Build the Next.js application
-# Ensure build-time environment variables are available if your app uses them during build
-# Example: ENV NEXT_PUBLIC_API_URL_BUILDTIME=${NEXT_PUBLIC_API_URL_BUILDTIME}
+# Generate Prisma Client and build the Next.js app
+RUN npx prisma generate
 RUN npm run build
 
-# Stage 2: Runner
+# 2. Runner Stage: Create a minimal image with only production dependencies and the built app
 FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
-# Set HOSTNAME to 0.0.0.0 to accept connections from any IP address.
-# This is important for Cloud Run.
-ENV HOSTNAME "0.0.0.0"
-# PORT will be automatically set by Cloud Run (default 8080)
+# Next.js standalone output already includes node_modules, so we don't need to copy package.json and run npm install again if using that.
+# However, it's good practice to copy only necessary files.
+# Standalone mode copies server.js, .next/static, .next/server, and public folders.
 
-# Copy necessary package files for installing production dependencies
-COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
-
-# Install only production dependencies
-RUN \
-  if [ -f package-lock.json ]; then \
-    npm ci --omit=dev; \
-  elif [ -f pnpm-lock.yaml ]; then \
-    npm install -g pnpm && pnpm install --prod --frozen-lockfile; \
-  elif [ -f yarn.lock ]; then \
-    yarn install --production --frozen-lockfile; \
-  else \
-    echo "No lockfile found, attempting npm install --omit=dev. Warning: This might lead to non-reproducible builds." && npm install --omit=dev; \
-  fi
-
-# Copy the standalone Next.js output from the builder stage
+# Copy standalone output
+# This includes the .next/static, .next/server, public, and server.js etc.
 COPY --from=builder /app/.next/standalone ./
-# Copy the public folder from the builder stage
-COPY --from=builder /app/public ./public
-# Copy the static assets from .next/static (needed by standalone output)
-COPY --from=builder /app/.next/static ./.next/static
 
-# Expose the port the app runs on (Next.js default is 3000, Cloud Run will set PORT env var)
+# The 'public' folder is included in the .next/standalone output,
+# so it's copied with the line above. No need for a separate copy from the builder's source /app/public.
+
+# Expose the port the app runs on
+# Cloud Run injects the PORT env var, Next.js standalone server.js respects it.
+# Default is 3000 if PORT is not set.
 EXPOSE 3000
 
-# Start the Next.js application using the server.js from the standalone output
+# Set the PUID and PGID for the node user for better security (optional)
+# ENV PUID=1001 PGID=1001
+# RUN addgroup -g ${PGID} node && \
+#     adduser -u ${PUID} -G node -s /bin/sh -D node
+
+# USER node
+
+# Start the Next.js app
+# The standalone output creates a server.js file
 CMD ["node", "server.js"]
