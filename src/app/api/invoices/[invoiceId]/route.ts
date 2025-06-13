@@ -7,7 +7,7 @@ import type { InvoiceStatus } from '@prisma/client';
 export async function GET(
   request: Request,
   context: { params: { invoiceId: string } }
-) {
+): Promise<NextResponse> {
   try {
     const { invoiceId } = context.params;
     const invoiceFromDb = await prisma.invoice.findUnique({
@@ -40,7 +40,7 @@ export async function GET(
 export async function PUT(
   request: Request,
   context: { params: { invoiceId: string } }
-) {
+): Promise<NextResponse> {
   try {
     const { invoiceId } = context.params;
     const data = await request.json();
@@ -59,7 +59,7 @@ export async function PUT(
     const updateData: any = {};
     if (invoiceNumber !== undefined) updateData.invoiceNumber = invoiceNumber;
     if (date !== undefined) updateData.date = new Date(date);
-    if (totalAmount !== undefined) updateData.totalAmount = totalAmount; // totalAmount should be a number here
+    if (totalAmount !== undefined) updateData.totalAmount = totalAmount;
     if (supplierName !== undefined) updateData.supplierName = supplierName;
     if (uniqueCode !== undefined) updateData.uniqueCode = uniqueCode;
     if (address !== undefined) updateData.address = address;
@@ -70,7 +70,6 @@ export async function PUT(
         updateData.status = status as InvoiceStatus;
     }
     if (cancellationReason !== undefined) updateData.cancellationReason = cancellationReason;
-     // Allow setting assigneeId to null for unassigning
     if (assigneeId !== undefined) updateData.assigneeId = assigneeId;
 
 
@@ -101,7 +100,7 @@ export async function PUT(
 export async function DELETE(
   request: Request,
   context: { params: { invoiceId: string } }
-) {
+): Promise<NextResponse> {
   try {
     const { invoiceId } = context.params;
     await prisma.invoice.delete({
