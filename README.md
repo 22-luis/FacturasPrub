@@ -53,11 +53,11 @@ This project includes a `docker-compose.yml` file to run the Next.js application
     *   The PostgreSQL database will be accessible on host port `5433` (mapped from container port `5432`).
 
 3.  **Running Prisma Migrations with Docker Compose:**
-    Once the containers are up and the database is healthy, you'll need to apply Prisma migrations. Open a new terminal and run:
+    Once the containers are up and the database is healthy (the `app` service waits for the `db` healthcheck), you'll need to apply Prisma migrations. Open a new terminal and run:
     ```bash
     docker-compose run --rm app npx prisma migrate deploy
     ```
-    *   This command executes `npx prisma migrate deploy` inside a temporary `app` container instance.
+    *   This command executes `npx prisma migrate deploy` inside a temporary `app` container instance, which connects to the `db` service.
     *   You only need to do this the first time, or whenever you have new migrations to apply.
 
 4.  **Viewing Logs:**
@@ -167,7 +167,7 @@ This section guides you on deploying your Next.js application (frontend and back
 1.  **`package.json`**:
     *   The `build` script should be `prisma generate && next build`. This ensures Prisma Client is generated before Next.js builds. (Already configured).
 
-2.  **`next.config.js`**:
+2.  **`next.config.ts`**:
     *   Ensure `output: 'standalone'` is present. (Already configured).
 
 3.  **`apphosting.yaml`**:
@@ -292,3 +292,5 @@ After your first successful deployment and once Cloud SQL is set up and your app
 Access the URL provided by Firebase Hosting. Test user creation, login, and invoice management to ensure data is being saved to and read from Cloud SQL. Check Cloud Logging for your App Hosting backend and Cloud SQL logs if you encounter issues.
 
 This comprehensive guide should help you deploy your application. Remember that managing secrets and database connections securely is paramount in production.
+
+```
