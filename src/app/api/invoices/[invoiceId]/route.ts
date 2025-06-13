@@ -3,15 +3,15 @@ import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 import type { InvoiceStatus } from '@prisma/client';
 
-interface Params {
-  params: { invoiceId: string };
-}
-
 // GET a single invoice by ID
-export async function GET(request: Request, { params }: Params) {
+export async function GET(
+  request: Request,
+  context: { params: { invoiceId: string } }
+) {
   try {
+    const { invoiceId } = context.params;
     const invoiceFromDb = await prisma.invoice.findUnique({
-      where: { id: params.invoiceId },
+      where: { id: invoiceId },
       include: {
         assignee: {
           select: {
@@ -31,14 +31,18 @@ export async function GET(request: Request, { params }: Params) {
     };
     return NextResponse.json(invoice);
   } catch (error) {
-    console.error(`Failed to fetch invoice ${params.invoiceId}:`, error);
+    console.error(`Failed to fetch invoice ${context.params.invoiceId}:`, error);
     return NextResponse.json({ error: 'Failed to fetch invoice' }, { status: 500 });
   }
 }
 
 // PUT update an invoice by ID
-export async function PUT(request: Request, { params }: Params) {
+export async function PUT(
+  request: Request,
+  context: { params: { invoiceId: string } }
+) {
   try {
+    const { invoiceId } = context.params;
     const data = await request.json();
     const {
       invoiceNumber,
@@ -71,7 +75,7 @@ export async function PUT(request: Request, { params }: Params) {
 
 
     const updatedInvoiceFromDb = await prisma.invoice.update({
-      where: { id: params.invoiceId },
+      where: { id: invoiceId },
       data: updateData,
     });
 
@@ -82,7 +86,7 @@ export async function PUT(request: Request, { params }: Params) {
 
     return NextResponse.json(updatedInvoice);
   } catch (error: any) {
-    console.error(`Failed to update invoice ${params.invoiceId}:`, error);
+    console.error(`Failed to update invoice ${context.params.invoiceId}:`, error);
     if (error.code === 'P2025') {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
@@ -94,18 +98,21 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 // DELETE an invoice by ID
-export async function DELETE(request: Request, { params }: Params) {
+export async function DELETE(
+  request: Request,
+  context: { params: { invoiceId: string } }
+) {
   try {
+    const { invoiceId } = context.params;
     await prisma.invoice.delete({
-      where: { id: params.invoiceId },
+      where: { id: invoiceId },
     });
     return NextResponse.json({ message: 'Invoice deleted successfully' }, { status: 200 });
   } catch (error: any) {
-    console.error(`Failed to delete invoice ${params.invoiceId}:`, error);
+    console.error(`Failed to delete invoice ${context.params.invoiceId}:`, error);
     if (error.code === 'P2025') {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
     return NextResponse.json({ error: 'Failed to delete invoice' }, { status: 500 });
   }
 }
-
