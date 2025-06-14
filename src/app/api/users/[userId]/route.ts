@@ -1,19 +1,19 @@
 
 import prisma from '@/lib/prisma';
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 import type { UserRole as PrismaUserRole } from '@prisma/client'; // Prisma's uppercase enum
 import type { UserRole } from '@/lib/types'; // Frontend's lowercase type
 
-interface Params {
-  params: { userId: string };
-}
-
 // GET a single user by ID
-export async function GET(request: Request, { params }: Params) {
+export async function GET(
+  request: NextRequest,
+  context: { params: { userId: string } }
+): Promise<NextResponse> {
   try {
+    const { userId } = context.params;
     const userFromDb = await prisma.user.findUnique({
-      where: { id: params.userId },
+      where: { id: userId },
       select: {
         id: true,
         name: true,
@@ -33,18 +33,19 @@ export async function GET(request: Request, { params }: Params) {
     };
     return NextResponse.json(userToReturn);
   } catch (error) {
-    console.error(`Failed to fetch user ${params.userId}:`, error);
+    console.error(`Failed to fetch user ${context.params.userId}:`, error);
     return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
   }
 }
 
 // PUT update a user by ID
-export async function PUT(request: Request, { params }: Params) {
+export async function PUT(
+  request: NextRequest,
+  context: { params: { userId: string } }
+): Promise<NextResponse> {
   try {
+    const { userId } = context.params;
     const { name, role, password } = await request.json(); // 'role' from client is lowercase
-
-    // Define Prisma's UserRole enum type if not already globally available
-    // type PrismaUserRole = 'REPARTIDOR' | 'SUPERVISOR' | 'ADMINISTRADOR';
 
     const updateData: { name?: string; role?: PrismaUserRole; password?: string } = {};
 
@@ -64,7 +65,7 @@ export async function PUT(request: Request, { params }: Params) {
         const existingUserWithSameName = await prisma.user.findFirst({
             where: {
                 name: name,
-                id: { not: params.userId }
+                id: { not: userId }
             }
         });
         if (existingUserWithSameName) {
@@ -73,7 +74,7 @@ export async function PUT(request: Request, { params }: Params) {
     }
 
     const updatedUserFromDb = await prisma.user.update({
-      where: { id: params.userId },
+      where: { id: userId },
       data: updateData,
       select: {
         id: true,
@@ -92,7 +93,7 @@ export async function PUT(request: Request, { params }: Params) {
 
     return NextResponse.json(userToReturn);
   } catch (error: any) {
-    console.error(`Failed to update user ${params.userId}:`, error);
+    console.error(`Failed to update user ${context.params.userId}:`, error);
     if (error.code === 'P2025') { // Prisma error code for record not found
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -101,15 +102,19 @@ export async function PUT(request: Request, { params }: Params) {
 }
 
 // DELETE a user by ID
-export async function DELETE(request: Request, { params }: Params) {
+export async function DELETE(
+  request: NextRequest,
+  context: { params: { userId: string } }
+): Promise<NextResponse> {
   try {
+    const { userId } = context.params;
     // onDelete: SetNull in schema handles unassigning invoices automatically
     await prisma.user.delete({
-      where: { id: params.userId },
+      where: { id: userId },
     });
     return NextResponse.json({ message: 'User deleted successfully' }, { status: 200 });
   } catch (error: any) {
-    console.error(`Failed to delete user ${params.userId}:`, error);
+    console.error(`Failed to delete user ${context.params.userId}:`, error);
     if (error.code === 'P2025') { // Prisma error code for record not found
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }

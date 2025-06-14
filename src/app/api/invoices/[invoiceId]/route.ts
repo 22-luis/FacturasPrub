@@ -1,11 +1,11 @@
 
 import prisma from '@/lib/prisma';
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import type { InvoiceStatus } from '@prisma/client';
 
 // GET a single invoice by ID
 export async function GET(
-  request: Request,
+  request: NextRequest,
   context: { params: { invoiceId: string } }
 ): Promise<NextResponse> {
   try {
@@ -38,7 +38,7 @@ export async function GET(
 
 // PUT update an invoice by ID
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   context: { params: { invoiceId: string } }
 ): Promise<NextResponse> {
   try {
@@ -98,7 +98,7 @@ export async function PUT(
 
 // DELETE an invoice by ID
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   context: { params: { invoiceId: string } }
 ): Promise<NextResponse> {
   try {
