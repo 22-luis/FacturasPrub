@@ -6,10 +6,10 @@ import type { InvoiceStatus } from '@prisma/client';
 // GET a single invoice by ID
 export async function GET(
   request: Request,
-  context: { params: { invoiceId: string } }
+  { params }: { params: { invoiceId: string } }
 ): Promise<NextResponse> {
   try {
-    const { invoiceId } = context.params;
+    const { invoiceId } = params;
     const invoiceFromDb = await prisma.invoice.findUnique({
       where: { id: invoiceId },
       include: {
@@ -31,7 +31,7 @@ export async function GET(
     };
     return NextResponse.json(invoice);
   } catch (error) {
-    console.error(`Failed to fetch invoice ${context.params.invoiceId}:`, error);
+    console.error(`Failed to fetch invoice ${params.invoiceId}:`, error);
     return NextResponse.json({ error: 'Failed to fetch invoice' }, { status: 500 });
   }
 }
@@ -39,10 +39,10 @@ export async function GET(
 // PUT update an invoice by ID
 export async function PUT(
   request: Request,
-  context: { params: { invoiceId: string } }
+  { params }: { params: { invoiceId: string } }
 ): Promise<NextResponse> {
   try {
-    const { invoiceId } = context.params;
+    const { invoiceId } = params;
     const data = await request.json();
     const {
       invoiceNumber,
@@ -85,7 +85,7 @@ export async function PUT(
 
     return NextResponse.json(updatedInvoice);
   } catch (error: any) {
-    console.error(`Failed to update invoice ${context.params.invoiceId}:`, error);
+    console.error(`Failed to update invoice ${params.invoiceId}:`, error);
     if (error.code === 'P2025') {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
@@ -99,16 +99,16 @@ export async function PUT(
 // DELETE an invoice by ID
 export async function DELETE(
   request: Request,
-  context: { params: { invoiceId: string } }
+  { params }: { params: { invoiceId: string } }
 ): Promise<NextResponse> {
   try {
-    const { invoiceId } = context.params;
+    const { invoiceId } = params;
     await prisma.invoice.delete({
       where: { id: invoiceId },
     });
     return NextResponse.json({ message: 'Invoice deleted successfully' }, { status: 200 });
   } catch (error: any) {
-    console.error(`Failed to delete invoice ${context.params.invoiceId}:`, error);
+    console.error(`Failed to delete invoice ${params.invoiceId}:`, error);
     if (error.code === 'P2025') {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
