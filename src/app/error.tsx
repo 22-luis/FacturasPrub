@@ -15,7 +15,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     // Log the error to an error reporting service
-    // console.error("Global Error Boundary Caught:", error); // Server-side console for logs
+    console.error("Global Error Boundary Caught:", error); // Now uncommented for client-side logging
   }, [error]);
 
   return (
