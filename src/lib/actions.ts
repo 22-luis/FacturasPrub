@@ -1,6 +1,3 @@
-// @ts-nocheck
-// disabling ts check for this file as it's a server action file which conflicts with the genkit flow file
-// This is a temporary workaround and should be fixed in the future.
 'use server';
 
 import { extractInvoiceData as genAIExtractInvoiceData, type ExtractInvoiceDataInput, type ExtractInvoiceDataOutput } from '@/ai/flows/extract-invoice-data';
