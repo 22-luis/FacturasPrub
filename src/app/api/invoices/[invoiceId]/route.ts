@@ -2,17 +2,21 @@
 import prisma from '@/lib/prisma';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { InvoiceStatus } from '@prisma/client';
+import type { ApiRouteContext } from '@/lib/types';
+
+// Define the specific context type for this route
+type InvoiceIdRouteContext = ApiRouteContext<{ invoiceId: string }>;
 
 // GET a single invoice by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { invoiceId: string } }
+  context: InvoiceIdRouteContext
 ): Promise<NextResponse> {
   const requestUrl = request.nextUrl.pathname + request.nextUrl.search;
-  console.log(`API Route Handler: GET ${requestUrl}`, { params });
+  const { invoiceId } = context.params;
+  console.log(`API Route Handler: GET ${requestUrl}`, { params: context.params });
 
   try {
-    const { invoiceId } = params;
     if (!invoiceId) {
       console.warn(`API Route Validation: GET ${requestUrl} - invoiceId parameter is missing.`);
       return NextResponse.json({ error: 'Invoice ID is required' }, { status: 400 });
@@ -41,7 +45,7 @@ export async function GET(
     console.log(`API Route Success: GET ${requestUrl} - Fetched invoice: ${invoiceId}`);
     return NextResponse.json(invoice);
   } catch (error) {
-    console.error(`API Route Handler ERROR: GET ${requestUrl} (params: ${JSON.stringify(params)})`, error);
+    console.error(`API Route Handler ERROR: GET ${requestUrl} (params: ${JSON.stringify(context.params)})`, error);
     return NextResponse.json({ error: 'Failed to fetch invoice due to an unexpected error' }, { status: 500 });
   }
 }
@@ -49,9 +53,10 @@ export async function GET(
 // PUT update an invoice by ID
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { invoiceId: string } }
+  context: InvoiceIdRouteContext
 ): Promise<NextResponse> {
   const requestUrl = request.nextUrl.pathname + request.nextUrl.search;
+  const { invoiceId } = context.params;
   let requestBodyForLog: any = "Could not clone or parse body";
 
   try {
@@ -60,11 +65,10 @@ export async function PUT(
   } catch (e) {
     // Silently ignore
   }
-  console.log(`API Route Handler: PUT ${requestUrl}`, { params, body: requestBodyForLog });
+  console.log(`API Route Handler: PUT ${requestUrl}`, { params: context.params, body: requestBodyForLog });
 
   try {
-    const { invoiceId } = params;
-    if (!invoiceId) {
+    if (!invoiceId) { // This check is technically redundant if routing works as expected
       console.warn(`API Route Validation: PUT ${requestUrl} - invoiceId parameter is missing.`);
       return NextResponse.json({ error: 'Invoice ID is required' }, { status: 400 });
     }
@@ -115,13 +119,13 @@ export async function PUT(
     console.log(`API Route Success: PUT ${requestUrl} - Updated invoice: ${invoiceId}`);
     return NextResponse.json(updatedInvoice);
   } catch (error: any) {
-    console.error(`API Route Handler ERROR: PUT ${requestUrl} (params: ${JSON.stringify(params)})`, error);
+    console.error(`API Route Handler ERROR: PUT ${requestUrl} (params: ${JSON.stringify(context.params)})`, error);
     if (error.code === 'P2025') {
-      console.warn(`API Route DB: PUT ${requestUrl} - Invoice not found for update: ${params.invoiceId}`);
+      console.warn(`API Route DB: PUT ${requestUrl} - Invoice not found for update: ${invoiceId}`);
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
     if (error.code === 'P2002') {
-      console.warn(`API Route DB: PUT ${requestUrl} - Unique constraint violation for invoice: ${params.invoiceId}`, error.meta);
+      console.warn(`API Route DB: PUT ${requestUrl} - Unique constraint violation for invoice: ${invoiceId}`, error.meta);
       return NextResponse.json({ error: `Invoice with this ${error.meta?.target?.join(', ')} already exists.` }, { status: 409 });
     }
     return NextResponse.json({ error: 'Failed to update invoice due to an unexpected error' }, { status: 500 });
@@ -131,13 +135,13 @@ export async function PUT(
 // DELETE an invoice by ID
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { invoiceId: string } }
+  context: InvoiceIdRouteContext
 ): Promise<NextResponse> {
   const requestUrl = request.nextUrl.pathname + request.nextUrl.search;
-  console.log(`API Route Handler: DELETE ${requestUrl}`, { params });
+  const { invoiceId } = context.params;
+  console.log(`API Route Handler: DELETE ${requestUrl}`, { params: context.params });
   try {
-    const { invoiceId } = params;
-    if (!invoiceId) {
+    if (!invoiceId) { // This check is technically redundant
       console.warn(`API Route Validation: DELETE ${requestUrl} - invoiceId parameter is missing.`);
       return NextResponse.json({ error: 'Invoice ID is required' }, { status: 400 });
     }
@@ -147,9 +151,9 @@ export async function DELETE(
     console.log(`API Route Success: DELETE ${requestUrl} - Deleted invoice: ${invoiceId}`);
     return NextResponse.json({ message: 'Invoice deleted successfully' }, { status: 200 });
   } catch (error: any) {
-    console.error(`API Route Handler ERROR: DELETE ${requestUrl} (params: ${JSON.stringify(params)})`, error);
+    console.error(`API Route Handler ERROR: DELETE ${requestUrl} (params: ${JSON.stringify(context.params)})`, error);
     if (error.code === 'P2025') {
-      console.warn(`API Route DB: DELETE ${requestUrl} - Invoice not found for deletion: ${params.invoiceId}`);
+      console.warn(`API Route DB: DELETE ${requestUrl} - Invoice not found for deletion: ${invoiceId}`);
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
     return NextResponse.json({ error: 'Failed to delete invoice due to an unexpected error' }, { status: 500 });

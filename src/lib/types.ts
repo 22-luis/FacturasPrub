@@ -51,3 +51,12 @@ export interface VerificationResult {
 }
 
 // Mock data and generators are removed as the app will now use the API and database.
+
+/**
+ * Defines the shape of the context object passed as the second argument to API route handlers.
+ * The `params` property contains the dynamic route parameters.
+ * @template P - An object type where keys are parameter names and values are strings or string arrays.
+ */
+export type ApiRouteContext<P extends Record<string, string | string[]> = Record<string, string | string[]>> = {
+  params: P;
+};

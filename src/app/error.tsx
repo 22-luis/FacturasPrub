@@ -14,8 +14,8 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to an error reporting service
-    console.error("Global Error Boundary Caught:", error); // Now uncommented for client-side logging
+    // Log the error to an error reporting service and the console
+    console.error("Global Error Boundary Caught:", error);
   }, [error]);
 
   return (
@@ -34,6 +34,7 @@ export default function GlobalError({
               </CardTitle>
               <CardDescription className="text-center text-muted-foreground pt-2">
                 An unexpected error occurred. We've logged it and will investigate.
+                Please check your server terminal and browser developer console for specific error details.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -52,7 +53,7 @@ export default function GlobalError({
                      </details>
                   )}
                   {error.digest && (
-                    <p className="mt-2 text-xs text-muted-foreground">Digest: {error.digest}</p>
+                    <p className="mt-2 text-xs text-muted-foreground">Error Digest: {error.digest}</p>
                   )}
                 </div>
               )}
