@@ -306,7 +306,7 @@ export function AddEditInvoiceDialog({
         </DialogContent>
       </Dialog>
 
-      {(isOpen && (formData.status === 'CANCELADA' || (invoiceToEdit && invoiceToEdit.status === 'CANCELADA' && formData.status === 'CANCELADA'))) && (
+      {(isOpen && ((formData.status as InvoiceStatus) === 'CANCELADA' || (invoiceToEdit && invoiceToEdit.status === 'CANCELADA' && (formData.status as InvoiceStatus) === 'CANCELADA'))) && (
         <CancellationReasonDialog
           isOpen={isCancellationReasonSubDialogOpen}
           onOpenChange={setIsCancellationReasonSubDialogOpen}

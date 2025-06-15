@@ -1,15 +1,22 @@
-
 import prisma from '@/lib/prisma';
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import type { InvoiceStatus } from '@prisma/client';
+
+type RouteContext = { params: Promise<{ invoiceId: string }> };
 
 // GET a single invoice by ID
 export async function GET(
-  request: Request,
-  context: { params: { invoiceId: string } }
+  request: NextRequest,
+  context: RouteContext
 ): Promise<NextResponse> {
+  const params = await context.params;
+  const invoiceId = params.invoiceId;
+
+  if (!invoiceId) {
+    return NextResponse.json({ error: 'Missing invoiceId' }, { status: 400 });
+  }
+
   try {
-    const { invoiceId } = context.params;
     const invoiceFromDb = await prisma.invoice.findUnique({
       where: { id: invoiceId },
       include: {
@@ -25,24 +32,30 @@ export async function GET(
     if (!invoiceFromDb) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
-    const invoice = {
+
+    return NextResponse.json({
       ...invoiceFromDb,
-      totalAmount: Number(invoiceFromDb.totalAmount), // Convert Decimal to Number
-    };
-    return NextResponse.json(invoice);
+      totalAmount: Number(invoiceFromDb.totalAmount),
+    });
   } catch (error) {
-    console.error(`Failed to fetch invoice ${context.params.invoiceId}:`, error);
+    console.error(`Failed to fetch invoice ${invoiceId}:`, error);
     return NextResponse.json({ error: 'Failed to fetch invoice' }, { status: 500 });
   }
 }
 
 // PUT update an invoice by ID
 export async function PUT(
-  request: Request,
-  context: { params: { invoiceId: string } }
+  request: NextRequest,
+  context: RouteContext
 ): Promise<NextResponse> {
+  const params = await context.params;
+  const invoiceId = params.invoiceId;
+
+  if (!invoiceId) {
+    return NextResponse.json({ error: 'Missing invoiceId' }, { status: 400 });
+  }
+
   try {
-    const { invoiceId } = context.params;
     const data = await request.json();
     const {
       invoiceNumber,
@@ -56,41 +69,39 @@ export async function PUT(
       assigneeId,
     } = data;
 
-    const updateData: any = {};
-    if (invoiceNumber !== undefined) updateData.invoiceNumber = invoiceNumber;
-    if (date !== undefined) updateData.date = new Date(date);
+    const updateData: Partial<typeof data> = {};
+    if (invoiceNumber) updateData.invoiceNumber = invoiceNumber;
+    if (date) updateData.date = new Date(date);
     if (totalAmount !== undefined) updateData.totalAmount = totalAmount;
-    if (supplierName !== undefined) updateData.supplierName = supplierName;
-    if (uniqueCode !== undefined) updateData.uniqueCode = uniqueCode;
-    if (address !== undefined) updateData.address = address;
-    if (status !== undefined) {
-        if (!['PENDIENTE', 'ENTREGADA', 'CANCELADA'].includes(status)) {
-            return NextResponse.json({ error: 'Invalid invoice status' }, { status: 400 });
-        }
-        updateData.status = status as InvoiceStatus;
+    if (supplierName) updateData.supplierName = supplierName;
+    if (uniqueCode) updateData.uniqueCode = uniqueCode;
+    if (address) updateData.address = address;
+    if (status) {
+      if (!['PENDIENTE', 'ENTREGADA', 'CANCELADA'].includes(status)) {
+        return NextResponse.json({ error: 'Invalid invoice status' }, { status: 400 });
+      }
+      updateData.status = status as InvoiceStatus;
     }
-    if (cancellationReason !== undefined) updateData.cancellationReason = cancellationReason;
-    if (assigneeId !== undefined) updateData.assigneeId = assigneeId;
-
+    if (cancellationReason) updateData.cancellationReason = cancellationReason;
+    if (assigneeId) updateData.assigneeId = assigneeId;
 
     const updatedInvoiceFromDb = await prisma.invoice.update({
       where: { id: invoiceId },
       data: updateData,
     });
 
-    const updatedInvoice = {
+    return NextResponse.json({
       ...updatedInvoiceFromDb,
-      totalAmount: Number(updatedInvoiceFromDb.totalAmount), // Convert Decimal to Number
-    };
-
-    return NextResponse.json(updatedInvoice);
+      totalAmount: Number(updatedInvoiceFromDb.totalAmount),
+    });
   } catch (error: any) {
-    console.error(`Failed to update invoice ${context.params.invoiceId}:`, error);
+    console.error(`Failed to update invoice ${invoiceId}:`, error);
     if (error.code === 'P2025') {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
     if (error.code === 'P2002') {
-      return NextResponse.json({ error: `Invoice with this ${error.meta?.target?.join(', ')} already exists.` }, { status: 409 });
+      const field = error.meta?.target?.join(', ') ?? 'field';
+      return NextResponse.json({ error: `Invoice with this ${field} already exists.` }, { status: 409 });
     }
     return NextResponse.json({ error: 'Failed to update invoice' }, { status: 500 });
   }
@@ -98,17 +109,21 @@ export async function PUT(
 
 // DELETE an invoice by ID
 export async function DELETE(
-  request: Request,
-  context: { params: { invoiceId: string } }
+  request: NextRequest,
+  context: RouteContext
 ): Promise<NextResponse> {
+  const params = await context.params;
+  const invoiceId = params.invoiceId;
+
+  if (!invoiceId) {
+    return NextResponse.json({ error: 'Missing invoiceId' }, { status: 400 });
+  }
+
   try {
-    const { invoiceId } = context.params;
-    await prisma.invoice.delete({
-      where: { id: invoiceId },
-    });
+    await prisma.invoice.delete({ where: { id: invoiceId } });
     return NextResponse.json({ message: 'Invoice deleted successfully' }, { status: 200 });
   } catch (error: any) {
-    console.error(`Failed to delete invoice ${context.params.invoiceId}:`, error);
+    console.error(`Failed to delete invoice ${invoiceId}:`, error);
     if (error.code === 'P2025') {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }

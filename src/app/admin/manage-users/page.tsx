@@ -4,3 +4,6 @@
 // Leaving it empty or with a comment like this helps prevent build errors if it's still referenced somewhere temporarily.
 // Previous content has been integrated into ManageAllUsersDialog.tsx and page.tsx
     
+export default function PlaceholderPage() {
+  return null;
+}
