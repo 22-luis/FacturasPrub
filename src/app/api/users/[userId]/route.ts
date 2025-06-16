@@ -2,6 +2,7 @@
 import prisma from '@/lib/prisma';
 import { NextResponse, type NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
+<<<<<<< HEAD
 import type { UserRole as PrismaUserRole } from '@prisma/client';
 import type { UserRole } from '@/lib/types';
 
@@ -13,6 +14,17 @@ export async function GET(
   const requestUrl = request.nextUrl.pathname + request.nextUrl.search;
   console.log(`API Route Handler: GET ${requestUrl}`, { params });
 
+=======
+import type { UserRole as PrismaUserRole } from '@prisma/client'; // Prisma's uppercase enum
+import type { UserRole } from '@/lib/types'; // Frontend's lowercase type
+
+interface Params {
+  params: Promise<{ userId: string }>;
+}
+
+export async function GET(request: Request, { params }: Params) {
+  const awaitedParams = await params;
+>>>>>>> b680365fc645e4daa952198f33a43750003cf941
   try {
     const { userId } = params;
     if (!userId) {
@@ -20,7 +32,11 @@ export async function GET(
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
     const userFromDb = await prisma.user.findUnique({
+<<<<<<< HEAD
       where: { id: userId },
+=======
+      where: { id: awaitedParams.userId },
+>>>>>>> b680365fc645e4daa952198f33a43750003cf941
       select: {
         id: true,
         name: true,
@@ -41,6 +57,7 @@ export async function GET(
     console.log(`API Route Success: GET ${requestUrl} - Fetched user: ${userId}`);
     return NextResponse.json(userToReturn);
   } catch (error) {
+<<<<<<< HEAD
     console.error(`API Route Handler ERROR: GET ${requestUrl} (params: ${JSON.stringify(params)})`, error);
     return NextResponse.json({ error: 'Failed to fetch user due to an unexpected error' }, { status: 500 });
   }
@@ -53,6 +70,17 @@ export async function PUT(
 ): Promise<NextResponse> {
   const requestUrl = request.nextUrl.pathname + request.nextUrl.search;
   let requestBodyForLog: any = "Could not clone or parse body";
+=======
+    console.error(`Failed to fetch user ${awaitedParams.userId}:`, error);
+    return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request, { params }: Params) {
+  const awaitedParams = await params;
+  try {
+    const { name, role, password } = await request.json(); // 'role' from client is lowercase
+>>>>>>> b680365fc645e4daa952198f33a43750003cf941
 
   try {
     const tempRequest = request.clone();
@@ -89,7 +117,11 @@ export async function PUT(
         const existingUserWithSameName = await prisma.user.findFirst({
             where: {
                 name: name,
+<<<<<<< HEAD
                 id: { not: userId }
+=======
+                id: { not: awaitedParams.userId }
+>>>>>>> b680365fc645e4daa952198f33a43750003cf941
             }
         });
         if (existingUserWithSameName) {
@@ -99,7 +131,11 @@ export async function PUT(
     }
 
     const updatedUserFromDb = await prisma.user.update({
+<<<<<<< HEAD
       where: { id: userId },
+=======
+      where: { id: awaitedParams.userId },
+>>>>>>> b680365fc645e4daa952198f33a43750003cf941
       data: updateData,
       select: {
         id: true,
@@ -117,15 +153,21 @@ export async function PUT(
     console.log(`API Route Success: PUT ${requestUrl} - Updated user: ${userId}`);
     return NextResponse.json(userToReturn);
   } catch (error: any) {
+<<<<<<< HEAD
     console.error(`API Route Handler ERROR: PUT ${requestUrl} (params: ${JSON.stringify(params)})`, error);
     if (error.code === 'P2025') {
       console.warn(`API Route DB: PUT ${requestUrl} - User not found for update: ${params.userId}`);
+=======
+    console.error(`Failed to update user ${awaitedParams.userId}:`, error);
+    if (error.code === 'P2025') { // Prisma error code for record not found
+>>>>>>> b680365fc645e4daa952198f33a43750003cf941
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     return NextResponse.json({ error: 'Failed to update user due to an unexpected error' }, { status: 500 });
   }
 }
 
+<<<<<<< HEAD
 // DELETE a user by ID
 export async function DELETE(
   request: NextRequest,
@@ -134,6 +176,10 @@ export async function DELETE(
   const requestUrl = request.nextUrl.pathname + request.nextUrl.search;
   console.log(`API Route Handler: DELETE ${requestUrl}`, { params });
 
+=======
+export async function DELETE(request: Request, { params }: Params) {
+  const awaitedParams = await params;
+>>>>>>> b680365fc645e4daa952198f33a43750003cf941
   try {
     const { userId } = params;
     if (!userId) {
@@ -141,14 +187,23 @@ export async function DELETE(
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
     await prisma.user.delete({
+<<<<<<< HEAD
       where: { id: userId },
+=======
+      where: { id: awaitedParams.userId },
+>>>>>>> b680365fc645e4daa952198f33a43750003cf941
     });
     console.log(`API Route Success: DELETE ${requestUrl} - Deleted user: ${userId}`);
     return NextResponse.json({ message: 'User deleted successfully' }, { status: 200 });
   } catch (error: any) {
+<<<<<<< HEAD
     console.error(`API Route Handler ERROR: DELETE ${requestUrl} (params: ${JSON.stringify(params)})`, error);
     if (error.code === 'P2025') {
       console.warn(`API Route DB: DELETE ${requestUrl} - User not found for deletion: ${params.userId}`);
+=======
+    console.error(`Failed to delete user ${awaitedParams.userId}:`, error);
+    if (error.code === 'P2025') { // Prisma error code for record not found
+>>>>>>> b680365fc645e4daa952198f33a43750003cf941
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     return NextResponse.json({ error: 'Failed to delete user due to an unexpected error' }, { status: 500 });
