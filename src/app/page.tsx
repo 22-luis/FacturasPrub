@@ -23,6 +23,8 @@ import { Label } from '@/components/ui/label';
 import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import bcrypt from 'bcryptjs';
+import { mockUsers, mockInvoices as initialMockInvoices } from '@/lib/mock-data';
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
@@ -38,7 +40,6 @@ const statusCardDetails: Record<InvoiceStatus, { label: string; Icon: React.Elem
   CANCELADA: { label: 'Facturas Canceladas', Icon: XCircle, description: "Anuladas del sistema" },
 };
 
-// const adminRoleDisplayInfo is now defined in ManageAllUsersDialog
 const manageableUserRoles: UserRole[] = ['supervisor', 'repartidor']; 
 
 
@@ -78,15 +79,10 @@ export default function HomePage() {
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/users');
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch users' }));
-        throw new Error(errorData.error || 'Failed to fetch users');
-      }
-      const data: User[] = await response.json();
-      setUsers(data);
+      // Use mock users directly, ensuring roles are lowercase as UserRole type expects
+      setUsers(mockUsers.map(u => ({...u, role: u.role.toLowerCase() as UserRole })));
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error al Cargar Usuarios', description: error.message });
+      toast({ variant: 'destructive', title: 'Error al Cargar Usuarios (Mock)', description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -95,29 +91,38 @@ export default function HomePage() {
   const fetchInvoices = useCallback(async (queryParams: Record<string, string> = {}) => {
     setIsLoading(true);
     try {
-      const url = new URL('/api/invoices', window.location.origin);
-      Object.entries(queryParams).forEach(([key, value]) => {
-        if (value) url.searchParams.append(key, value);
+      let MOCK_INVOICES_TO_USE = [...initialMockInvoices]; // Use a copy from imports
+      const status = queryParams.status as InvoiceStatus | null;
+      const assigneeIdParam = queryParams.assigneeId;
+
+      if (status) {
+        MOCK_INVOICES_TO_USE = MOCK_INVOICES_TO_USE.filter(inv => inv.status === status);
+      }
+      if (assigneeIdParam) {
+        MOCK_INVOICES_TO_USE = MOCK_INVOICES_TO_USE.filter(inv => inv.assigneeId === assigneeIdParam);
+      }
+      
+      const currentUsers = users.length > 0 ? users : mockUsers.map(u => ({...u, role: u.role.toLowerCase() as UserRole }));
+
+      const invoicesWithAssigneeDetails = MOCK_INVOICES_TO_USE.map(inv => {
+          const assignee = currentUsers.find(u => u.id === inv.assigneeId);
+          return {
+              ...inv,
+              assignee: assignee ? { id: assignee.id, name: assignee.name } : null,
+          };
       });
 
-      const response = await fetch(url.toString());
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch invoices' }));
-        throw new Error(errorData.error || 'Failed to fetch invoices');
-      }
-      const data: AssignedInvoice[] = await response.json();
-      setInvoices(data);
+      setInvoices(invoicesWithAssigneeDetails);
     } catch (error: any) {
-      setInvoices([]); // Clear invoices on error to avoid displaying stale data
-      toast({ variant: 'destructive', title: 'Error al Cargar Facturas', description: error.message });
+      setInvoices([]);
+      toast({ variant: 'destructive', title: 'Error al Cargar Facturas (Mock)', description: error.message });
     } finally {
       setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, users]); // Added users to dependency array for getAssigneeName context
   
   useEffect(() => {
     fetchUsers();
-    // Invoices are now fetched based on loggedInUser state changes
   }, [fetchUsers]);
 
   useEffect(() => {
@@ -125,13 +130,13 @@ export default function HomePage() {
       if (loggedInUser.role === 'repartidor') {
         fetchInvoices({ assigneeId: loggedInUser.id, status: 'PENDIENTE' });
       } else if (loggedInUser.role === 'supervisor' || loggedInUser.role === 'administrador') {
-        fetchInvoices(); // Fetch all for supervisor/admin
-        setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY); // Reset filters
+        fetchInvoices(); 
+        setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
         setSelectedStatusBySupervisor(null);
         setSearchTerm('');
       }
-    } else { // When loggedInUser becomes null (logout or initial state)
-      setInvoices([]); // Clear invoices
+    } else {
+      setInvoices([]);
       setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
       setSelectedStatusBySupervisor(null);
       setSearchTerm('');
@@ -140,26 +145,26 @@ export default function HomePage() {
 
 
   const handleLogin = async () => {
-    if (!usernameInput.trim() || !passwordInput) {
+    if (!usernameInput.trim() || !passwordInput.trim()) { // Trim passwordInput as well
       toast({ variant: "destructive", title: "Error", description: "Por favor, ingresa tu nombre de usuario y contraseña." });
       return;
     }
     setIsLoading(true);
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: usernameInput.trim(), password: passwordInput }),
-      });
-      const data = await response.json(); // data.role should be lowercase now
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+      const userToLogin = users.find(u => u.name === usernameInput.trim());
+      if (!userToLogin || !userToLogin.password) {
+        throw new Error('Credenciales inválidas');
       }
-      setLoggedInUser(data);
-      toast({ title: "Sesión Iniciada", description: `Bienvenido ${data.name}.` });
+      // Compare plain text password with stored hashed password
+      const isPasswordValid = await bcrypt.compare(passwordInput.trim(), userToLogin.password);
+      if (!isPasswordValid) {
+        throw new Error('Credenciales inválidas');
+      }
+      
+      setLoggedInUser(userToLogin); // userToLogin.role is already lowercase from fetchUsers
+      toast({ title: "Sesión Iniciada", description: `Bienvenido ${userToLogin.name}.` });
       setUsernameInput('');
       setPasswordInput('');
-      // No need to call fetchInvoices here, the useEffect for loggedInUser will handle it.
     } catch (error: any) {
       toast({ variant: "destructive", title: "Error de Inicio de Sesión", description: error.message });
     } finally {
@@ -169,7 +174,7 @@ export default function HomePage() {
 
   const handleLogout = () => {
     toast({ title: "Sesión Cerrada", description: `Hasta luego ${loggedInUser?.name}.` });
-    setLoggedInUser(null); // This will trigger the useEffect to clear invoices and filters
+    setLoggedInUser(null);
     setUsernameInput('');
     setPasswordInput('');
   };
@@ -197,31 +202,32 @@ export default function HomePage() {
 
   const handleSaveInvoice = async (invoiceData: InvoiceFormData, id?: string) => {
     setIsLoading(true);
-    const method = id ? 'PUT' : 'POST';
-    const endpoint = id ? `/api/invoices/${id}` : '/api/invoices';
-
     try {
-      const response = await fetch(endpoint, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(invoiceData),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || (id ? 'Failed to update invoice' : 'Failed to create invoice'));
+      const currentAssigneeUser = users.find(u => u.id === invoiceData.assigneeId);
+      const assigneeDetailsForState = currentAssigneeUser ? { id: currentAssigneeUser.id, name: currentAssigneeUser.name } : null;
+
+      if (id) { // Editing
+        setInvoices(prevInvoices =>
+          prevInvoices.map(inv =>
+            inv.id === id ? { ...inv, ...invoiceData, id, assignee: assigneeDetailsForState, updatedAt: new Date().toISOString() } : inv
+          )
+        );
+        toast({ title: "Factura Actualizada (Mock)", description: `La factura #${invoiceData.invoiceNumber} ha sido actualizada.` });
+      } else { // Adding
+        const newId = `mock-inv-${Date.now()}-${Math.random().toString(36).substring(2,7)}`;
+        const newInvoice: AssignedInvoice = {
+          ...invoiceData,
+          id: newId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          assignee: assigneeDetailsForState,
+        };
+        setInvoices(prevInvoices => [newInvoice, ...prevInvoices].sort((a,b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()));
+        toast({ title: "Factura Agregada (Mock)", description: `La factura #${newInvoice.invoiceNumber} ha sido agregada.` });
       }
-      toast({ title: id ? "Factura Actualizada" : "Factura Agregada", description: `La factura #${result.invoiceNumber} ha sido ${id ? 'actualizada' : 'agregada'}.` });
       setIsAddEditInvoiceDialogOpen(false);
-      // Refetch invoices based on current user's role and filters
-      if (loggedInUser) {
-        if (loggedInUser.role === 'repartidor') {
-          fetchInvoices({ assigneeId: loggedInUser.id, status: 'PENDIENTE' });
-        } else {
-          fetchInvoices(); // Or apply current supervisor/admin filters if any
-        }
-      }
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error al Guardar Factura', description: error.message });
+      toast({ variant: 'destructive', title: 'Error al Guardar Factura (Mock)', description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -230,26 +236,20 @@ export default function HomePage() {
   const handleUpdateInvoiceStatus = async (invoiceId: string, newStatus: InvoiceStatus, cancellationReason?: string) => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/invoices/${invoiceId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, cancellationReason }),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to update invoice status');
-      }
-      toast({ title: 'Estado Actualizado', description: `La factura #${result.invoiceNumber} ha sido actualizada a ${newStatus.toLowerCase()}.`});
-      // Refetch invoices based on current user's role and filters
-      if (loggedInUser) {
-         if (loggedInUser.role === 'repartidor') {
-          fetchInvoices({ assigneeId: loggedInUser.id, status: 'PENDIENTE' });
-        } else {
-          fetchInvoices(); // Or apply current supervisor/admin filters if any
-        }
-      }
+      let updatedInvoiceNumber = '';
+      setInvoices(prevInvoices =>
+        prevInvoices.map(inv => {
+          if (inv.id === invoiceId) {
+            updatedInvoiceNumber = inv.invoiceNumber;
+            return { ...inv, status: newStatus, cancellationReason: newStatus === 'CANCELADA' ? cancellationReason : undefined, updatedAt: new Date().toISOString() };
+          }
+          return inv;
+        })
+      );
+      toast({ title: 'Estado Actualizado (Mock)', description: `La factura #${updatedInvoiceNumber || invoiceId} ha sido actualizada a ${newStatus.toLowerCase()}.`});
+      setIsProcessDialogOpen(false); 
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error al Actualizar Estado', description: error.message });
+      toast({ variant: 'destructive', title: 'Error al Actualizar Estado (Mock)', description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -265,10 +265,8 @@ export default function HomePage() {
     setIsAddRepartidorDialogOpen(true);
   };
 
-  // For supervisor adding/editing repartidor (role is fixed to 'repartidor')
   const handleSaveRepartidorBySupervisor = async (name: string, idToEdit?: string, password?: string) => {
-    const userData = { name, role: 'repartidor' as UserRole, password }; // role is lowercase
-    await handleSaveUser(userData, idToEdit, true); 
+    await handleSaveUser({ name, role: 'repartidor' as UserRole, password }, idToEdit, true); 
   };
 
 
@@ -304,34 +302,50 @@ export default function HomePage() {
 
   const handleSaveUser = async (userData: { name: string; role: UserRole; password?: string }, idToEdit?: string, isSupervisorAction: boolean = false) => {
     setIsLoading(true);
-    const method = idToEdit ? 'PUT' : 'POST';
-    const endpoint = idToEdit ? `/api/users/${idToEdit}` : '/api/users';
-
-    // userData.role is already lowercase here from AddEditUserDialog or AddRepartidorDialog
     try {
-      const response = await fetch(endpoint, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData), // Sending lowercase role
-      });
-      const result = await response.json(); // API will return lowercase role
-      if (!response.ok) {
-        throw new Error(result.error || (idToEdit ? 'Failed to update user' : 'Failed to create user'));
+      if (idToEdit) { // Editing user
+        let newHashedPassword = undefined;
+        if (userData.password) {
+            newHashedPassword = await bcrypt.hash(userData.password, 10);
+        }
+        setUsers(prevUsers => prevUsers.map(u => {
+            if (u.id === idToEdit) {
+                return {
+                    ...u,
+                    name: userData.name,
+                    role: userData.role, // role is already lowercase from dialog
+                    ...(newHashedPassword && { password: newHashedPassword }), // only update password if new one provided
+                    updatedAt: new Date().toISOString(),
+                };
+            }
+            return u;
+        }));
+      } else { // Adding new user
+        const newUserId = `mock-user-${Date.now()}-${Math.random().toString(36).substring(2,7)}`;
+        const hashedPassword = await bcrypt.hash(userData.password || 'defaultFallbackPass123', 10); // Ensure password is provided
+        const newUserToAdd: User = {
+          id: newUserId,
+          name: userData.name,
+          role: userData.role, // role is already lowercase from dialog
+          password: hashedPassword,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setUsers(prevUsers => [newUserToAdd, ...prevUsers]);
       }
       
-      const actionText = isSupervisorAction ? (idToEdit ? 'Repartidor Actualizado' : 'Repartidor Agregado') : (idToEdit ? 'Usuario Actualizado' : 'Usuario Agregado');
+      const actionText = isSupervisorAction ? (idToEdit ? 'Repartidor Actualizado (Mock)' : 'Repartidor Agregado (Mock)') : (idToEdit ? 'Usuario Actualizado (Mock)' : 'Usuario Agregado (Mock)');
       const descriptionText = isSupervisorAction 
-        ? (idToEdit ? `El repartidor ${result.name} ha sido actualizado.` : `El repartidor ${result.name} ha sido agregado.`)
-        : (idToEdit ? `Los datos de ${result.name} han sido actualizados.` : `El usuario ${result.name} (${result.role}) ha sido agregado.`);
+        ? (idToEdit ? `El repartidor ${userData.name} ha sido actualizado.` : `El repartidor ${userData.name} ha sido agregado.`)
+        : (idToEdit ? `Los datos de ${userData.name} han sido actualizados.` : `El usuario ${userData.name} (${userData.role}) ha sido agregado.`);
       
       toast({ title: actionText, description: descriptionText });
       
       if (isSupervisorAction) setIsAddRepartidorDialogOpen(false);
       else setIsAddEditUserDialogOpen(false);
       
-      fetchUsers(); // Refetch all users
     } catch (error: any) {
-      toast({ variant: 'destructive', title: isSupervisorAction ? 'Error al Guardar Repartidor' : 'Error al Guardar Usuario', description: error.message });
+      toast({ variant: 'destructive', title: isSupervisorAction ? 'Error al Guardar Repartidor (Mock)' : 'Error al Guardar Usuario (Mock)', description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -342,27 +356,28 @@ export default function HomePage() {
     if (!targetUser) return;
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/users/${targetUser.id}`, { method: 'DELETE' });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to delete user');
-      }
+      setUsers(prevUsers => prevUsers.filter(u => u.id !== targetUser.id));
       
-      const titleText = isSupervisorAction ? 'Repartidor Eliminado' : 'Usuario Eliminado';
+      // If a repartidor was deleted, update their assigned invoices to be unassigned in the local 'invoices' state
+      if (targetUser.role === 'repartidor') {
+        setInvoices(prevInvoices => 
+          prevInvoices.map(inv => 
+            inv.assigneeId === targetUser.id 
+              ? { ...inv, assigneeId: null, assignee: null, updatedAt: new Date().toISOString() } 
+              : inv
+          )
+        );
+        if (selectedRepartidorIdBySupervisor === targetUser.id) {
+          setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
+        }
+      }
+
+      const titleText = isSupervisorAction ? 'Repartidor Eliminado (Mock)' : 'Usuario Eliminado (Mock)';
       const descriptionText = isSupervisorAction 
         ? `El repartidor ${targetUser.name} ha sido eliminado.`
         : `El usuario ${targetUser.name} ha sido eliminado.`;
 
       toast({ title: titleText, description: descriptionText });
-
-      fetchUsers(); // Refetch users
-      // If a repartidor was deleted, their invoices become unassigned, refetch invoices for supervisor/admin
-      if (targetUser.role === 'repartidor' && loggedInUser && (loggedInUser.role === 'supervisor' || loggedInUser.role === 'administrador')) {
-        fetchInvoices(); 
-        if (selectedRepartidorIdBySupervisor === targetUser.id) {
-          setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY); // Reset filter if deleted repartidor was selected
-        }
-      }
       
       if (isSupervisorAction) {
         setRepartidorToDelete(null);
@@ -373,7 +388,7 @@ export default function HomePage() {
       }
 
     } catch (error: any) {
-      toast({ variant: 'destructive', title: isSupervisorAction ? 'Error al Eliminar Repartidor' : 'Error al Eliminar Usuario', description: error.message });
+      toast({ variant: 'destructive', title: isSupervisorAction ? 'Error al Eliminar Repartidor (Mock)' : 'Error al Eliminar Usuario (Mock)', description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -381,26 +396,28 @@ export default function HomePage() {
   
   const getAssigneeName = (assigneeId?: string | null): string | undefined => {
     if (!assigneeId) return undefined;
-    // Users list should have all users with lowercase roles
-    let repartidor = users.find(u => u.id === assigneeId && u.role === 'repartidor');
+    const repartidor = users.find(u => u.id === assigneeId && u.role === 'repartidor');
     if (repartidor) return repartidor.name;
-
-    const invoiceWithAssignee = invoices.find(inv => inv.id === processingInvoice?.id || inv.id === invoiceToEdit?.id);
-    if (invoiceWithAssignee?.assignee?.id === assigneeId) {
-        return invoiceWithAssignee.assignee.name; // API includes assignee with lowercase role
+    
+    // Fallback: check invoice.assignee object if already populated (should be by fetchInvoices)
+    const currentInvoice = processingInvoice || invoiceToEdit;
+    if (currentInvoice?.assignee?.id === assigneeId) {
+        return currentInvoice.assignee.name;
     }
-    return users.find(u => u.id === assigneeId)?.name; 
+    // Fallback for general listing if somehow invoice.assignee is not populated from fetch.
+    const user = users.find(u => u.id === assigneeId);
+    return user?.name; 
   };
 
 
-  const repartidores = useMemo(() => users.filter(user => user.role === 'repartidor'), [users]); // Role check is lowercase
+  const repartidores = useMemo(() => users.filter(user => user.role === 'repartidor'), [users]);
 
   const displayedInvoices = useMemo(() => {
     if (!loggedInUser) return [];
 
-    let filteredInvoices = [...invoices];
+    let filteredInvoices = [...invoices]; // Uses local state 'invoices'
 
-    if (loggedInUser.role === 'supervisor' || loggedInUser.role === 'administrador') { // lowercase check
+    if (loggedInUser.role === 'supervisor' || loggedInUser.role === 'administrador') {
       if (searchTerm.trim()) {
         const lowerSearchTerm = searchTerm.trim().toLowerCase();
         filteredInvoices = filteredInvoices.filter(inv =>
@@ -419,12 +436,14 @@ export default function HomePage() {
       } else if (selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) {
         filteredInvoices = filteredInvoices.filter(inv => inv.assigneeId === selectedRepartidorIdBySupervisor);
       }
+      // For supervisor/admin, default sort by creation date (desc) or last update
+      return filteredInvoices.sort((a, b) => new Date(b.updatedAt || b.createdAt!).getTime() - new Date(a.updatedAt || a.createdAt!).getTime());
 
-      return filteredInvoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
 
-    if (loggedInUser.role === 'repartidor') { // lowercase check
-      // For repartidor, invoices state should already be filtered by API call in useEffect
+    if (loggedInUser.role === 'repartidor') {
+      // Repartidor view should already be filtered by `fetchInvoices` to only show their PENDIENTE invoices.
+      // Sort by date (asc) for repartidor to see oldest first
       return invoices.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }
     return [];
@@ -449,7 +468,7 @@ export default function HomePage() {
     if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) {
         repartidorDescription = "Facturas sin Asignar";
     } else if (selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) {
-        const repartidor = users.find(u => u.id === selectedRepartidorIdBySupervisor); // users have lowercase roles
+        const repartidor = users.find(u => u.id === selectedRepartidorIdBySupervisor);
         if (repartidor) {
             repartidorDescription = `Asignadas a: ${repartidor.name}`;
         } else {
@@ -504,7 +523,7 @@ export default function HomePage() {
                     type="text"
                     value={usernameInput}
                     onChange={(e) => setUsernameInput(e.target.value)}
-                    placeholder="Ej: admin"
+                    placeholder="Ej: admin / sup / john"
                     required
                     className="w-full"
                     disabled={isLoading}
@@ -519,7 +538,7 @@ export default function HomePage() {
                     type="password"
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
-                    placeholder="Contraseña"
+                    placeholder="Ej: 123"
                     required
                     className="w-full"
                     disabled={isLoading}
@@ -540,7 +559,6 @@ export default function HomePage() {
     );
   }
 
-  // These role checks will now work correctly because loggedInUser.role is lowercase
   const isSupervisor = loggedInUser.role === 'supervisor';
   const isAdmin = loggedInUser.role === 'administrador';
   const isSupervisorOrAdmin = isSupervisor || isAdmin;
@@ -737,7 +755,7 @@ export default function HomePage() {
                       key={invoice.id}
                       invoice={invoice}
                       onAction={isAdmin || isSupervisor ? handleEditInvoiceClick : handleProcessInvoiceClick}
-                      currentUserRole={loggedInUser?.role} // Role is lowercase
+                      currentUserRole={loggedInUser?.role}
                       assigneeName={invoice.assignee?.name || getAssigneeName(invoice.assigneeId)}
                     />
                   ))}
@@ -751,7 +769,7 @@ export default function HomePage() {
           </section>
         )}
 
-        {loggedInUser.role === 'repartidor' && ( // Role check is lowercase
+        {loggedInUser.role === 'repartidor' && (
            <section>
             <h2 className="text-xl sm:text-2xl font-semibold mb-6 text-foreground">Mis Facturas Pendientes</h2>
             {isLoading && displayedInvoices.length === 0 && <p className="text-muted-foreground">Cargando tus facturas...</p>}
@@ -762,7 +780,7 @@ export default function HomePage() {
                     key={invoice.id}
                     invoice={invoice}
                     onAction={handleProcessInvoiceClick}
-                    currentUserRole={loggedInUser?.role} // Role is lowercase
+                    currentUserRole={loggedInUser?.role}
                   />
                 ))}
               </div>
@@ -786,11 +804,11 @@ export default function HomePage() {
         isOpen={isAddEditInvoiceDialogOpen}
         onOpenChange={setIsAddEditInvoiceDialogOpen}
         invoiceToEdit={invoiceToEdit}
-        users={repartidores} // Pass only repartidores for assignment
+        users={repartidores} 
         onSave={handleSaveInvoice}
       />
 
-      {isSupervisor && !isAdmin && ( // Role checks are lowercase
+      {isSupervisor && !isAdmin && (
         <>
           <AddRepartidorDialog
             isOpen={isAddRepartidorDialogOpen}
@@ -818,7 +836,7 @@ export default function HomePage() {
         </>
       )}
 
-      {isAdmin && ( // Role check is lowercase
+      {isAdmin && (
           <>
             <AddEditUserDialog
                 isOpen={isAddEditUserDialogOpen}
@@ -841,8 +859,8 @@ export default function HomePage() {
             <ManageAllUsersDialog
                 isOpen={isManageAllUsersDialogOpen}
                 onOpenChange={setIsManageAllUsersDialogOpen}
-                allUsers={users} // Pass all users (roles are lowercase)
-                currentUser={loggedInUser} // Role is lowercase
+                allUsers={users} 
+                currentUser={loggedInUser} 
                 onEdit={handleOpenEditUserDialog}
                 onDelete={handleOpenDeleteUserDialog}
             />
