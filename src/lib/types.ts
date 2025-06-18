@@ -9,31 +9,55 @@ export interface User {
   id: string;
   name: string;
   role: UserRole;
-  password?: string; // Password is mainly for creation/login, not stored in frontend state after login
-  createdAt?: Date | string; // Optional, from DB
-  updatedAt?: Date | string; // Optional, from DB
+  password?: string; 
+  createdAt?: Date | string; 
+  updatedAt?: Date | string; 
+}
+
+export interface Branch {
+  id: string;
+  name: string; // e.g., "Sucursal Centro"
+  contactPhone?: string;
+  address: string;
+  clientId: string; // Foreign key to Client
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+
+export interface Client {
+  id: string;
+  name: string; // Nombre del cliente o empresa
+  phone?: string; // Teléfono de contacto principal
+  mainAddress?: string; // Dirección principal
+  branches?: Branch[]; // Array of associated branches
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
 }
 
 export interface AssignedInvoice {
   id:string;
   invoiceNumber: string;
-  date: string; // Keep as string for simplicity, API handles Date conversion
+  date: string; 
   totalAmount: number;
   supplierName: string;
   uniqueCode: string;
   address?: string;
-  assigneeId?: string | null; // Allow null for unassigned
+  assigneeId?: string | null; 
   status: InvoiceStatus;
   cancellationReason?: string;
-  assignee?: { // For displaying assignee name from included relation
+  assignee?: { 
     id: string;
     name: string;
   } | null;
+  clientId?: string | null; // Foreign key to Client
+  client?: Client | null; // Optional: Embed client data if needed for display
   createdAt?: Date | string;
   updatedAt?: Date | string;
 }
 
-export type InvoiceFormData = Omit<AssignedInvoice, 'id' | 'assignee' | 'createdAt' | 'updatedAt'>;
+export type InvoiceFormData = Omit<AssignedInvoice, 'id' | 'assignee' | 'client' | 'createdAt' | 'updatedAt'> & {
+  clientId?: string | null; // Ensure clientId is part of form data
+};
 
 
 export type ExtractedInvoiceDetails = ExtractInvoiceDataOutput;
@@ -50,13 +74,6 @@ export interface VerificationResult {
   fields: VerificationField[];
 }
 
-// Mock data and generators are removed as the app will now use the API and database.
-
-/**
- * Defines the shape of the context object passed as the second argument to API route handlers.
- * The `params` property contains the dynamic route parameters.
- * @template P - An object type where keys are parameter names and values are strings or string arrays.
- */
 export type ApiRouteContext<P extends Record<string, string | string[]> = Record<string, string | string[]>> = {
   params: P;
 };

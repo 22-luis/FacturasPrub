@@ -15,24 +15,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus } from '@/lib/types';
+import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, Client } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { CancellationReasonDialog } from './CancellationReasonDialog';
 
-// Define a type for the dialog's internal form state
 type DialogFormState = Omit<InvoiceFormData, 'totalAmount'> & {
-  totalAmount: string; // Keep as string for input flexibility
+  totalAmount: string; 
 };
 
 const initialDialogFormState: DialogFormState = {
   invoiceNumber: '',
   date: '',
-  totalAmount: '', // Initialize as empty string
+  totalAmount: '', 
   supplierName: '',
   uniqueCode: '',
   address: '',
   assigneeId: undefined,
+  clientId: undefined, // Added clientId
   status: 'PENDIENTE',
   cancellationReason: undefined,
 };
@@ -44,6 +44,7 @@ interface AddEditInvoiceDialogProps {
   onOpenChange: (open: boolean) => void;
   invoiceToEdit: AssignedInvoice | null;
   users: User[];
+  clients: Client[]; // Added clients prop
   onSave: (invoiceData: InvoiceFormData, id?: string) => void;
 }
 
@@ -52,6 +53,7 @@ export function AddEditInvoiceDialog({
   onOpenChange,
   invoiceToEdit,
   users,
+  clients, // Destructure clients
   onSave,
 }: AddEditInvoiceDialogProps) {
   const [formData, setFormData] = useState<DialogFormState>(initialDialogFormState);
@@ -59,19 +61,20 @@ export function AddEditInvoiceDialog({
   const [isCancellationReasonSubDialogOpen, setIsCancellationReasonSubDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (invoiceToEdit && isOpen) { // Ensure state updates only when dialog is open and has an invoice
+    if (invoiceToEdit && isOpen) { 
       setFormData({
         invoiceNumber: invoiceToEdit.invoiceNumber,
         date: invoiceToEdit.date,
-        totalAmount: invoiceToEdit.totalAmount.toString(), // Convert number to string
+        totalAmount: invoiceToEdit.totalAmount.toString(), 
         supplierName: invoiceToEdit.supplierName,
         uniqueCode: invoiceToEdit.uniqueCode,
         address: invoiceToEdit.address || '',
         assigneeId: invoiceToEdit.assigneeId || undefined,
+        clientId: invoiceToEdit.clientId || undefined, // Set clientId
         status: invoiceToEdit.status || 'PENDIENTE',
         cancellationReason: invoiceToEdit.cancellationReason || undefined,
       });
-    } else if (!invoiceToEdit && isOpen) { // Reset for new invoice when dialog opens
+    } else if (!invoiceToEdit && isOpen) { 
       setFormData(initialDialogFormState);
     }
   }, [invoiceToEdit, isOpen]);
@@ -79,7 +82,6 @@ export function AddEditInvoiceDialog({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
      if (name === "totalAmount") {
-      // Allow only characters suitable for a decimal number string
       const regex = /^[0-9]*\.?[0-9]*$/;
       if (value === "" || regex.test(value)) {
         setFormData((prev) => ({ ...prev, [name]: value }));
@@ -89,10 +91,10 @@ export function AddEditInvoiceDialog({
     }
   };
 
-  const handleSelectChange = (name: 'assigneeId' | 'status', value: string) => {
+  const handleSelectChange = (name: 'assigneeId' | 'status' | 'clientId', value: string) => {
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'assigneeId' 
+      [name]: (name === 'assigneeId' || name === 'clientId')
         ? (value === 'unassigned' ? undefined : value)
         : (value as InvoiceStatus),
     }));
@@ -105,7 +107,7 @@ export function AddEditInvoiceDialog({
         !formData.supplierName.trim() || 
         !formData.uniqueCode.trim() ||
         !formData.address?.trim() ||
-        !formData.totalAmount.trim() // Also check totalAmount string
+        !formData.totalAmount.trim() 
        ) {
       toast({
         variant: "destructive",
@@ -127,7 +129,7 @@ export function AddEditInvoiceDialog({
 
     const dataToSave: InvoiceFormData = {
       ...formData,
-      totalAmount: numericTotalAmount, // Convert back to number for saving
+      totalAmount: numericTotalAmount, 
     };
 
     if (dataToSave.status === 'CANCELADA' && (!invoiceToEdit || invoiceToEdit.status !== 'CANCELADA')) {
@@ -144,7 +146,7 @@ export function AddEditInvoiceDialog({
 
   const handleConfirmCancellationWithReason = (reason?: string) => {
     const numericTotalAmount = parseFloat(formData.totalAmount);
-    if (isNaN(numericTotalAmount) || numericTotalAmount <=0) { // Basic validation for safety
+    if (isNaN(numericTotalAmount) || numericTotalAmount <=0) { 
         toast({ variant: "destructive", title: "Error", description: "Monto total inválido al confirmar cancelación."});
         setIsCancellationReasonSubDialogOpen(false);
         return;
@@ -152,7 +154,7 @@ export function AddEditInvoiceDialog({
 
     const finalInvoiceData: InvoiceFormData = { 
         ...formData, 
-        totalAmount: numericTotalAmount, // Convert to number
+        totalAmount: numericTotalAmount, 
         status: 'CANCELADA' as InvoiceStatus, 
         cancellationReason: reason 
     };
@@ -170,7 +172,7 @@ export function AddEditInvoiceDialog({
   return (
     <>
       <Dialog open={isOpen && !isCancellationReasonSubDialogOpen} onOpenChange={(open) => {
-        if (!open) { // Reset form if dialog is closed externally
+        if (!open) { 
             setFormData(initialDialogFormState);
         }
         onOpenChange(open);
@@ -210,7 +212,7 @@ export function AddEditInvoiceDialog({
                   name="totalAmount"
                   type="text"
                   inputMode="decimal"
-                  value={formData.totalAmount} // This is now a string
+                  value={formData.totalAmount} 
                   onChange={handleChange}
                   placeholder="Ej: 123.45"
                   required
@@ -249,6 +251,26 @@ export function AddEditInvoiceDialog({
                 />
               </div>
               <div>
+                <Label htmlFor="clientId">Cliente</Label>
+                <Select
+                  name="clientId"
+                  value={formData.clientId || 'unassigned'}
+                  onValueChange={(value) => handleSelectChange('clientId', value)}
+                >
+                  <SelectTrigger id="clientId">
+                    <SelectValue placeholder="Seleccionar cliente..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Sin asignar cliente</SelectItem>
+                    {clients.map(client => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label htmlFor="status">Estado de la Factura</Label>
                 <Select
                   name="status"
@@ -283,7 +305,7 @@ export function AddEditInvoiceDialog({
                     <SelectValue placeholder="Seleccionar repartidor..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unassigned">Sin asignar</SelectItem>
+                    <SelectItem value="unassigned">Sin asignar repartidor</SelectItem>
                     {repartidores.map(user => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.name}
@@ -297,7 +319,7 @@ export function AddEditInvoiceDialog({
           <DialogFooter className="mt-auto pt-4 border-t">
             <DialogClose asChild>
               <Button type="button" variant="outline" onClick={() => {
-                 setFormData(initialDialogFormState); // Reset form on cancel
+                 setFormData(initialDialogFormState); 
                  onOpenChange(false);
               }}>Cancelar</Button>
             </DialogClose>

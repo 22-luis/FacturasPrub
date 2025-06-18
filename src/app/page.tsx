@@ -14,17 +14,17 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AddEditUserDialog } from '@/components/AddEditUserDialog';
 import { ManageAllUsersDialog } from '@/components/ManageAllUsersDialog';
 
-import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, UserRole } from '@/lib/types';
+import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, UserRole, Client } from '@/lib/types';
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide } from 'lucide-react';
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, Building } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import bcrypt from 'bcryptjs';
-import { mockUsers, mockInvoices as initialMockInvoices } from '@/lib/mock-data';
+import { mockUsers, mockInvoices as initialMockInvoices, mockClients } from '@/lib/mock-data';
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
@@ -63,6 +63,7 @@ export default function HomePage() {
   const [isManageAllUsersDialogOpen, setIsManageAllUsersDialogOpen] = useState(false);
 
   const [users, setUsers] = useState<User[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loggedInUser, setLoggedInUser] = useState<User | null>(null);
 
   const [usernameInput, setUsernameInput] = useState('');
@@ -79,7 +80,6 @@ export default function HomePage() {
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Use mock users directly, ensuring roles are lowercase as UserRole type expects
       setUsers(mockUsers.map(u => ({...u, role: u.role.toLowerCase() as UserRole })));
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error al Cargar Usuarios (Mock)', description: error.message });
@@ -88,10 +88,22 @@ export default function HomePage() {
     }
   }, [toast]);
 
+  const fetchClients = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      setClients(mockClients);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error al Cargar Clientes (Mock)', description: error.message });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+
   const fetchInvoices = useCallback(async (queryParams: Record<string, string> = {}) => {
     setIsLoading(true);
     try {
-      let MOCK_INVOICES_TO_USE = [...initialMockInvoices]; // Use a copy from imports
+      let MOCK_INVOICES_TO_USE = [...initialMockInvoices]; 
       const status = queryParams.status as InvoiceStatus | null;
       const assigneeIdParam = queryParams.assigneeId;
 
@@ -103,27 +115,31 @@ export default function HomePage() {
       }
       
       const currentUsers = users.length > 0 ? users : mockUsers.map(u => ({...u, role: u.role.toLowerCase() as UserRole }));
+      const currentClients = clients.length > 0 ? clients : mockClients;
 
-      const invoicesWithAssigneeDetails = MOCK_INVOICES_TO_USE.map(inv => {
+      const invoicesWithDetails = MOCK_INVOICES_TO_USE.map(inv => {
           const assignee = currentUsers.find(u => u.id === inv.assigneeId);
+          const client = currentClients.find(c => c.id === inv.clientId);
           return {
               ...inv,
               assignee: assignee ? { id: assignee.id, name: assignee.name } : null,
+              client: client || null,
           };
       });
 
-      setInvoices(invoicesWithAssigneeDetails);
+      setInvoices(invoicesWithDetails);
     } catch (error: any) {
       setInvoices([]);
       toast({ variant: 'destructive', title: 'Error al Cargar Facturas (Mock)', description: error.message });
     } finally {
       setIsLoading(false);
     }
-  }, [toast, users]); // Added users to dependency array for getAssigneeName context
+  }, [toast, users, clients]); 
   
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+    fetchClients();
+  }, [fetchUsers, fetchClients]);
 
   useEffect(() => {
     if (loggedInUser) {
@@ -145,7 +161,7 @@ export default function HomePage() {
 
 
   const handleLogin = async () => {
-    if (!usernameInput.trim() || !passwordInput.trim()) { // Trim passwordInput as well
+    if (!usernameInput.trim() || !passwordInput.trim()) { 
       toast({ variant: "destructive", title: "Error", description: "Por favor, ingresa tu nombre de usuario y contraseña." });
       return;
     }
@@ -155,13 +171,12 @@ export default function HomePage() {
       if (!userToLogin || !userToLogin.password) {
         throw new Error('Credenciales inválidas');
       }
-      // Compare plain text password with stored hashed password
       const isPasswordValid = await bcrypt.compare(passwordInput.trim(), userToLogin.password);
       if (!isPasswordValid) {
         throw new Error('Credenciales inválidas');
       }
       
-      setLoggedInUser(userToLogin); // userToLogin.role is already lowercase from fetchUsers
+      setLoggedInUser(userToLogin); 
       toast({ title: "Sesión Iniciada", description: `Bienvenido ${userToLogin.name}.` });
       setUsernameInput('');
       setPasswordInput('');
@@ -205,15 +220,16 @@ export default function HomePage() {
     try {
       const currentAssigneeUser = users.find(u => u.id === invoiceData.assigneeId);
       const assigneeDetailsForState = currentAssigneeUser ? { id: currentAssigneeUser.id, name: currentAssigneeUser.name } : null;
+      const currentClient = clients.find(c => c.id === invoiceData.clientId);
 
-      if (id) { // Editing
+      if (id) { 
         setInvoices(prevInvoices =>
           prevInvoices.map(inv =>
-            inv.id === id ? { ...inv, ...invoiceData, id, assignee: assigneeDetailsForState, updatedAt: new Date().toISOString() } : inv
+            inv.id === id ? { ...inv, ...invoiceData, id, assignee: assigneeDetailsForState, client: currentClient || null, updatedAt: new Date().toISOString() } : inv
           )
         );
         toast({ title: "Factura Actualizada (Mock)", description: `La factura #${invoiceData.invoiceNumber} ha sido actualizada.` });
-      } else { // Adding
+      } else { 
         const newId = `mock-inv-${Date.now()}-${Math.random().toString(36).substring(2,7)}`;
         const newInvoice: AssignedInvoice = {
           ...invoiceData,
@@ -221,6 +237,7 @@ export default function HomePage() {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           assignee: assigneeDetailsForState,
+          client: currentClient || null,
         };
         setInvoices(prevInvoices => [newInvoice, ...prevInvoices].sort((a,b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()));
         toast({ title: "Factura Agregada (Mock)", description: `La factura #${newInvoice.invoiceNumber} ha sido agregada.` });
@@ -303,7 +320,7 @@ export default function HomePage() {
   const handleSaveUser = async (userData: { name: string; role: UserRole; password?: string }, idToEdit?: string, isSupervisorAction: boolean = false) => {
     setIsLoading(true);
     try {
-      if (idToEdit) { // Editing user
+      if (idToEdit) { 
         let newHashedPassword = undefined;
         if (userData.password) {
             newHashedPassword = await bcrypt.hash(userData.password, 10);
@@ -313,20 +330,20 @@ export default function HomePage() {
                 return {
                     ...u,
                     name: userData.name,
-                    role: userData.role, // role is already lowercase from dialog
-                    ...(newHashedPassword && { password: newHashedPassword }), // only update password if new one provided
+                    role: userData.role, 
+                    ...(newHashedPassword && { password: newHashedPassword }), 
                     updatedAt: new Date().toISOString(),
                 };
             }
             return u;
         }));
-      } else { // Adding new user
+      } else { 
         const newUserId = `mock-user-${Date.now()}-${Math.random().toString(36).substring(2,7)}`;
-        const hashedPassword = await bcrypt.hash(userData.password || 'defaultFallbackPass123', 10); // Ensure password is provided
+        const hashedPassword = await bcrypt.hash(userData.password || 'defaultFallbackPass123', 10); 
         const newUserToAdd: User = {
           id: newUserId,
           name: userData.name,
-          role: userData.role, // role is already lowercase from dialog
+          role: userData.role, 
           password: hashedPassword,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -358,7 +375,6 @@ export default function HomePage() {
     try {
       setUsers(prevUsers => prevUsers.filter(u => u.id !== targetUser.id));
       
-      // If a repartidor was deleted, update their assigned invoices to be unassigned in the local 'invoices' state
       if (targetUser.role === 'repartidor') {
         setInvoices(prevInvoices => 
           prevInvoices.map(inv => 
@@ -399,12 +415,10 @@ export default function HomePage() {
     const repartidor = users.find(u => u.id === assigneeId && u.role === 'repartidor');
     if (repartidor) return repartidor.name;
     
-    // Fallback: check invoice.assignee object if already populated (should be by fetchInvoices)
     const currentInvoice = processingInvoice || invoiceToEdit;
     if (currentInvoice?.assignee?.id === assigneeId) {
         return currentInvoice.assignee.name;
     }
-    // Fallback for general listing if somehow invoice.assignee is not populated from fetch.
     const user = users.find(u => u.id === assigneeId);
     return user?.name; 
   };
@@ -415,7 +429,7 @@ export default function HomePage() {
   const displayedInvoices = useMemo(() => {
     if (!loggedInUser) return [];
 
-    let filteredInvoices = [...invoices]; // Uses local state 'invoices'
+    let filteredInvoices = [...invoices]; 
 
     if (loggedInUser.role === 'supervisor' || loggedInUser.role === 'administrador') {
       if (searchTerm.trim()) {
@@ -423,6 +437,7 @@ export default function HomePage() {
         filteredInvoices = filteredInvoices.filter(inv =>
           inv.supplierName.toLowerCase().includes(lowerSearchTerm) ||
           inv.invoiceNumber.toLowerCase().includes(lowerSearchTerm) ||
+          (inv.client?.name && inv.client.name.toLowerCase().includes(lowerSearchTerm)) ||
           (inv.uniqueCode && inv.uniqueCode.toLowerCase().includes(lowerSearchTerm))
         );
       }
@@ -436,14 +451,11 @@ export default function HomePage() {
       } else if (selectedRepartidorIdBySupervisor && selectedRepartidorIdBySupervisor !== ALL_REPARTIDORES_KEY) {
         filteredInvoices = filteredInvoices.filter(inv => inv.assigneeId === selectedRepartidorIdBySupervisor);
       }
-      // For supervisor/admin, default sort by creation date (desc) or last update
       return filteredInvoices.sort((a, b) => new Date(b.updatedAt || b.createdAt!).getTime() - new Date(a.updatedAt || a.createdAt!).getTime());
 
     }
 
     if (loggedInUser.role === 'repartidor') {
-      // Repartidor view should already be filtered by `fetchInvoices` to only show their PENDIENTE invoices.
-      // Sort by date (asc) for repartidor to see oldest first
       return invoices.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }
     return [];
@@ -626,7 +638,7 @@ export default function HomePage() {
                             <Input
                               id="search-invoices"
                               type="text"
-                              placeholder="Buscar por proveedor, N° factura o código..."
+                              placeholder="Buscar por proveedor, N° factura, cliente o código..."
                               value={searchTerm}
                               onChange={(e) => setSearchTerm(e.target.value)}
                               className="pl-10 w-full"
@@ -757,6 +769,7 @@ export default function HomePage() {
                       onAction={isAdmin || isSupervisor ? handleEditInvoiceClick : handleProcessInvoiceClick}
                       currentUserRole={loggedInUser?.role}
                       assigneeName={invoice.assignee?.name || getAssigneeName(invoice.assigneeId)}
+                      clientName={invoice.client?.name}
                     />
                   ))}
                 </div>
@@ -781,6 +794,7 @@ export default function HomePage() {
                     invoice={invoice}
                     onAction={handleProcessInvoiceClick}
                     currentUserRole={loggedInUser?.role}
+                    clientName={invoice.client?.name}
                   />
                 ))}
               </div>
@@ -805,6 +819,7 @@ export default function HomePage() {
         onOpenChange={setIsAddEditInvoiceDialogOpen}
         invoiceToEdit={invoiceToEdit}
         users={repartidores} 
+        clients={clients}
         onSave={handleSaveInvoice}
       />
 

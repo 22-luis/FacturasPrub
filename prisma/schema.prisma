@@ -8,6 +8,64 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  password  String
+  role      UserRole
+  invoices  Invoice[] @relation("AssignedInvoices")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Client {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   // Nombre del cliente o empresa
+  phone       String?  // Teléfono de contacto principal
+  mainAddress String?  // Dirección principal
+  branches    Branch[] // Sucursales asociadas al cliente
+  invoices    Invoice[] // Facturas asociadas a este cliente
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Branch {
+  id            String @id @default(uuid()) @db.Uuid
+  name          String // Nombre de la sucursal, ej: "Sucursal Centro"
+  contactPhone  String?
+  address       String
+  client        Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId      String @db.Uuid
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Invoice {
+  id                 String        @id @default(uuid()) @db.Uuid
+  invoiceNumber      String        @unique // Número de factura único
+  date               DateTime      // Fecha de la factura
+  totalAmount        Decimal       @db.Decimal(10, 2) // Monto total con 2 decimales
+  supplierName       String        // Nombre del proveedor que emite la factura
+  uniqueCode         String        // Código único del producto/servicio principal
+  address            String?       // Dirección de entrega asociada a la factura
+  status             InvoiceStatus // PENDIENTE, ENTREGADA, CANCELADA
+  cancellationReason String?       // Motivo si la factura es CANCELADA
+  
+  assigneeId         String?       @db.Uuid
+  assignee           User?         @relation("AssignedInvoices", fields: [assigneeId], references: [id])
+  
+  clientId           String?       @db.Uuid
+  client             Client?       @relation(fields: [clientId], references: [id])
+
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([assigneeId])
+  @@index([clientId])
+  @@index([status])
+  @@index([date])
+}
+
 enum UserRole {
   REPARTIDOR
   SUPERVISOR
@@ -18,36 +76,4 @@ enum InvoiceStatus {
   PENDIENTE
   ENTREGADA
   CANCELADA
-}
-
-model User {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  role      UserRole
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  invoices Invoice[]
-
-  @@map("users")
-}
-
-model Invoice {
-  id                 String        @id @default(uuid())
-  invoiceNumber      String        @unique
-  date               DateTime
-  totalAmount        Decimal       @db.Decimal(10, 2)
-  supplierName       String
-  uniqueCode         String        @unique
-  address            String?
-  status             InvoiceStatus
-  cancellationReason String?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-
-  assigneeId String?
-  assignee   User?   @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
-
-  @@map("invoices")
 }

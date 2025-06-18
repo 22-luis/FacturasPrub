@@ -2,7 +2,7 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CalendarDays, Hash, Building, BadgeDollarSign, Fingerprint, PlayCircle, UserCircle, Edit3, MapPin, AlertCircle, CheckCircle, Ban } from 'lucide-react';
+import { CalendarDays, Hash, Building, BadgeDollarSign, Fingerprint, PlayCircle, UserCircle, Edit3, MapPin, AlertCircle, CheckCircle, Ban, Briefcase } from 'lucide-react';
 import type { AssignedInvoice, UserRole, InvoiceStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +11,7 @@ interface InvoiceCardProps {
   onAction: (invoiceId: string) => void; 
   currentUserRole?: UserRole;
   assigneeName?: string;
+  clientName?: string; // Added clientName
 }
 
 const statusStyles: Record<InvoiceStatus, {
@@ -24,14 +25,16 @@ const statusStyles: Record<InvoiceStatus, {
 };
 
 
-export function InvoiceCard({ invoice, onAction, currentUserRole, assigneeName }: InvoiceCardProps) {
+export function InvoiceCard({ invoice, onAction, currentUserRole, assigneeName, clientName }: InvoiceCardProps) {
   const isSupervisor = currentUserRole === 'supervisor';
+  const isAdmin = currentUserRole === 'administrador';
+  const isSupervisorOrAdmin = isSupervisor || isAdmin;
   
   let buttonText = 'Acción';
   let ButtonIcon = PlayCircle; 
   let buttonVariant: "default" | "secondary" = "default";
 
-  if (isSupervisor) {
+  if (isSupervisorOrAdmin) {
     buttonText = 'Editar / Asignar';
     ButtonIcon = Edit3; 
     buttonVariant = "secondary";
@@ -97,7 +100,16 @@ export function InvoiceCard({ invoice, onAction, currentUserRole, assigneeName }
             </div>
           </div>
         )}
-        {isSupervisor && (
+        {clientName && (
+          <div className="flex items-start pt-1">
+            <Briefcase className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <span className="text-muted-foreground mr-1">Cliente:</span>
+              <span className="font-medium text-foreground break-words">{clientName}</span>
+            </div>
+          </div>
+        )}
+        {isSupervisorOrAdmin && (
           <div className="flex items-start pt-1">
             <UserCircle className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
             <div className="min-w-0 flex-1">
@@ -116,4 +128,3 @@ export function InvoiceCard({ invoice, onAction, currentUserRole, assigneeName }
     </Card>
   );
 }
-
