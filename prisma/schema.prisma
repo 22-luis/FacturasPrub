@@ -1,4 +1,3 @@
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -9,61 +8,82 @@ generator client {
 }
 
 model User {
-  id        String   @id @default(uuid()) @db.Uuid
+  id        String   @id @default(cuid())
   name      String   @unique
   password  String
   role      UserRole
-  invoices  Invoice[] @relation("AssignedInvoices")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  assignedInvoices Invoice[] @relation("AssignedInvoices")
+  routes           Route[]   @relation("UserRoutes") // Relation to routes this user (repartidor) is assigned to
+
+  @@map("users")
 }
 
 model Client {
-  id          String   @id @default(uuid()) @db.Uuid
-  name        String   // Nombre del cliente o empresa
-  phone       String?  // Teléfono de contacto principal
-  mainAddress String?  // Dirección principal
-  branches    Branch[] // Sucursales asociadas al cliente
-  invoices    Invoice[] // Facturas asociadas a este cliente
+  id          String   @id @default(cuid())
+  name        String
+  phone       String?
+  mainAddress String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  branches Branch[]
+  invoices Invoice[] // A client can have many invoices
+
+  @@map("clients")
 }
 
 model Branch {
-  id            String @id @default(uuid()) @db.Uuid
-  name          String // Nombre de la sucursal, ej: "Sucursal Centro"
-  contactPhone  String?
-  address       String
-  client        Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientId      String @db.Uuid
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  contactPhone String?
+  address      String
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("client_branches")
 }
 
 model Invoice {
-  id                 String        @id @default(uuid()) @db.Uuid
-  invoiceNumber      String        @unique // Número de factura único
-  date               DateTime      // Fecha de la factura
-  totalAmount        Decimal       @db.Decimal(10, 2) // Monto total con 2 decimales
-  supplierName       String        // Nombre del proveedor que emite la factura
-  uniqueCode         String        // Código único del producto/servicio principal
-  address            String?       // Dirección de entrega asociada a la factura
-  status             InvoiceStatus // PENDIENTE, ENTREGADA, CANCELADA
-  cancellationReason String?       // Motivo si la factura es CANCELADA
-  
-  assigneeId         String?       @db.Uuid
+  id                 String        @id @default(cuid())
+  invoiceNumber      String        @unique // Ensure invoice numbers are unique
+  date               DateTime // Changed to DateTime to store full date
+  totalAmount        Decimal       @db.Decimal(10, 2)
+  supplierName       String
+  uniqueCode         String
+  address            String?
+  status             InvoiceStatus @default(PENDIENTE)
+  cancellationReason String?
+  assigneeId         String?
   assignee           User?         @relation("AssignedInvoices", fields: [assigneeId], references: [id])
-  
-  clientId           String?       @db.Uuid
+  clientId           String?
   client             Client?       @relation(fields: [clientId], references: [id])
-
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
-  @@index([assigneeId])
-  @@index([clientId])
-  @@index([status])
+  // @@index([assigneeId]) // Index for faster queries on assignee
+  // @@index([status])     // Index for faster queries on status
+  // @@index([date])       // Index for faster queries on date
+  @@map("invoices")
+}
+
+model Route {
+  id           String      @id @default(cuid())
+  date         DateTime // Date of the route
+  repartidorId String
+  repartidor   User        @relation("UserRoutes", fields: [repartidorId], references: [id])
+  invoiceIds   String[] // Array of Invoice IDs, order might matter
+  status       RouteStatus @default(PLANNED)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
   @@index([date])
+  @@index([repartidorId])
+  @@map("routes")
 }
 
 enum UserRole {
@@ -76,4 +96,10 @@ enum InvoiceStatus {
   PENDIENTE
   ENTREGADA
   CANCELADA
+}
+
+enum RouteStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
 }

@@ -15,19 +15,22 @@ import { AddEditUserDialog } from '@/components/AddEditUserDialog';
 import { ManageAllUsersDialog } from '@/components/ManageAllUsersDialog';
 import { AddEditClientDialog } from '@/components/AddEditClientDialog';
 import { ManageClientsDialog } from '@/components/ManageClientsDialog';
+import { ManageRoutesDialog } from '@/components/ManageRoutesDialog';
+import { AddEditRouteDialog } from '@/components/AddEditRouteDialog';
 
 
-import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, UserRole, Client, ClientFormData } from '@/lib/types';
+import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, UserRole, Client, ClientFormData, Route, RouteFormData, RouteStatus } from '@/lib/types';
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, Building as BuildingIcon } from 'lucide-react';
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, Building as BuildingIcon, MapIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import bcrypt from 'bcryptjs';
-import { mockUsers, mockInvoices as initialMockInvoices, mockClients as initialMockClients } from '@/lib/mock-data';
+import { mockUsers, mockInvoices as initialMockInvoices, mockClients as initialMockClients, mockRoutes as initialMockRoutes } from '@/lib/mock-data';
+import { formatISO, startOfDay, parseISO, isSameDay } from 'date-fns';
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
@@ -71,9 +74,15 @@ export default function HomePage() {
   const [isConfirmDeleteClientOpen, setIsConfirmDeleteClientOpen] = useState(false);
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
 
+  const [isManageRoutesDialogOpen, setIsManageRoutesDialogOpen] = useState(false);
+  const [isAddEditRouteDialogOpen, setIsAddEditRouteDialogOpen] = useState(false);
+  const [routeToEdit, setRouteToEdit] = useState<Route | null>(null);
+  const [selectedDateForRoutesDialog, setSelectedDateForRoutesDialog] = useState<Date | undefined>(new Date());
+
 
   const [users, setUsers] = useState<User[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [routes, setRoutes] = useState<Route[]>([]);
   const [loggedInUser, setLoggedInUser] = useState<User | null>(null);
 
   const [usernameInput, setUsernameInput] = useState('');
@@ -108,6 +117,28 @@ export default function HomePage() {
       setIsLoading(false);
     }
   }, [toast]);
+
+  const fetchRoutes = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const populatedRoutes = initialMockRoutes.map(route => {
+        const repartidor = users.find(u => u.id === route.repartidorId);
+        const routeInvoices = route.invoiceIds
+          .map(id => invoices.find(inv => inv.id === id))
+          .filter(inv => inv !== undefined) as AssignedInvoice[];
+        return {
+          ...route,
+          repartidorName: repartidor?.name,
+          invoices: routeInvoices,
+        };
+      });
+      setRoutes(populatedRoutes);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error al Cargar Rutas (Mock)', description: error.message });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast, users, invoices]);
 
 
   const fetchInvoices = useCallback(async (queryParams: Record<string, string> = {}) => {
@@ -150,6 +181,13 @@ export default function HomePage() {
     fetchUsers();
     fetchClients();
   }, [fetchUsers, fetchClients]);
+
+  useEffect(() => {
+     if (users.length > 0 && invoices.length > 0) { // Fetch routes only after users and invoices are loaded
+      fetchRoutes();
+    }
+  }, [users, invoices, fetchRoutes]);
+
 
   useEffect(() => {
     if (loggedInUser) {
@@ -253,6 +291,7 @@ export default function HomePage() {
         toast({ title: "Factura Agregada (Mock)", description: `La factura #${newInvoice.invoiceNumber} ha sido agregada.` });
       }
       setIsAddEditInvoiceDialogOpen(false);
+      fetchRoutes(); // Refresh routes in case invoice assignment changed
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error al Guardar Factura (Mock)', description: error.message });
     } finally {
@@ -275,6 +314,7 @@ export default function HomePage() {
       );
       toast({ title: 'Estado Actualizado (Mock)', description: `La factura #${updatedInvoiceNumber || invoiceId} ha sido actualizada a ${newStatus.toLowerCase()}.`});
       setIsProcessDialogOpen(false); 
+      fetchRoutes(); // Refresh routes as invoice status might affect availability
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error al Actualizar Estado (Mock)', description: error.message });
     } finally {
@@ -370,6 +410,7 @@ export default function HomePage() {
       
       if (isSupervisorAction) setIsAddRepartidorDialogOpen(false);
       else setIsAddEditUserDialogOpen(false);
+      fetchRoutes(); // Refresh routes if a repartidor was edited/added
       
     } catch (error: any) {
       toast({ variant: 'destructive', title: isSupervisorAction ? 'Error al Guardar Repartidor (Mock)' : 'Error al Guardar Usuario (Mock)', description: error.message });
@@ -393,6 +434,9 @@ export default function HomePage() {
               : inv
           )
         );
+        // Also remove or unassign routes associated with this repartidor
+        setRoutes(prevRoutes => prevRoutes.filter(r => r.repartidorId !== targetUser.id));
+
         if (selectedRepartidorIdBySupervisor === targetUser.id) {
           setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
         }
@@ -412,7 +456,7 @@ export default function HomePage() {
         setUserToDelete(null);
         setIsConfirmDeleteUserOpen(false);
       }
-
+      fetchRoutes(); // Refresh routes
     } catch (error: any) {
       toast({ variant: 'destructive', title: isSupervisorAction ? 'Error al Eliminar Repartidor (Mock)' : 'Error al Eliminar Usuario (Mock)', description: error.message });
     } finally {
@@ -448,7 +492,7 @@ export default function HomePage() {
         const newClient: Client = {
           ...clientData,
           id: newId,
-          branches: [], // New clients start with no branches via UI for now
+          branches: [], 
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
@@ -456,7 +500,7 @@ export default function HomePage() {
         toast({ title: "Cliente Agregado (Mock)", description: `El cliente ${newClient.name} ha sido agregado.` });
       }
       setIsAddEditClientDialogOpen(false);
-      setIsManageClientsDialogOpen(true); // Re-open manage dialog to see changes
+      setIsManageClientsDialogOpen(true); 
     } catch (error: any) {
         toast({ variant: 'destructive', title: 'Error al Guardar Cliente (Mock)', description: error.message });
     } finally {
@@ -469,7 +513,6 @@ export default function HomePage() {
     setIsLoading(true);
     try {
         setClients(prevClients => prevClients.filter(c => c.id !== clientToDelete.id));
-        // Also, unassign this client from any invoices (mock update)
         setInvoices(prevInvoices => 
           prevInvoices.map(inv => 
             inv.clientId === clientToDelete.id 
@@ -486,7 +529,59 @@ export default function HomePage() {
         setIsLoading(false);
     }
   };
+
+  const handleOpenManageRoutesDialog = () => {
+    setSelectedDateForRoutesDialog(startOfDay(new Date())); // Default to today
+    setIsManageRoutesDialogOpen(true);
+  };
   
+  const handleOpenAddRouteDialog = (date: Date) => {
+    setRouteToEdit(null);
+    setSelectedDateForRoutesDialog(startOfDay(date));
+    setIsAddEditRouteDialogOpen(true);
+  };
+
+  const handleOpenEditRouteDialog = (route: Route) => {
+    setRouteToEdit(route);
+    setSelectedDateForRoutesDialog(startOfDay(parseISO(route.date)));
+    setIsAddEditRouteDialogOpen(true);
+  };
+
+  const handleSaveRoute = (routeData: RouteFormData, id?: string) => {
+    setIsLoading(true);
+    try {
+      const repartidor = users.find(u => u.id === routeData.repartidorId);
+      if (id) { // Editing existing route
+        setRoutes(prevRoutes =>
+          prevRoutes.map(r =>
+            r.id === id
+              ? { ...r, ...routeData, repartidorName: repartidor?.name, updatedAt: new Date().toISOString() }
+              : r
+          )
+        );
+        toast({ title: "Ruta Actualizada (Mock)", description: `Ruta para ${repartidor?.name || 'desconocido'} el ${routeData.date} actualizada.` });
+      } else { // Creating new route
+        const newRouteId = `mock-route-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        const newRoute: Route = {
+          ...routeData,
+          id: newRouteId,
+          status: routeData.status || 'PLANNED',
+          repartidorName: repartidor?.name,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setRoutes(prevRoutes => [newRoute, ...prevRoutes].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime() || new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()));
+        toast({ title: "Ruta Creada (Mock)", description: `Nueva ruta creada para ${repartidor?.name || 'desconocido'} el ${routeData.date}.` });
+      }
+      setIsAddEditRouteDialogOpen(false);
+      fetchInvoices(); // Refresh invoices in case assignments changed implicitly
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error al Guardar Ruta (Mock)', description: error.message });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const getAssigneeName = (assigneeId?: string | null): string | undefined => {
     if (!assigneeId) return undefined;
     const repartidor = users.find(u => u.id === assigneeId && u.role === 'repartidor');
@@ -533,10 +628,22 @@ export default function HomePage() {
     }
 
     if (loggedInUser.role === 'repartidor') {
-      return invoices.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+       // For repartidor, filter invoices that are PENDING and either directly assigned OR part of their PLANNED/IN_PROGRESS routes for "today"
+      const todayStr = formatISO(startOfDay(new Date()), { representation: 'date' });
+      const repartidorRoutesToday = routes.filter(r => 
+        r.repartidorId === loggedInUser.id && 
+        isSameDay(parseISO(r.date), startOfDay(new Date())) && 
+        (r.status === 'PLANNED' || r.status === 'IN_PROGRESS')
+      );
+      const invoiceIdsInRepartidorRoutesToday = repartidorRoutesToday.flatMap(r => r.invoiceIds);
+      
+      return invoices.filter(inv => 
+        inv.status === 'PENDIENTE' && 
+        (inv.assigneeId === loggedInUser.id || invoiceIdsInRepartidorRoutesToday.includes(inv.id))
+      ).sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
     }
     return [];
-  }, [loggedInUser, invoices, selectedRepartidorIdBySupervisor, selectedStatusBySupervisor, searchTerm]);
+  }, [loggedInUser, invoices, selectedRepartidorIdBySupervisor, selectedStatusBySupervisor, searchTerm, routes]);
 
 
   const getInvoicesTitleForSupervisorOrAdmin = () => {
@@ -664,6 +771,10 @@ export default function HomePage() {
                   {isAdmin ? 'Panel de Administrador' : 'Panel de Supervisor'}
                 </h2>
                 <div className="flex gap-2 flex-wrap">
+                  <Button onClick={handleOpenManageRoutesDialog} variant="outline" disabled={isLoading}>
+                      <MapIcon className="mr-2 h-4 w-4" />
+                      Gestionar Rutas
+                  </Button>
                   <Button onClick={handleAddInvoiceClick} disabled={isLoading}>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Agregar Factura
@@ -865,7 +976,7 @@ export default function HomePage() {
 
         {loggedInUser.role === 'repartidor' && (
            <section>
-            <h2 className="text-xl sm:text-2xl font-semibold mb-6 text-foreground">Mis Facturas Pendientes</h2>
+            <h2 className="text-xl sm:text-2xl font-semibold mb-6 text-foreground">Mis Facturas Pendientes Para Hoy</h2>
             {isLoading && displayedInvoices.length === 0 && <p className="text-muted-foreground">Cargando tus facturas...</p>}
             {!isLoading && displayedInvoices.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -880,7 +991,7 @@ export default function HomePage() {
                 ))}
               </div>
             ) : (
-             !isLoading && <p className="text-muted-foreground">No tienes facturas pendientes asignadas en este momento.</p>
+             !isLoading && <p className="text-muted-foreground">No tienes facturas pendientes asignadas para hoy.</p>
             )}
           </section>
         )}
@@ -930,6 +1041,26 @@ export default function HomePage() {
                     confirmButtonText="Eliminar Cliente"
                 />
             )}
+            <ManageRoutesDialog
+                isOpen={isManageRoutesDialogOpen}
+                onOpenChange={setIsManageRoutesDialogOpen}
+                routes={routes}
+                repartidores={repartidores}
+                invoices={invoices}
+                onAddRoute={handleOpenAddRouteDialog}
+                onEditRoute={handleOpenEditRouteDialog}
+                selectedDate={selectedDateForRoutesDialog}
+                onDateChange={setSelectedDateForRoutesDialog}
+            />
+            <AddEditRouteDialog
+                isOpen={isAddEditRouteDialogOpen}
+                onOpenChange={setIsAddEditRouteDialogOpen}
+                routeToEdit={routeToEdit}
+                repartidores={repartidores}
+                allInvoices={invoices}
+                onSave={handleSaveRoute}
+                selectedDateForNewRoute={selectedDateForRoutesDialog}
+            />
         </>
       )}
 
@@ -954,7 +1085,7 @@ export default function HomePage() {
                 isOpen={isConfirmDeleteRepartidorOpen}
                 onOpenChange={setIsConfirmDeleteRepartidorOpen}
                 title={`Confirmar Eliminación de ${repartidorToDelete.name}`}
-                description={`¿Estás seguro de que quieres eliminar a ${repartidorToDelete.name}? Esta acción no se puede deshacer. Las facturas asignadas a este repartidor pasarán a estar "Sin asignar".`}
+                description={`¿Estás seguro de que quieres eliminar a ${repartidorToDelete.name}? Esta acción no se puede deshacer. Las facturas asignadas a este repartidor pasarán a estar "Sin asignar", y las rutas asignadas serán eliminadas.`}
                 onConfirm={executeDeleteRepartidorBySupervisor}
                 confirmButtonText="Eliminar Repartidor"
             />
@@ -977,7 +1108,7 @@ export default function HomePage() {
                     isOpen={isConfirmDeleteUserOpen}
                     onOpenChange={setIsConfirmDeleteUserOpen}
                     title={`Confirmar Eliminación de ${userToDelete.name}`}
-                    description={`¿Estás seguro de que quieres eliminar a ${userToDelete.name} (${userToDelete.role})? Esta acción no se puede deshacer.${userToDelete.role === 'repartidor' ? ' Las facturas asignadas también se desasignarán.' : ''}`}
+                    description={`¿Estás seguro de que quieres eliminar a ${userToDelete.name} (${userToDelete.role})? Esta acción no se puede deshacer.${userToDelete.role === 'repartidor' ? ' Las facturas asignadas también se desasignarán y las rutas serán eliminadas.' : ''}`}
                     onConfirm={() => executeDeleteUser()}
                     confirmButtonText="Eliminar Usuario"
                 />
@@ -996,4 +1127,3 @@ export default function HomePage() {
     </div>
   );
 }
-

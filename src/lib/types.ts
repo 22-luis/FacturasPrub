@@ -5,6 +5,8 @@ export type UserRole = 'repartidor' | 'supervisor' | 'administrador';
 
 export type InvoiceStatus = 'PENDIENTE' | 'ENTREGADA' | 'CANCELADA';
 
+export type RouteStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED';
+
 export interface User {
   id: string;
   name: string;
@@ -39,7 +41,7 @@ export type ClientFormData = Omit<Client, 'id' | 'branches' | 'createdAt' | 'upd
 export interface AssignedInvoice {
   id:string;
   invoiceNumber: string;
-  date: string; 
+  date: string; // Keep as string for form input, convert to Date for Prisma
   totalAmount: number;
   supplierName: string;
   uniqueCode: string;
@@ -61,6 +63,25 @@ export type InvoiceFormData = Omit<AssignedInvoice, 'id' | 'assignee' | 'client'
   clientId?: string | null; 
 };
 
+export interface Route {
+  id: string;
+  date: string; // Store as ISO string or YYYY-MM-DD for simplicity in mock/state
+  repartidorId: string;
+  repartidorName?: string; // For display convenience
+  invoiceIds: string[];
+  invoices?: AssignedInvoice[]; // For display convenience, populated from invoiceIds
+  status: RouteStatus;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
+}
+
+export type RouteFormData = {
+  date: string;
+  repartidorId: string;
+  invoiceIds: string[];
+  status?: RouteStatus; // Optional on creation, defaults to PLANNED
+};
+
 
 export type ExtractedInvoiceDetails = ExtractInvoiceDataOutput;
 
@@ -79,4 +100,3 @@ export interface VerificationResult {
 export type ApiRouteContext<P extends Record<string, string | string[]> = Record<string, string | string[]>> = {
   params: P;
 };
-

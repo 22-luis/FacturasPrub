@@ -1,8 +1,9 @@
 
 'use client';
 
-import type { User, AssignedInvoice, UserRole, InvoiceStatus, Client, Branch } from './types';
+import type { User, AssignedInvoice, UserRole, InvoiceStatus, Client, Branch, Route, RouteStatus } from './types';
 import bcrypt from 'bcryptjs';
+import { formatISO, parseISO, startOfDay } from 'date-fns';
 
 const saltRounds = 10;
 const hashedAdminPassword = bcrypt.hashSync('123', saltRounds);
@@ -104,17 +105,18 @@ export const mockClients: Client[] = [
   }
 ];
 
-export let mockInvoices: AssignedInvoice[] = [
+// Dates for invoices should be YYYY-MM-DD strings for form compatibility
+export const mockInvoices: AssignedInvoice[] = [
   {
     id: 'inv-001',
     invoiceNumber: 'FAC-2024-001',
-    date: '2024-07-15',
+    date: formatISO(new Date(2024, 6, 15), { representation: 'date' }), // July 15, 2024
     totalAmount: 150.75,
     supplierName: 'Proveedor Alpha',
     uniqueCode: 'CODEALPHA001',
     address: 'Calle Principal 123, Ciudad Ejemplo',
     assigneeId: 'john-003', 
-    clientId: 'client-001', // Linked to Constructora Omega
+    clientId: 'client-001', 
     status: 'PENDIENTE' as InvoiceStatus,
     createdAt: new Date('2024-07-15T09:00:00Z').toISOString(),
     updatedAt: new Date('2024-07-15T09:00:00Z').toISOString(),
@@ -122,13 +124,13 @@ export let mockInvoices: AssignedInvoice[] = [
   {
     id: 'inv-002',
     invoiceNumber: 'FAC-2024-002',
-    date: '2024-07-16',
+    date: formatISO(new Date(2024, 6, 16), { representation: 'date' }), // July 16, 2024
     totalAmount: 200.00,
     supplierName: 'Suministros Beta',
     uniqueCode: 'CODEBETA002',
     address: 'Avenida Central 456, Villa Test',
     assigneeId: 'john-003', 
-    clientId: 'client-002', // Linked to Decoraciones Acme
+    clientId: 'client-002', 
     status: 'ENTREGADA' as InvoiceStatus,
     createdAt: new Date('2024-07-16T10:30:00Z').toISOString(),
     updatedAt: new Date('2024-07-18T14:00:00Z').toISOString(),
@@ -136,7 +138,7 @@ export let mockInvoices: AssignedInvoice[] = [
   {
     id: 'inv-003',
     invoiceNumber: 'FAC-2024-003',
-    date: '2024-07-17',
+    date: formatISO(new Date(2024, 6, 17), { representation: 'date' }), // July 17, 2024
     totalAmount: 75.50,
     supplierName: 'Servicios Gamma',
     uniqueCode: 'CODEGAMMA003',
@@ -150,13 +152,13 @@ export let mockInvoices: AssignedInvoice[] = [
   {
     id: 'inv-004',
     invoiceNumber: 'FAC-2024-004',
-    date: '2024-07-18',
+    date: formatISO(new Date(2024, 6, 18), { representation: 'date' }), // July 18, 2024
     totalAmount: 350.20,
     supplierName: 'Importaciones Delta',
     uniqueCode: 'CODEDELTA004',
     address: 'Camino Largo 101, Distrito Demo',
     assigneeId: null, 
-    clientId: 'client-001', // Linked to Constructora Omega
+    clientId: 'client-001', 
     status: 'PENDIENTE' as InvoiceStatus,
     createdAt: new Date('2024-07-18T14:15:00Z').toISOString(),
     updatedAt: new Date('2024-07-18T14:15:00Z').toISOString(),
@@ -164,7 +166,7 @@ export let mockInvoices: AssignedInvoice[] = [
   {
     id: 'inv-005',
     invoiceNumber: 'FAC-2024-005',
-    date: '2024-07-19',
+    date: formatISO(new Date(2024, 6, 19), { representation: 'date' }), // July 19, 2024
     totalAmount: 99.99,
     supplierName: 'Tecnología Epsilon',
     uniqueCode: 'CODEEPSILON005',
@@ -177,13 +179,13 @@ export let mockInvoices: AssignedInvoice[] = [
   {
     id: 'inv-006',
     invoiceNumber: 'FAC-2024-006',
-    date: '2024-07-20',
+    date: formatISO(new Date(2024, 6, 20), { representation: 'date' }), // July 20, 2024
     totalAmount: 120.00,
     supplierName: 'Proveedor Alpha', 
     uniqueCode: 'CODEALPHA006',
     address: 'Calle Secundaria 321, Ciudad Ejemplo',
     assigneeId: null, 
-    clientId: 'client-003', // Linked to Servicios Industriales Zeta
+    clientId: 'client-003', 
     status: 'ENTREGADA' as InvoiceStatus,
     createdAt: new Date('2024-07-20T08:00:00Z').toISOString(),
     updatedAt: new Date('2024-07-21T11:00:00Z').toISOString(),
@@ -191,7 +193,7 @@ export let mockInvoices: AssignedInvoice[] = [
    {
     id: 'inv-007',
     invoiceNumber: 'FAC-2024-007',
-    date: '2024-07-21',
+    date: formatISO(new Date(2024, 6, 21), { representation: 'date' }), // July 21, 2024
     totalAmount: 50.00,
     supplierName: 'Suministros Beta',
     uniqueCode: 'CODEBETA007',
@@ -204,15 +206,64 @@ export let mockInvoices: AssignedInvoice[] = [
   {
     id: 'inv-008',
     invoiceNumber: 'FAC-2024-008',
-    date: '2024-07-22',
+    date: formatISO(new Date(2024, 6, 22), { representation: 'date' }), // July 22, 2024
     totalAmount: 275.00,
     supplierName: 'Importaciones Delta',
     uniqueCode: 'CODEDELTA008',
     address: 'Camino Demo 111, Distrito Demo',
     assigneeId: 'jane-004',
-    clientId: 'client-002', // Linked to Decoraciones Acme
+    clientId: 'client-002', 
     status: 'ENTREGADA' as InvoiceStatus,
     createdAt: new Date('2024-07-22T09:30:00Z').toISOString(),
     updatedAt: new Date('2024-07-22T16:30:00Z').toISOString(),
+  },
+  { // An invoice for "today" for easier testing of route creation for today
+    id: 'inv-today-01',
+    invoiceNumber: 'FAC-TODAY-001',
+    date: formatISO(startOfDay(new Date()), { representation: 'date' }),
+    totalAmount: 100.00,
+    supplierName: 'Proveedor HoyMismo',
+    uniqueCode: 'CODETODAY001',
+    address: 'Plaza del Día, Ciudad Actual',
+    assigneeId: null,
+    clientId: 'client-001',
+    status: 'PENDIENTE' as InvoiceStatus,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'inv-today-02',
+    invoiceNumber: 'FAC-TODAY-002',
+    date: formatISO(startOfDay(new Date()), { representation: 'date' }),
+    totalAmount: 250.50,
+    supplierName: 'Suministros Urgentes',
+    uniqueCode: 'CODETODAY002',
+    address: 'Calle de la Prisa 42, Pueblo Rápido',
+    assigneeId: null,
+    clientId: 'client-003',
+    status: 'PENDIENTE' as InvoiceStatus,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+export const mockRoutes: Route[] = [
+  {
+    id: 'route-001',
+    date: formatISO(new Date(2024, 6, 22), { representation: 'date' }), // July 22, 2024
+    repartidorId: 'jane-004',
+    invoiceIds: ['inv-008'], // Jane delivered inv-008 on this day
+    status: 'COMPLETED' as RouteStatus,
+    createdAt: new Date('2024-07-22T08:00:00Z').toISOString(),
+    updatedAt: new Date('2024-07-22T17:00:00Z').toISOString(),
+  },
+  {
+    id: 'route-002',
+    date: formatISO(startOfDay(new Date()), { representation: 'date' }), // Today
+    repartidorId: 'john-003',
+    invoiceIds: ['inv-today-01'], // John is planned to deliver inv-today-01 today
+    status: 'PLANNED' as RouteStatus,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
 ];
