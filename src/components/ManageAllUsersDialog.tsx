@@ -7,6 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
+  DialogClose,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -87,9 +89,9 @@ export function ManageAllUsersDialog({
           </Select>
         </div>
 
-        <div className="flex-grow min-h-0 overflow-auto">
-          <ScrollArea className="h-full"> {/* Changed from max-h-[60vh] to h-full */}
-            <div className="space-y-3 p-4 sm:p-6">
+        <div className="flex-grow min-h-0 overflow-hidden"> {/* Container for ScrollArea */}
+          <ScrollArea className="h-full px-4 sm:px-6 py-4"> {/* ScrollArea takes full height of its container */}
+            <div className="space-y-3">
               {filteredUsers.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No hay usuarios que coincidan con el filtro seleccionado.
@@ -150,6 +152,11 @@ export function ManageAllUsersDialog({
             </div>
           </ScrollArea>
         </div>
+        <DialogFooter className="p-4 sm:p-6 border-t">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">Cerrar</Button>
+            </DialogClose>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
