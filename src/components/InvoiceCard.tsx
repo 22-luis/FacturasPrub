@@ -11,7 +11,7 @@ interface InvoiceCardProps {
   onAction: (invoiceId: string) => void; 
   currentUserRole?: UserRole;
   assigneeName?: string;
-  clientName?: string; // Added clientName
+  clientName?: string;
 }
 
 const statusStyles: Record<InvoiceStatus, {
@@ -46,13 +46,14 @@ export function InvoiceCard({ invoice, onAction, currentUserRole, assigneeName, 
 
   const currentStatusStyle = statusStyles[invoice.status] || statusStyles.PENDIENTE;
   const displayTotalAmount = invoice.totalAmount != null ? Number(invoice.totalAmount).toFixed(2) : '0.00';
+  const cardTitle = clientName || invoice.supplierName || "Factura";
 
   return (
     <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg sm:text-xl flex items-center">
-            <span className="mr-2 break-words">{invoice.supplierName}</span>
+            <span className="mr-2 break-words">{cardTitle}</span>
             <Fingerprint className="h-5 w-5 text-primary flex-shrink-0" />
           </CardTitle>
           <Badge className={cn("text-xs whitespace-nowrap", currentStatusStyle.badgeClass)}>
