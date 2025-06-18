@@ -77,7 +77,7 @@ export default function HomePage() {
   const [isManageRoutesDialogOpen, setIsManageRoutesDialogOpen] = useState(false);
   const [isAddEditRouteDialogOpen, setIsAddEditRouteDialogOpen] = useState(false);
   const [routeToEdit, setRouteToEdit] = useState<Route | null>(null);
-  const [selectedDateForRoutesDialog, setSelectedDateForRoutesDialog] = useState<Date | undefined>(new Date());
+  const [selectedDateForRoutesDialog, setSelectedDateForRoutesDialog] = useState<Date | undefined>(startOfDay(new Date()));
 
 
   const [users, setUsers] = useState<User[]>([]);
@@ -121,10 +121,13 @@ export default function HomePage() {
   const fetchRoutes = useCallback(async () => {
     setIsLoading(true);
     try {
+      const currentUsersToUse = users.length > 0 ? users : mockUsers.map(u => ({...u, role: u.role.toLowerCase() as UserRole }));
+      const currentInvoicesToUse = invoices.length > 0 ? invoices : initialMockInvoices;
+      
       const populatedRoutes = initialMockRoutes.map(route => {
-        const repartidor = users.find(u => u.id === route.repartidorId);
+        const repartidor = currentUsersToUse.find(u => u.id === route.repartidorId);
         const routeInvoices = route.invoiceIds
-          .map(id => invoices.find(inv => inv.id === id))
+          .map(id => currentInvoicesToUse.find(inv => inv.id === id))
           .filter(inv => inv !== undefined) as AssignedInvoice[];
         return {
           ...route,
@@ -559,7 +562,7 @@ export default function HomePage() {
               : r
           )
         );
-        toast({ title: "Ruta Actualizada (Mock)", description: `Ruta para ${repartidor?.name || 'desconocido'} el ${routeData.date} actualizada.` });
+        toast({ title: "Ruta Actualizada (Mock)", description: `Ruta para ${repartidor?.name || 'desconocido'} el ${formatISO(parseISO(routeData.date), { representation: 'date' })} actualizada.` });
       } else { // Creating new route
         const newRouteId = `mock-route-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
         const newRoute: Route = {
@@ -571,10 +574,10 @@ export default function HomePage() {
           updatedAt: new Date().toISOString(),
         };
         setRoutes(prevRoutes => [newRoute, ...prevRoutes].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime() || new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()));
-        toast({ title: "Ruta Creada (Mock)", description: `Nueva ruta creada para ${repartidor?.name || 'desconocido'} el ${routeData.date}.` });
+        toast({ title: "Ruta Creada (Mock)", description: `Nueva ruta creada para ${repartidor?.name || 'desconocido'} el ${formatISO(parseISO(routeData.date), { representation: 'date' })}.` });
       }
       setIsAddEditRouteDialogOpen(false);
-      fetchInvoices(); // Refresh invoices in case assignments changed implicitly
+      fetchInvoices(); 
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error al Guardar Ruta (Mock)', description: error.message });
     } finally {
@@ -628,7 +631,6 @@ export default function HomePage() {
     }
 
     if (loggedInUser.role === 'repartidor') {
-       // For repartidor, filter invoices that are PENDING and either directly assigned OR part of their PLANNED/IN_PROGRESS routes for "today"
       const todayStr = formatISO(startOfDay(new Date()), { representation: 'date' });
       const repartidorRoutesToday = routes.filter(r => 
         r.repartidorId === loggedInUser.id && 
@@ -1058,6 +1060,7 @@ export default function HomePage() {
                 routeToEdit={routeToEdit}
                 repartidores={repartidores}
                 allInvoices={invoices}
+                allRoutes={routes}
                 onSave={handleSaveRoute}
                 selectedDateForNewRoute={selectedDateForRoutesDialog}
             />

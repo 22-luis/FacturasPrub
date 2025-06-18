@@ -20,8 +20,8 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Route, RouteFormData, User, AssignedInvoice, RouteStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, Check, ChevronsUpDown } from 'lucide-react';
-import { format, parseISO, startOfDay, isSameDay, formatISO } from 'date-fns'; // Added formatISO here
+import { CalendarIcon } from 'lucide-react';
+import { format, parseISO, startOfDay, isSameDay, formatISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 
@@ -31,8 +31,9 @@ interface AddEditRouteDialogProps {
   routeToEdit: Route | null;
   repartidores: User[];
   allInvoices: AssignedInvoice[];
+  allRoutes: Route[]; // Added to check for existing invoice assignments
   onSave: (routeData: RouteFormData, id?: string) => void;
-  selectedDateForNewRoute?: Date; // Pre-fill date if coming from ManageRoutesDialog
+  selectedDateForNewRoute?: Date;
 }
 
 const initialDialogFormState: RouteFormData = {
@@ -48,6 +49,7 @@ export function AddEditRouteDialog({
   routeToEdit,
   repartidores,
   allInvoices,
+  allRoutes, // Destructure allRoutes
   onSave,
   selectedDateForNewRoute,
 }: AddEditRouteDialogProps) {
@@ -71,7 +73,7 @@ export function AddEditRouteDialog({
       setFormData({
         date: formatISO(initialDate, { representation: 'date' }),
         repartidorId: routeToEdit.repartidorId,
-        invoiceIds: routeToEdit.invoiceIds || [], // Will be re-derived from selectedInvoices on submit
+        invoiceIds: routeToEdit.invoiceIds || [],
         status: routeToEdit.status,
       });
       setSelectedInvoices(new Set(routeToEdit.invoiceIds || []));
@@ -86,9 +88,10 @@ export function AddEditRouteDialog({
 
   const handleDateChange = (selectedDate: Date | undefined) => {
     if (selectedDate) {
-      setDateField(startOfDay(selectedDate));
-      setFormData(prev => ({ ...prev, date: formatISO(startOfDay(selectedDate), { representation: 'date' }) }));
-      // Potentially reset selected invoices if date changes significantly and invoices are date-specific
+      const newDate = startOfDay(selectedDate);
+      setDateField(newDate);
+      setFormData(prev => ({ ...prev, date: formatISO(newDate, { representation: 'date' }) }));
+      // Reset selected invoices if date changes, as availability might change
       // setSelectedInvoices(new Set()); 
     }
   };
@@ -131,7 +134,7 @@ export function AddEditRouteDialog({
     const dataToSave: RouteFormData = {
       ...formData,
       invoiceIds: Array.from(selectedInvoices),
-      status: formData.status || 'PLANNED', // Ensure status is set
+      status: formData.status || 'PLANNED',
     };
     onSave(dataToSave, routeToEdit?.id);
   };
@@ -148,118 +151,140 @@ export function AddEditRouteDialog({
   };
 
   const availableInvoicesForRoute = useMemo(() => {
-    // Show PENDIENTE invoices. If editing, also include those already on the route.
-    // For simplicity in mocks, show PENDIENTE invoices for the selected route date OR if they are already on the route.
-    const routeDate = parseISO(formData.date);
-    return allInvoices.filter(inv => 
-        inv.status === 'PENDIENTE' && 
-        (isSameDay(parseISO(inv.date), routeDate) || (routeToEdit && routeToEdit.invoiceIds.includes(inv.id)))
-    ).sort((a,b) => a.invoiceNumber.localeCompare(b.invoiceNumber));
-  }, [allInvoices, formData.date, routeToEdit]);
+    const routeDateStr = formData.date;
+
+    const invoiceIdsInOtherRoutesOnThisDate = allRoutes
+      .filter(r => r.date === routeDateStr && r.id !== routeToEdit?.id)
+      .flatMap(r => r.invoiceIds);
+    const uniqueInvoiceIdsInOtherRoutes = new Set(invoiceIdsInOtherRoutesOnThisDate);
+
+    return allInvoices.filter(inv => {
+      if (inv.status !== 'PENDIENTE') return false;
+
+      if (routeToEdit && routeToEdit.invoiceIds.includes(inv.id)) {
+        return true; // Always show invoices that are already part of the route being edited
+      }
+
+      // If not part of the route being edited, it must not be in another route for the same day
+      if (uniqueInvoiceIdsInOtherRoutes.has(inv.id)) {
+        return false;
+      }
+      
+      // Additionally, for new invoices or those not on the current edited route,
+      // ensure their own date aligns with the route's date for relevance.
+      // This check was present before and helps narrow down options.
+      return isSameDay(parseISO(inv.date), parseISO(routeDateStr));
+
+    }).sort((a,b) => a.invoiceNumber.localeCompare(b.invoiceNumber));
+  }, [allInvoices, allRoutes, formData.date, routeToEdit]);
 
 
   const dialogTitle = routeToEdit ? 'Editar Ruta de Entrega' : 'Crear Nueva Ruta de Entrega';
+  const dialogDescriptionDate = dateField ? format(dateField, 'PPP', {locale:es}) : format(new Date(), 'PPP', {locale:es});
   const dialogDescription = routeToEdit
-    ? `Modifica la ruta para ${repartidores.find(r=>r.id === routeToEdit.repartidorId)?.name || 'el repartidor'} del ${format(parseISO(routeToEdit.date), 'PPP', {locale: es})}.`
-    : `Planifica una nueva ruta de entrega. Fecha por defecto: ${selectedDateForNewRoute ? format(selectedDateForNewRoute, 'PPP', {locale:es}) : format(new Date(), 'PPP', {locale:es}) }.`;
+    ? `Modifica la ruta para ${repartidores.find(r=>r.id === routeToEdit.repartidorId)?.name || 'el repartidor'} del ${dialogDescriptionDate}.`
+    : `Planifica una nueva ruta de entrega. Fecha: ${dialogDescriptionDate}.`;
 
   return (
     <Dialog open={isOpen} onOpenChange={resetFormAndClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="p-4 sm:p-6 border-b">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-4 sm:p-6 border-b sticky top-0 bg-background z-10">
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="flex-grow flex flex-col min-h-0 p-4 sm:p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="route-date">Fecha de la Ruta</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    id="route-date"
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !dateField && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateField ? format(dateField, "PPP", { locale: es }) : <span>Selecciona una fecha</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={dateField}
-                    onSelect={handleDateChange}
-                    initialFocus
-                    locale={es}
-                    disabled={(date) => date < startOfDay(new Date(new Date().setDate(startOfDay(new Date()).getDate() - 7))) || date > new Date(new Date().setDate(startOfDay(new Date()).getDate() + 90))}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div>
-              <Label htmlFor="route-repartidor">Repartidor</Label>
-              <Select
-                name="repartidorId"
-                value={formData.repartidorId}
-                onValueChange={handleRepartidorChange}
-                required
-              >
-                <SelectTrigger id="route-repartidor">
-                  <SelectValue placeholder="Seleccionar repartidor..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {repartidores.filter(r => r.role === 'repartidor').map(user => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          
-          <div>
-            <Label>Facturas Pendientes para Asignar</Label>
-             <p className="text-xs text-muted-foreground mb-2">
-                Mostrando facturas pendientes para el {format(parseISO(formData.date), "PPP", { locale: es })} o ya en esta ruta.
-            </p>
-            {availableInvoicesForRoute.length === 0 ? (
-                 <p className="text-sm text-center text-muted-foreground p-4 border rounded-md">No hay facturas pendientes disponibles para la fecha seleccionada.</p>
-            ): (
-                <ScrollArea className="h-64 border rounded-md">
-                    <div className="p-3 space-y-2">
-                    {availableInvoicesForRoute.map(invoice => (
-                        <div key={invoice.id} className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
-                        <Checkbox
-                            id={`invoice-${invoice.id}`}
-                            checked={selectedInvoices.has(invoice.id)}
-                            onCheckedChange={() => handleInvoiceToggle(invoice.id)}
-                        />
-                        <Label htmlFor={`invoice-${invoice.id}`} className="flex-grow text-sm font-normal cursor-pointer">
-                            {invoice.invoiceNumber} - {invoice.supplierName} (${invoice.totalAmount.toFixed(2)})
-                            {invoice.client?.name && <span className="text-xs text-muted-foreground"> (Cliente: {invoice.client.name})</span>}
-                        </Label>
-                        </div>
+        <div className="flex-grow overflow-y-auto p-4 sm:p-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="route-date">Fecha de la Ruta</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="route-date"
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !dateField && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateField ? format(dateField, "PPP", { locale: es }) : <span>Selecciona una fecha</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={dateField}
+                      onSelect={handleDateChange}
+                      initialFocus
+                      locale={es}
+                      disabled={(date) => date < startOfDay(new Date(new Date().setDate(startOfDay(new Date()).getDate() - 30))) || date > new Date(new Date().setDate(startOfDay(new Date()).getDate() + 90))}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label htmlFor="route-repartidor">Repartidor</Label>
+                <Select
+                  name="repartidorId"
+                  value={formData.repartidorId}
+                  onValueChange={handleRepartidorChange}
+                  required
+                >
+                  <SelectTrigger id="route-repartidor">
+                    <SelectValue placeholder="Seleccionar repartidor..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {repartidores.filter(r => r.role === 'repartidor').map(user => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.name}
+                      </SelectItem>
                     ))}
-                    </div>
-                </ScrollArea>
-            )}
-          </div>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div>
+              <Label>Facturas Pendientes para Asignar</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                  Mostrando facturas PENDIENTES para el {formData.date ? format(parseISO(formData.date), "PPP", { locale: es }) : 'día seleccionado'}
+                  {routeToEdit ? ', o que ya están en esta ruta. Las facturas en otras rutas de este día no aparecerán.' : '. Las facturas ya asignadas a otras rutas en este día no aparecerán.'}
+              </p>
+              {availableInvoicesForRoute.length === 0 ? (
+                   <p className="text-sm text-center text-muted-foreground p-4 border rounded-md">No hay facturas pendientes elegibles para esta fecha y que no estén en otras rutas.</p>
+              ): (
+                  <ScrollArea className="h-64 border rounded-md">
+                      <div className="p-3 space-y-2">
+                      {availableInvoicesForRoute.map(invoice => (
+                          <div key={invoice.id} className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
+                          <Checkbox
+                              id={`invoice-${invoice.id}`}
+                              checked={selectedInvoices.has(invoice.id)}
+                              onCheckedChange={() => handleInvoiceToggle(invoice.id)}
+                          />
+                          <Label htmlFor={`invoice-${invoice.id}`} className="flex-grow text-sm font-normal cursor-pointer">
+                              {invoice.invoiceNumber} - {invoice.supplierName} (${invoice.totalAmount.toFixed(2)})
+                              {invoice.client?.name && <span className="text-xs text-muted-foreground"> (Cliente: {invoice.client.name})</span>}
+                          </Label>
+                          </div>
+                      ))}
+                      </div>
+                  </ScrollArea>
+              )}
+            </div>
+          </form>
+        </div>
 
-          <DialogFooter className="pt-4 mt-auto border-t">
-            <DialogClose asChild>
-              <Button type="button" variant="outline" onClick={resetFormAndClose}>
-                Cancelar
-              </Button>
-            </DialogClose>
-            <Button type="submit">Guardar Ruta</Button>
-          </DialogFooter>
-        </form>
+        <DialogFooter className="p-4 sm:p-6 border-t sticky bottom-0 bg-background z-10">
+          <DialogClose asChild>
+            <Button type="button" variant="outline" onClick={resetFormAndClose}>
+              Cancelar
+            </Button>
+          </DialogClose>
+          <Button type="submit" onClick={handleSubmit}>Guardar Ruta</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
