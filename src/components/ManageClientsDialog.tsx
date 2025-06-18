@@ -55,8 +55,8 @@ export function ManageClientsDialog({
             </Button>
         </div>
         
-        <div className="flex-grow min-h-0 overflow-hidden">
-          <ScrollArea className="h-full px-4 sm:px-6 py-4">
+        <div className="flex-grow min-h-0 overflow-hidden"> {/* This div will allow ScrollArea to fill height */}
+          <ScrollArea className="h-full px-4 sm:px-6 py-4"> {/* ScrollArea wraps the client list */}
             {clients.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-10">
                 No hay clientes registrados. Haz clic en "Agregar Nuevo Cliente" para empezar.
