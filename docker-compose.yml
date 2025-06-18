@@ -1,50 +1,14 @@
-version: '3.8'
-
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: facturas_app_nextjs
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: "postgresql://facturas_user:facturas_password@db:5432/facturas_dev_db"
-      PORT: "3000"
-      NODE_ENV: "production"
-      # For NextAuth.js if you add it later:
-      # NEXTAUTH_URL: "http://localhost:3000" # URL of your app
-      # NEXTAUTH_SECRET: "your_super_secret_nextauth_value" # Generate a strong secret
+    build: .
     ports:
-      - "3000:3000" # Map host port 3000 to container port 3000
-    depends_on:
-      db:
-        condition: service_healthy
+      - "3000:3000"
+    env_file:
+      - .env
     networks:
       - facturas_network
 
-  db:
-    image: postgres:15-alpine
-    container_name: facturas_db_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: facturas_user
-      POSTGRES_PASSWORD: facturas_password # IMPORTANT: Change this for actual deployments or use Docker secrets
-      POSTGRES_DB: facturas_dev_db
-    ports:
-      - "5433:5432" # Map host port 5433 to container port 5432 (for external access/debug)
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - facturas_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U facturas_user -d facturas_dev_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-volumes:
-  postgres_data:
 
 networks:
   facturas_network:
-    driver: bridge
+    external: true
