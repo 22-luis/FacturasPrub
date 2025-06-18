@@ -13,18 +13,21 @@ import { ManageRepartidoresDialog } from '@/components/ManageRepartidoresDialog'
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { AddEditUserDialog } from '@/components/AddEditUserDialog';
 import { ManageAllUsersDialog } from '@/components/ManageAllUsersDialog';
+import { AddEditClientDialog } from '@/components/AddEditClientDialog';
+import { ManageClientsDialog } from '@/components/ManageClientsDialog';
 
-import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, UserRole, Client } from '@/lib/types';
+
+import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, UserRole, Client, ClientFormData } from '@/lib/types';
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, Building } from 'lucide-react';
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, Building as BuildingIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import bcrypt from 'bcryptjs';
-import { mockUsers, mockInvoices as initialMockInvoices, mockClients } from '@/lib/mock-data';
+import { mockUsers, mockInvoices as initialMockInvoices, mockClients as initialMockClients } from '@/lib/mock-data';
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
@@ -62,6 +65,13 @@ export default function HomePage() {
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isManageAllUsersDialogOpen, setIsManageAllUsersDialogOpen] = useState(false);
 
+  const [isAddEditClientDialogOpen, setIsAddEditClientDialogOpen] = useState(false);
+  const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
+  const [isManageClientsDialogOpen, setIsManageClientsDialogOpen] = useState(false);
+  const [isConfirmDeleteClientOpen, setIsConfirmDeleteClientOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+
+
   const [users, setUsers] = useState<User[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loggedInUser, setLoggedInUser] = useState<User | null>(null);
@@ -91,7 +101,7 @@ export default function HomePage() {
   const fetchClients = useCallback(async () => {
     setIsLoading(true);
     try {
-      setClients(mockClients);
+      setClients(initialMockClients);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error al Cargar Clientes (Mock)', description: error.message });
     } finally {
@@ -115,7 +125,7 @@ export default function HomePage() {
       }
       
       const currentUsers = users.length > 0 ? users : mockUsers.map(u => ({...u, role: u.role.toLowerCase() as UserRole }));
-      const currentClients = clients.length > 0 ? clients : mockClients;
+      const currentClients = clients.length > 0 ? clients : initialMockClients;
 
       const invoicesWithDetails = MOCK_INVOICES_TO_USE.map(inv => {
           const assignee = currentUsers.find(u => u.id === inv.assigneeId);
@@ -409,6 +419,73 @@ export default function HomePage() {
       setIsLoading(false);
     }
   };
+
+  const handleOpenAddClientDialog = () => {
+    setClientToEdit(null);
+    setIsAddEditClientDialogOpen(true);
+  };
+
+  const handleOpenEditClientDialog = (client: Client) => {
+    setClientToEdit(client);
+    setIsAddEditClientDialogOpen(true);
+  };
+  
+  const handleOpenDeleteClientDialog = (client: Client) => {
+    setClientToDelete(client);
+    setIsConfirmDeleteClientOpen(true);
+  };
+
+  const handleSaveClient = (clientData: ClientFormData, id?: string) => {
+    setIsLoading(true);
+    try {
+      if (id) {
+        setClients(prevClients => 
+          prevClients.map(c => c.id === id ? { ...c, ...clientData, updatedAt: new Date().toISOString() } : c)
+        );
+        toast({ title: "Cliente Actualizado (Mock)", description: `El cliente ${clientData.name} ha sido actualizado.` });
+      } else {
+        const newId = `mock-client-${Date.now()}-${Math.random().toString(36).substring(2,7)}`;
+        const newClient: Client = {
+          ...clientData,
+          id: newId,
+          branches: [], // New clients start with no branches via UI for now
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        setClients(prevClients => [newClient, ...prevClients].sort((a,b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()));
+        toast({ title: "Cliente Agregado (Mock)", description: `El cliente ${newClient.name} ha sido agregado.` });
+      }
+      setIsAddEditClientDialogOpen(false);
+      setIsManageClientsDialogOpen(true); // Re-open manage dialog to see changes
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error al Guardar Cliente (Mock)', description: error.message });
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const executeDeleteClient = () => {
+    if (!clientToDelete) return;
+    setIsLoading(true);
+    try {
+        setClients(prevClients => prevClients.filter(c => c.id !== clientToDelete.id));
+        // Also, unassign this client from any invoices (mock update)
+        setInvoices(prevInvoices => 
+          prevInvoices.map(inv => 
+            inv.clientId === clientToDelete.id 
+              ? { ...inv, clientId: null, client: null, updatedAt: new Date().toISOString() } 
+              : inv
+          )
+        );
+        toast({ title: "Cliente Eliminado (Mock)", description: `El cliente ${clientToDelete.name} ha sido eliminado.`});
+        setClientToDelete(null);
+        setIsConfirmDeleteClientOpen(false);
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error al Eliminar Cliente (Mock)', description: error.message });
+    } finally {
+        setIsLoading(false);
+    }
+  };
   
   const getAssigneeName = (assigneeId?: string | null): string | undefined => {
     if (!assigneeId) return undefined;
@@ -591,6 +668,10 @@ export default function HomePage() {
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Agregar Factura
                   </Button>
+                   <Button onClick={() => setIsManageClientsDialogOpen(true)} variant="outline" disabled={isLoading || clients.length === 0}>
+                      <BuildingIcon className="mr-2 h-4 w-4" />
+                      Gestionar Clientes
+                    </Button>
                   {isSupervisor && !isAdmin && (
                     <>
                       <Button onClick={handleOpenAddRepartidorDialog} variant="outline" disabled={isLoading}>
@@ -823,6 +904,36 @@ export default function HomePage() {
         onSave={handleSaveInvoice}
       />
 
+      {isSupervisorOrAdmin && (
+        <>
+            <AddEditClientDialog
+                isOpen={isAddEditClientDialogOpen}
+                onOpenChange={setIsAddEditClientDialogOpen}
+                clientToEdit={clientToEdit}
+                onSave={handleSaveClient}
+            />
+            <ManageClientsDialog
+                isOpen={isManageClientsDialogOpen}
+                onOpenChange={setIsManageClientsDialogOpen}
+                clients={clients}
+                onAddClient={handleOpenAddClientDialog}
+                onEditClient={handleOpenEditClientDialog}
+                onDeleteClient={handleOpenDeleteClientDialog}
+            />
+            {clientToDelete && (
+                 <ConfirmDialog
+                    isOpen={isConfirmDeleteClientOpen}
+                    onOpenChange={setIsConfirmDeleteClientOpen}
+                    title={`Confirmar Eliminación de ${clientToDelete.name}`}
+                    description={`¿Estás seguro de que quieres eliminar al cliente ${clientToDelete.name}? Esta acción no se puede deshacer. Las facturas asociadas a este cliente se desvincularán.`}
+                    onConfirm={executeDeleteClient}
+                    confirmButtonText="Eliminar Cliente"
+                />
+            )}
+        </>
+      )}
+
+
       {isSupervisor && !isAdmin && (
         <>
           <AddRepartidorDialog
@@ -885,3 +996,4 @@ export default function HomePage() {
     </div>
   );
 }
+

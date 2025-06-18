@@ -16,23 +16,25 @@ export interface User {
 
 export interface Branch {
   id: string;
-  name: string; // e.g., "Sucursal Centro"
+  name: string; 
   contactPhone?: string;
   address: string;
-  clientId: string; // Foreign key to Client
+  clientId: string; 
   createdAt?: Date | string;
   updatedAt?: Date | string;
 }
 
 export interface Client {
   id: string;
-  name: string; // Nombre del cliente o empresa
-  phone?: string; // Teléfono de contacto principal
-  mainAddress?: string; // Dirección principal
-  branches?: Branch[]; // Array of associated branches
+  name: string; 
+  phone?: string; 
+  mainAddress?: string; 
+  branches?: Branch[]; 
   createdAt?: Date | string;
   updatedAt?: Date | string;
 }
+
+export type ClientFormData = Omit<Client, 'id' | 'branches' | 'createdAt' | 'updatedAt'>;
 
 export interface AssignedInvoice {
   id:string;
@@ -49,14 +51,14 @@ export interface AssignedInvoice {
     id: string;
     name: string;
   } | null;
-  clientId?: string | null; // Foreign key to Client
-  client?: Client | null; // Optional: Embed client data if needed for display
+  clientId?: string | null; 
+  client?: Client | null; 
   createdAt?: Date | string;
   updatedAt?: Date | string;
 }
 
 export type InvoiceFormData = Omit<AssignedInvoice, 'id' | 'assignee' | 'client' | 'createdAt' | 'updatedAt'> & {
-  clientId?: string | null; // Ensure clientId is part of form data
+  clientId?: string | null; 
 };
 
 
@@ -77,3 +79,4 @@ export interface VerificationResult {
 export type ApiRouteContext<P extends Record<string, string | string[]> = Record<string, string | string[]>> = {
   params: P;
 };
+
