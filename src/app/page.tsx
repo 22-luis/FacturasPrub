@@ -46,7 +46,7 @@ const statusCardDetails: Record<InvoiceStatus, { label: string; Icon: React.Elem
   LISTO_PARA_RUTA: { label: 'Listas para Ruta (Bodega)', Icon: PackageCheck, description: "Preparadas, esperando repartidor" },
   ENTREGADA: { label: 'Facturas Entregadas', Icon: CheckCircle2, description: "Confirmadas y finalizadas" },
   CANCELADA: { label: 'Facturas Canceladas', Icon: XCircle, description: "Anuladas del sistema" },
-  INCIDENCIA_BODEGA: { Icon: ShieldX, description: "Problema reportado por bodega" },
+  INCIDENCIA_BODEGA: { label: 'Incidencias Bodega', Icon: ShieldX, description: "Problema reportado por bodega" },
 };
 
 const manageableUserRoles: UserRole[] = ['supervisor', 'repartidor', 'bodega']; 
@@ -198,9 +198,9 @@ export default function HomePage() {
   useEffect(() => {
     if (loggedInUser) {
       if (loggedInUser.role === 'repartidor') {
-        fetchInvoices({ assigneeId: loggedInUser.id, status: 'LISTO_PARA_RUTA' }); // Repartidores ven lo que está listo
+        fetchInvoices({ assigneeId: loggedInUser.id, status: 'LISTO_PARA_RUTA' }); 
       } else if (loggedInUser.role === 'supervisor' || loggedInUser.role === 'administrador' || loggedInUser.role === 'bodega') {
-        fetchInvoices(); // Supervisor, Admin, Bodega ven todo y luego filtran
+        fetchInvoices(); 
         setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
         setSelectedStatusBySupervisor(null);
         setSearchTerm('');
@@ -275,12 +275,12 @@ export default function HomePage() {
       const currentAssigneeUser = users.find(u => u.id === invoiceData.assigneeId);
       const assigneeDetailsForState = currentAssigneeUser ? { id: currentAssigneeUser.id, name: currentAssigneeUser.name } : null;
       const currentClient = clients.find(c => c.id === invoiceData.clientId);
-      let updatedRouteId = (invoiceData as any).routeId || null; // Use any if routeId is not in InvoiceFormData
+      let updatedRouteId = (invoiceData as any).routeId || null; 
 
       if (id) { 
         setInvoices(prevInvoices =>
           prevInvoices.map(inv =>
-            inv.id === id ? { ...inv, ...invoiceData, id, assignee: assigneeDetailsForState, client: currentClient || null, routeId: updatedRouteId, updatedAt: new Date().toISOString() } : inv
+            inv.id === id ? { ...inv, ...invoiceData, id, assignee: assigneeDetailsForState, client: currentClient || null, routeId: updatedRouteId, deliveryNotes: invoiceData.deliveryNotes, updatedAt: new Date().toISOString() } : inv
           )
         );
         toast({ title: "Factura Actualizada (Mock)", description: `La factura #${invoiceData.invoiceNumber} ha sido actualizada.` });
@@ -290,6 +290,7 @@ export default function HomePage() {
           ...invoiceData,
           id: newId,
           routeId: updatedRouteId,
+          deliveryNotes: invoiceData.deliveryNotes,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           assignee: assigneeDetailsForState,
@@ -307,7 +308,7 @@ export default function HomePage() {
     }
   };
 
-  const handleUpdateInvoiceStatus = async (invoiceId: string, newStatus: InvoiceStatus, cancellationReason?: string) => {
+  const handleUpdateInvoiceStatus = async (invoiceId: string, newStatus: InvoiceStatus, cancellationReason?: string, deliveryNotes?: string) => {
     setIsLoading(true);
     try {
       let updatedInvoiceNumber = '';
@@ -315,14 +316,18 @@ export default function HomePage() {
         prevInvoices.map(inv => {
           if (inv.id === invoiceId) {
             updatedInvoiceNumber = inv.invoiceNumber;
-            const updatedInv = { 
+            const updatedInv: AssignedInvoice = { 
                 ...inv, 
                 status: newStatus, 
+                deliveryNotes: deliveryNotes !== undefined ? deliveryNotes : inv.deliveryNotes,
                 cancellationReason: newStatus === 'CANCELADA' ? cancellationReason : inv.cancellationReason, 
                 updatedAt: new Date().toISOString() 
             };
             if (newStatus !== 'CANCELADA') {
-                delete updatedInv.cancellationReason;
+                delete updatedInv.cancellationReason; // Clear cancellation reason if not cancelled
+            }
+             if (deliveryNotes === undefined) { // If deliveryNotes is explicitly undefined, remove it
+                delete updatedInv.deliveryNotes;
             }
             return updatedInv;
           }
@@ -692,19 +697,17 @@ export default function HomePage() {
         const routeA = routes.find(r => r.id === a.routeId);
         const routeB = routes.find(r => r.id === b.routeId);
     
-        // Sort by route date first
         if (routeA?.date && routeB?.date) {
           try {
             const dateComparison = parseISO(routeA.date).getTime() - parseISO(routeB.date).getTime();
             if (dateComparison !== 0) return dateComparison;
-          } catch (e) { /* console.error("Error parsing route dates for sorting", e); */ }
+          } catch (e) {  }
         } else if (routeA?.date) {
-          return -1; // a (has route date) comes before b (no route date)
+          return -1; 
         } else if (routeB?.date) {
-          return 1;  // b (has route date) comes before a (no route date)
+          return 1;  
         }
     
-        // Then by repartidor name on the route (already enriched as repartidorNameForRoute)
         const repartidorNameA = (a as any).repartidorNameForRoute;
         const repartidorNameB = (b as any).repartidorNameForRoute;
         if (repartidorNameA && repartidorNameB) {
@@ -716,16 +719,14 @@ export default function HomePage() {
           return 1;
         }
     
-        // Fallback to invoice date
         try {
           const timeA = a.date ? parseISO(a.date).getTime() : 0;
           const timeB = b.date ? parseISO(b.date).getTime() : 0;
           if (timeA !== 0 && timeB !== 0 && timeA !== timeB) return timeA - timeB;
           if (timeA !== 0) return -1;
           if (timeB !== 0) return 1;
-        } catch (e) { /* console.error("Error parsing invoice dates for sorting", e); */ }
+        } catch (e) {  }
         
-        // Ultimate fallback if dates are missing or invalid
         return (a.id || '').localeCompare(b.id || '');
       });
     }
@@ -744,7 +745,7 @@ export default function HomePage() {
     let statusDescription = "Todos los Estados";
     if (selectedStatusBySupervisor) {
         const statusDetail = statusCardDetails[selectedStatusBySupervisor];
-        statusDescription = statusDetail ? statusDetail.label : `Facturas ${selectedStatusBySupervisor.toLowerCase()}`;
+        statusDescription = statusDetail ? statusDetail.label : `Facturas ${selectedStatusBySupervisor.toLowerCase().replace(/_/g, ' ')}`;
     }
 
     let repartidorDescription = "Todas las Facturas";
@@ -1243,3 +1244,4 @@ export default function HomePage() {
     </div>
   );
 }
+

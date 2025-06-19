@@ -2,18 +2,18 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CalendarDays, Hash, Building, BadgeDollarSign, Fingerprint, PlayCircle, UserCircle, Edit3, MapPin, AlertCircle, CheckCircle, Ban, Briefcase, PackageSearch, PackageCheck, ShieldX, RotateCcw, PackageOpen, Package } from 'lucide-react';
+import { CalendarDays, Hash, Building, BadgeDollarSign, Fingerprint, PlayCircle, UserCircle, Edit3, MapPin, AlertCircle, CheckCircle, Ban, Briefcase, PackageSearch, PackageCheck, ShieldX, RotateCcw, PackageOpen, Package, MessageSquareText } from 'lucide-react';
 import type { AssignedInvoice, UserRole, InvoiceStatus } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 interface InvoiceCardProps {
   invoice: AssignedInvoice;
   onAction?: (invoiceId: string) => void; 
-  onUpdateStatus?: (invoiceId: string, newStatus: InvoiceStatus, cancellationReason?: string) => void;
+  onUpdateStatus?: (invoiceId: string, newStatus: InvoiceStatus, cancellationReason?: string, deliveryNotes?: string) => void;
   currentUserRole?: UserRole;
   assigneeName?: string;
   clientName?: string;
-  repartidorNameForRoute?: string; // Added for bodega view
+  repartidorNameForRoute?: string; 
 }
 
 const statusStyles: Record<InvoiceStatus, {
@@ -45,8 +45,8 @@ export function InvoiceCard({ invoice, onAction, onUpdateStatus, currentUserRole
     buttonText = 'Editar / Asignar';
     ButtonIcon = Edit3; 
     buttonVariant = "secondary";
-  } else if (isRepartidor && onAction) { 
-    buttonText = 'Procesar Factura';
+  } else if (isRepartidor && onAction && invoice.status === 'LISTO_PARA_RUTA') { 
+    buttonText = 'Procesar Entrega';
     ButtonIcon = PlayCircle;
     buttonVariant = "default";
   }
@@ -57,7 +57,7 @@ export function InvoiceCard({ invoice, onAction, onUpdateStatus, currentUserRole
 
   const handleBodegaAction = (newStatus: InvoiceStatus) => {
     if (onUpdateStatus) {
-      onUpdateStatus(invoice.id, newStatus);
+      onUpdateStatus(invoice.id, newStatus); // Delivery notes are not managed by bodega directly from card
     }
   };
 
@@ -123,7 +123,7 @@ export function InvoiceCard({ invoice, onAction, onUpdateStatus, currentUserRole
             </div>
           </div>
         )}
-        {(isSupervisorOrAdmin || isBodega) && assigneeName && ( // Show assignee for Admin/Sup and Bodega (who is the repartidor for the route)
+        {(isSupervisorOrAdmin || isBodega) && assigneeName && ( 
           <div className="flex items-start pt-1">
             <UserCircle className="h-4 w-4 mr-2 mt-0.5 text-muted-foreground flex-shrink-0" />
             <div className="min-w-0 flex-1">
@@ -141,9 +141,27 @@ export function InvoiceCard({ invoice, onAction, onUpdateStatus, currentUserRole
             </div>
           </div>
         )}
+        {invoice.cancellationReason && (
+          <div className="flex items-start pt-1 text-destructive">
+            <Ban className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <span className="font-medium mr-1">Cancelada:</span>
+              <span className="break-words">{invoice.cancellationReason}</span>
+            </div>
+          </div>
+        )}
+        {invoice.deliveryNotes && (
+            <div className="flex items-start pt-1 text-muted-foreground">
+                <MessageSquareText className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0"/>
+                <div className="min-w-0 flex-1">
+                    <span className="font-medium mr-1">Notas:</span>
+                    <span className="break-words italic">{invoice.deliveryNotes}</span>
+                </div>
+            </div>
+        )}
       </CardContent>
       <CardFooter className="flex flex-col items-stretch gap-2">
-        {(isSupervisorOrAdmin || isRepartidor) && onAction && (
+        {(isSupervisorOrAdmin || (isRepartidor && invoice.status === 'LISTO_PARA_RUTA')) && onAction && (
           <Button onClick={() => onAction(invoice.id)} className="w-full" variant={buttonVariant}>
             <ButtonIcon className="mr-2 h-4 w-4" />
             {buttonText}
@@ -177,3 +195,4 @@ export function InvoiceCard({ invoice, onAction, onUpdateStatus, currentUserRole
     </Card>
   );
 }
+

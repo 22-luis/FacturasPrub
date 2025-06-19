@@ -10,11 +10,12 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle, BadgeCheck, ScanLine, CheckCircle, XCircle, RotateCcw, Upload, Trash2 } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, ScanLine, CheckCircle, XCircle, RotateCcw, Upload, Trash2, MessageSquareText } from 'lucide-react';
 
 import type { AssignedInvoice, ExtractedInvoiceDetails, VerificationResult, InvoiceStatus } from '@/lib/types';
 import { extractInvoiceDataAction } from '@/lib/actions';
@@ -25,12 +26,14 @@ import { InvoiceDetailsView } from './InvoiceDetailsView';
 import { VerificationResultView } from './VerificationResultView';
 import { LoadingIndicator } from './LoadingIndicator';
 import { CancellationReasonDialog } from './CancellationReasonDialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 interface ProcessInvoiceDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   invoice: AssignedInvoice | null;
-  onUpdateStatus: (invoiceId: string, newStatus: InvoiceStatus, cancellationReason?: string) => void;
+  onUpdateStatus: (invoiceId: string, newStatus: InvoiceStatus, cancellationReason?: string, deliveryNotes?: string) => void;
 }
 
 export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateStatus }: ProcessInvoiceDialogProps) {
@@ -43,6 +46,7 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const [isCancellationReasonSubDialogOpen, setIsCancellationReasonSubDialogOpen] = useState(false);
+  const [deliveryNotesInput, setDeliveryNotesInput] = useState('');
 
   const resetAllStates = useCallback(() => {
     setUploadedFile(null);
@@ -52,11 +56,15 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
     setIsLoading(false);
     setError(null);
     setIsCancellationReasonSubDialogOpen(false);
+    setDeliveryNotesInput('');
   }, []);
 
   useEffect(() => {
     if (!isOpen || !invoice) {
       resetAllStates();
+    }
+    if (invoice && isOpen) {
+        setDeliveryNotesInput(invoice.deliveryNotes || '');
     }
   }, [isOpen, invoice, resetAllStates]);
 
@@ -131,16 +139,23 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
     if (!invoice) return;
 
     if (newStatus === 'CANCELADA') {
-      setIsCancellationReasonSubDialogOpen(true);
+      setIsCancellationReasonSubDialogOpen(true); // This will open the sub-dialog
     } else {
-      onUpdateStatus(invoice.id, newStatus);
+      // For ENTREGADA or other statuses, directly call onUpdateStatus
+      onUpdateStatus(invoice.id, newStatus, undefined, deliveryNotesInput.trim());
       onOpenChange(false); 
     }
   };
 
-  const handleConfirmCancellationWithReason = (reason?: string) => {
+  const handleConfirmCancellationWithReason = (reasonFromSubDialog?: string) => {
     if (invoice) {
-      onUpdateStatus(invoice.id, 'CANCELADA', reason);
+      let finalDeliveryNotes = deliveryNotesInput.trim();
+      if (reasonFromSubDialog) {
+        finalDeliveryNotes = `${reasonFromSubDialog}. ${finalDeliveryNotes}`.trim();
+        if (finalDeliveryNotes.endsWith('.')) finalDeliveryNotes = finalDeliveryNotes.slice(0,-1); // Avoid double period if notes were empty
+      }
+
+      onUpdateStatus(invoice.id, 'CANCELADA', reasonFromSubDialog, finalDeliveryNotes);
       setIsCancellationReasonSubDialogOpen(false);
       onOpenChange(false); 
     }
@@ -160,11 +175,31 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
               <ScanLine className="h-6 w-6 text-primary" />
               Procesar Factura: {invoice.invoiceNumber} (Estado: {invoice.status})
             </DialogTitle>
+            <DialogDescription>
+                Cliente: {invoice.client?.name || invoice.supplierName}. Dirección: {invoice.address}
+            </DialogDescription>
           </DialogHeader>
           
-          <div className="flex-grow overflow-y-auto space-y-4 sm:space-y-6 p-1">
+          <div className="flex-grow overflow-y-auto space-y-4 sm:space-y-6 p-1 pr-2">
             <InvoiceDetailsView title="Detalles de Factura Asignada" data={invoice} variant="assigned" />
             
+            <Separator />
+
+            <div>
+                <Label htmlFor="deliveryNotesTextarea" className="text-base sm:text-lg font-semibold mb-2 flex items-center gap-2">
+                    <MessageSquareText className="h-5 w-5 text-primary"/>
+                    Notas de Entrega / Incidencias
+                </Label>
+                <Textarea
+                    id="deliveryNotesTextarea"
+                    value={deliveryNotesInput}
+                    onChange={(e) => setDeliveryNotesInput(e.target.value)}
+                    placeholder="Ej: Cliente solicitó dejar en recepción. Paquete ligeramente abollado. Dirección no encontrada..."
+                    rows={3}
+                    className="mt-1"
+                />
+            </div>
+
             <Separator />
 
             <div>
@@ -173,25 +208,25 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
                   Cambiar Estado de la Factura
               </h3>
               <div className="flex flex-wrap gap-2 mt-2">
-                {invoice.status === 'PENDIENTE' && (
-                  <>
+                {invoice.status !== 'ENTREGADA' && (
                     <Button onClick={() => handleChangeStatus('ENTREGADA')} variant="default" className="bg-green-600 hover:bg-green-700 text-white">
-                      <CheckCircle className="mr-2 h-4 w-4" /> Marcar como ENTREGADA
+                    <CheckCircle className="mr-2 h-4 w-4" /> Marcar como ENTREGADA
                     </Button>
+                )}
+                {invoice.status !== 'CANCELADA' && (
                     <Button onClick={() => handleChangeStatus('CANCELADA')} variant="destructive">
-                      <XCircle className="mr-2 h-4 w-4" /> Marcar como CANCELADA
+                    <XCircle className="mr-2 h-4 w-4" /> Marcar como CANCELADA
                     </Button>
-                  </>
                 )}
                 {(invoice.status === 'ENTREGADA' || invoice.status === 'CANCELADA') && (
-                  <Button onClick={() => handleChangeStatus('PENDIENTE')} variant="outline">
-                    <RotateCcw className="mr-2 h-4 w-4" /> Revertir a PENDIENTE
+                  <Button onClick={() => handleChangeStatus('LISTO_PARA_RUTA')} variant="outline">
+                    <RotateCcw className="mr-2 h-4 w-4" /> Revertir a Listo para Ruta
                   </Button>
                 )}
               </div>
               {invoice.status === 'CANCELADA' && invoice.cancellationReason && (
                  <div className="mt-3 text-sm text-muted-foreground p-2 border rounded-md bg-secondary/30">
-                  <p><span className="font-medium">Motivo de cancelación:</span> {invoice.cancellationReason}</p>
+                  <p><span className="font-medium">Razón de cancelación registrada:</span> {invoice.cancellationReason}</p>
                 </div>
               )}
             </div>
@@ -201,7 +236,7 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
             <div>
               <h3 className="text-base sm:text-lg font-semibold mb-3 flex items-center gap-2">
                   <Upload className="h-5 w-5 text-primary"/>
-                  Subir Imagen de Factura
+                  Subir Imagen de Factura (Opcional)
               </h3>
               
               <FileUpload onFileSelect={handleFileSelect} disabled={isLoading} />
@@ -220,12 +255,12 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
 
               {imageDataUri && (
                 <Button onClick={handleExtractData} disabled={isLoading || !imageDataUri} className="mt-4 w-full sm:w-auto">
-                  {isLoading ? <LoadingIndicator text="Extrayendo..." /> : 'Extraer y Verificar Datos'}
+                  {isLoading ? <LoadingIndicator text="Extrayendo..." /> : 'Extraer y Verificar Datos de Imagen'}
                 </Button>
               )}
             </div>
 
-            {isLoading && !extractedData && <LoadingIndicator text="Extrayendo y verificando datos..." />}
+            {isLoading && !extractedData && <LoadingIndicator text="Procesando..." />}
             
             {error && (
               <Alert variant="destructive">
@@ -239,8 +274,8 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
               <>
                 <Separator />
                 <div>
-                  <h3 className="text-base sm:text-lg font-semibold mb-3">Resultados de Verificación</h3>
-                  {extractedData && <InvoiceDetailsView title="Datos Extraídos de Factura" data={extractedData} variant="extracted" />}
+                  <h3 className="text-base sm:text-lg font-semibold mb-3">Resultados de Verificación de Imagen</h3>
+                  {extractedData && <InvoiceDetailsView title="Datos Extraídos de Imagen" data={extractedData} variant="extracted" />}
                   <div className="mt-4">
                     <VerificationResultView result={verificationResult} />
                   </div>
@@ -255,6 +290,12 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
             <DialogClose asChild>
               <Button variant="outline" onClick={resetAllStates}>Cerrar</Button>
             </DialogClose>
+            <Button onClick={() => {
+                // This button effectively just closes if no specific save action is tied here,
+                // or it could trigger a save of just the notes if needed.
+                // For now, notes are saved with status changes.
+                onOpenChange(false);
+            }}>Hecho</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -270,3 +311,4 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
     </>
   );
 }
+

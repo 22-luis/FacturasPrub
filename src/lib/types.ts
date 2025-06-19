@@ -49,13 +49,14 @@ export interface AssignedInvoice {
   assigneeId?: string | null; 
   status: InvoiceStatus;
   cancellationReason?: string;
+  deliveryNotes?: string; // Added for repartidor notes/issues
   assignee?: { 
     id: string;
     name: string;
   } | null;
   clientId?: string | null; 
   client?: Client | null; 
-  routeId?: string | null; // To associate invoice with a route for bodega view
+  routeId?: string | null; 
   createdAt?: Date | string;
   updatedAt?: Date | string;
 }
@@ -66,11 +67,11 @@ export type InvoiceFormData = Omit<AssignedInvoice, 'id' | 'assignee' | 'client'
 
 export interface Route {
   id: string;
-  date: string; // Store as ISO string or YYYY-MM-DD for simplicity in mock/state
+  date: string; 
   repartidorId: string;
-  repartidorName?: string; // For display convenience
+  repartidorName?: string; 
   invoiceIds: string[];
-  invoices?: AssignedInvoice[]; // For display convenience, populated from invoiceIds
+  invoices?: AssignedInvoice[]; 
   status: RouteStatus;
   createdAt?: Date | string;
   updatedAt?: Date | string;
@@ -80,7 +81,7 @@ export type RouteFormData = {
   date: string;
   repartidorId: string;
   invoiceIds: string[];
-  status?: RouteStatus; // Optional on creation, defaults to PLANNED
+  status?: RouteStatus; 
 };
 
 
@@ -101,3 +102,4 @@ export interface VerificationResult {
 export type ApiRouteContext<P extends Record<string, string | string[]> = Record<string, string | string[]>> = {
   params: P;
 };
+
