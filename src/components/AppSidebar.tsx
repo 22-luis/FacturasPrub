@@ -19,9 +19,9 @@ import {
   FileText,
   Map,
   FileEdit,
-  Undo2,
-  MessageSquareWarning,
-  Settings, // Placeholder for Gestionar Rutas icon if Map is used elsewhere
+  // Undo2, // No longer needed
+  // MessageSquareWarning, // No longer needed
+  // Settings, // Placeholder for Gestionar Rutas icon if Map is used elsewhere
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -49,8 +49,8 @@ const navItems: NavItem[] = [
     segment: 'dashboard',
     subMenu: [
       { href: '/dashboard/refacturacion', label: 'Refacturación', icon: FileEdit, segment: 'refacturacion' },
-      { href: '/dashboard/devoluciones', label: 'Devoluciones', icon: Undo2, segment: 'devoluciones' },
-      { href: '/dashboard/negociacion', label: 'Negociación Cliente', icon: MessageSquareWarning, segment: 'negociacion' },
+      // { href: '/dashboard/devoluciones', label: 'Devoluciones', icon: Undo2, segment: 'devoluciones' },
+      // { href: '/dashboard/negociacion', label: 'Negociación Cliente', icon: MessageSquareWarning, segment: 'negociacion' },
     ],
   },
   { href: '/repartidores', label: 'Repartidores', icon: Truck, segment: 'repartidores' },
@@ -83,7 +83,7 @@ export function AppSidebar() {
       <SidebarMenu>
         {navItems.map((item) => (
           <SidebarMenuItem key={item.href}>
-            {item.subMenu ? (
+            {item.subMenu && item.subMenu.length > 0 ? ( // Check if subMenu exists and is not empty
               <>
                 <SidebarMenuSubButton
                   // The main button for a sub-menu doesn't navigate itself, it toggles.
