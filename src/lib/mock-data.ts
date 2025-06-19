@@ -3,7 +3,7 @@
 
 import type { User, AssignedInvoice, UserRole, InvoiceStatus, Client, Branch, Route, RouteStatus } from './types';
 import bcrypt from 'bcryptjs';
-import { formatISO, parseISO, startOfDay } from 'date-fns';
+import { formatISO, startOfDay } from 'date-fns';
 
 const saltRounds = 10;
 const hashedAdminPassword = bcrypt.hashSync('123', saltRounds);
