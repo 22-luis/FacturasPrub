@@ -130,6 +130,10 @@ export let mockInvoices: AssignedInvoice[] = [ // Changed to let for routeId mod
     createdAt: new Date('2024-07-15T09:00:00Z').toISOString(),
     updatedAt: new Date('2024-07-15T09:00:00Z').toISOString(),
     routeId: null,
+    incidenceType: null,
+    incidenceDetails: undefined,
+    incidenceReportedAt: null,
+    incidenceRequiresAction: false,
   },
   {
     id: 'inv-002',
@@ -145,6 +149,10 @@ export let mockInvoices: AssignedInvoice[] = [ // Changed to let for routeId mod
     createdAt: new Date('2024-07-16T10:30:00Z').toISOString(),
     updatedAt: new Date('2024-07-18T14:00:00Z').toISOString(),
     routeId: null,
+    incidenceType: null,
+    incidenceDetails: undefined,
+    incidenceReportedAt: null,
+    incidenceRequiresAction: false,
   },
   {
     id: 'inv-003',
@@ -160,6 +168,10 @@ export let mockInvoices: AssignedInvoice[] = [ // Changed to let for routeId mod
     createdAt: new Date('2024-07-17T11:00:00Z').toISOString(),
     updatedAt: new Date('2024-07-19T10:00:00Z').toISOString(),
     routeId: null,
+    incidenceType: null,
+    incidenceDetails: undefined,
+    incidenceReportedAt: null,
+    incidenceRequiresAction: false,
   },
   {
     id: 'inv-004',
@@ -175,6 +187,10 @@ export let mockInvoices: AssignedInvoice[] = [ // Changed to let for routeId mod
     createdAt: new Date('2024-07-18T14:15:00Z').toISOString(),
     updatedAt: new Date('2024-07-18T14:15:00Z').toISOString(),
     routeId: null,
+    incidenceType: null,
+    incidenceDetails: undefined,
+    incidenceReportedAt: null,
+    incidenceRequiresAction: false,
   },
   {
     id: 'inv-005',
@@ -189,6 +205,10 @@ export let mockInvoices: AssignedInvoice[] = [ // Changed to let for routeId mod
     createdAt: new Date('2024-07-19T16:00:00Z').toISOString(),
     updatedAt: new Date('2024-07-19T16:00:00Z').toISOString(),
     routeId: null,
+    incidenceType: null,
+    incidenceDetails: undefined,
+    incidenceReportedAt: null,
+    incidenceRequiresAction: false,
   },
   {
     id: 'inv-006',
@@ -204,6 +224,10 @@ export let mockInvoices: AssignedInvoice[] = [ // Changed to let for routeId mod
     createdAt: new Date('2024-07-20T08:00:00Z').toISOString(),
     updatedAt: new Date('2024-07-21T11:00:00Z').toISOString(),
     routeId: null,
+    incidenceType: null,
+    incidenceDetails: undefined,
+    incidenceReportedAt: null,
+    incidenceRequiresAction: false,
   },
    {
     id: 'inv-007',
@@ -218,6 +242,10 @@ export let mockInvoices: AssignedInvoice[] = [ // Changed to let for routeId mod
     createdAt: new Date('2024-07-21T15:00:00Z').toISOString(),
     updatedAt: new Date('2024-07-21T15:00:00Z').toISOString(),
     routeId: null,
+    incidenceType: null,
+    incidenceDetails: undefined,
+    incidenceReportedAt: null,
+    incidenceRequiresAction: false,
   },
   {
     id: 'inv-008',
@@ -233,6 +261,10 @@ export let mockInvoices: AssignedInvoice[] = [ // Changed to let for routeId mod
     createdAt: new Date('2024-07-22T09:30:00Z').toISOString(),
     updatedAt: new Date('2024-07-22T16:30:00Z').toISOString(),
     routeId: 'route-001', // Assign to route-001
+    incidenceType: null,
+    incidenceDetails: undefined,
+    incidenceReportedAt: null,
+    incidenceRequiresAction: false,
   },
   { 
     id: 'inv-today-01',
@@ -248,6 +280,10 @@ export let mockInvoices: AssignedInvoice[] = [ // Changed to let for routeId mod
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     routeId: 'route-002', // Assign to route-002
+    incidenceType: null,
+    incidenceDetails: undefined,
+    incidenceReportedAt: null,
+    incidenceRequiresAction: false,
   },
   {
     id: 'inv-today-02',
@@ -263,6 +299,10 @@ export let mockInvoices: AssignedInvoice[] = [ // Changed to let for routeId mod
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     routeId: null,
+    incidenceType: null,
+    incidenceDetails: undefined,
+    incidenceReportedAt: null,
+    incidenceRequiresAction: false,
   },
   {
     id: 'inv-bodega-prep',
@@ -278,6 +318,10 @@ export let mockInvoices: AssignedInvoice[] = [ // Changed to let for routeId mod
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     routeId: 'route-bodega-jane', // Needs a corresponding route
+    incidenceType: null,
+    incidenceDetails: undefined,
+    incidenceReportedAt: null,
+    incidenceRequiresAction: false,
   },
 ];
 
@@ -330,3 +374,4 @@ mockRoutes.forEach(route => {
     }
   });
 });
+

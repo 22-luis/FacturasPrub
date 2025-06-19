@@ -15,9 +15,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle, BadgeCheck, ScanLine, CheckCircle, XCircle, RotateCcw, Upload, Trash2, MessageSquareText, Mic, MicOff } from 'lucide-react'; // Added Mic, MicOff
+import { AlertTriangle, BadgeCheck, ScanLine, CheckCircle, XCircle, RotateCcw, Upload, Trash2, MessageSquareText, Edit, FileWarning } from 'lucide-react';
 
-import type { AssignedInvoice, ExtractedInvoiceDetails, VerificationResult, InvoiceStatus } from '@/lib/types';
+import type { AssignedInvoice, ExtractedInvoiceDetails, VerificationResult, InvoiceStatus, IncidenceType } from '@/lib/types';
 import { extractInvoiceDataAction } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 
@@ -26,14 +26,32 @@ import { InvoiceDetailsView } from './InvoiceDetailsView';
 import { VerificationResultView } from './VerificationResultView';
 import { LoadingIndicator } from './LoadingIndicator';
 import { CancellationReasonDialog } from './CancellationReasonDialog';
+import { ReportIncidenceDialog } from './ReportIncidenceDialog'; 
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { formatISO } from 'date-fns';
 
 interface ProcessInvoiceDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   invoice: AssignedInvoice | null;
-  onUpdateStatus: (invoiceId: string, newStatus: InvoiceStatus, cancellationReason?: string, deliveryNotes?: string) => void;
+  onUpdateStatus: (
+    invoiceId: string, 
+    newStatus: InvoiceStatus, 
+    cancellationReason?: string, 
+    deliveryNotes?: string,
+    incidencePayload?: {
+        type: IncidenceType;
+        details: string;
+        reportedAt: string;
+        requiresAction: boolean;
+    } | { // For clearing incidence
+        type: null;
+        details: null;
+        reportedAt: null;
+        requiresAction: false;
+    }
+  ) => void;
 }
 
 export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateStatus }: ProcessInvoiceDialogProps) {
@@ -46,6 +64,7 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const [isCancellationReasonSubDialogOpen, setIsCancellationReasonSubDialogOpen] = useState(false);
+  const [isReportIncidenceDialogOpen, setIsReportIncidenceDialogOpen] = useState(false);
   const [deliveryNotesInput, setDeliveryNotesInput] = useState('');
 
   const resetAllStates = useCallback(() => {
@@ -56,6 +75,7 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
     setIsLoading(false);
     setError(null);
     setIsCancellationReasonSubDialogOpen(false);
+    setIsReportIncidenceDialogOpen(false);
     setDeliveryNotesInput('');
   }, []);
 
@@ -141,6 +161,8 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
     if (newStatus === 'CANCELADA') {
       setIsCancellationReasonSubDialogOpen(true); 
     } else {
+      // If changing to a non-cancelled status, incidence data (if any) is preserved unless explicitly cleared.
+      // Status change does not automatically clear incidence.
       onUpdateStatus(invoice.id, newStatus, undefined, deliveryNotesInput.trim());
       onOpenChange(false); 
     }
@@ -148,20 +170,57 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
 
   const handleConfirmCancellationWithReason = (reasonFromSubDialog?: string) => {
     if (invoice) {
-      let finalDeliveryNotes = deliveryNotesInput.trim();
-      // We will use the reason from sub-dialog as the primary cancellation reason.
-      // The delivery notes will be general notes.
-      onUpdateStatus(invoice.id, 'CANCELADA', reasonFromSubDialog, finalDeliveryNotes);
+      onUpdateStatus(invoice.id, 'CANCELADA', reasonFromSubDialog, deliveryNotesInput.trim());
       setIsCancellationReasonSubDialogOpen(false);
       onOpenChange(false); 
     }
   };
+
+  const handleConfirmIncidence = (type: IncidenceType, details: string) => {
+    if (!invoice) return;
+    const incidencePayload = {
+        type,
+        details,
+        reportedAt: formatISO(new Date()),
+        requiresAction: true,
+    };
+    // Reporting an incidence does not automatically change the invoice status from this dialog's perspective.
+    // It just adds incidence data. The status is managed separately by the main status buttons.
+    // The onUpdateStatus needs to be flexible enough to update incidence without changing status, or vice-versa.
+    // For now, let's assume onUpdateStatus can handle partial updates.
+    // Or, we could add a specific `onReportIncidence` prop.
+    // For simplicity, let's use onUpdateStatus and it will merge these new incidence fields.
+    // The invoice's current status remains unchanged by merely reporting an incidence here.
+    onUpdateStatus(invoice.id, invoice.status, invoice.cancellationReason, deliveryNotesInput.trim(), incidencePayload);
+    setIsReportIncidenceDialogOpen(false); 
+    // Do not close main dialog (onOpenChange(false)) here, let user continue if needed.
+    toast({ title: "Incidencia Reportada", description: `La incidencia de tipo '${type}' ha sido registrada.`});
+  };
+
+  const handleClearIncidence = () => {
+    if (!invoice) return;
+     const clearIncidencePayload = {
+        type: null,
+        details: null,
+        reportedAt: null,
+        requiresAction: false,
+    };
+    onUpdateStatus(invoice.id, invoice.status, invoice.cancellationReason, deliveryNotesInput.trim(), clearIncidencePayload);
+    setIsReportIncidenceDialogOpen(false);
+    toast({ title: "Incidencia Resuelta", description: "La incidencia ha sido marcada como resuelta/borrada."});
+  }
   
   if (!invoice) return null;
 
+  const incidenceTypeLabels: Record<NonNullable<IncidenceType>, string> = {
+    REFACTURACION: "Refacturación",
+    DEVOLUCION: "Devolución",
+    NEGOCIACION: "Negociación",
+  };
+
   return (
     <>
-      <Dialog open={isOpen && !isCancellationReasonSubDialogOpen} onOpenChange={(open) => {
+      <Dialog open={isOpen && !isCancellationReasonSubDialogOpen && !isReportIncidenceDialogOpen} onOpenChange={(open) => {
         if(!open) resetAllStates();
         onOpenChange(open);
       }}>
@@ -184,13 +243,13 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
             <div>
                 <Label htmlFor="deliveryNotesTextarea" className="text-base sm:text-lg font-semibold mb-2 flex items-center gap-2">
                     <MessageSquareText className="h-5 w-5 text-primary"/>
-                    Notas de Entrega / Incidencias
+                    Notas Generales de Entrega
                 </Label>
                 <Textarea
                     id="deliveryNotesTextarea"
                     value={deliveryNotesInput}
                     onChange={(e) => setDeliveryNotesInput(e.target.value)}
-                    placeholder="Ej: Cliente solicitó dejar en recepción. Paquete ligeramente abollado. Dirección no encontrada..."
+                    placeholder="Ej: Cliente solicitó dejar en recepción. Paquete ligeramente abollado..."
                     rows={3}
                     className="mt-1"
                 />
@@ -198,10 +257,39 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
 
             <Separator />
 
+             <div>
+              <h3 className="text-base sm:text-lg font-semibold mb-2 flex items-center gap-2">
+                <FileWarning className="h-5 w-5 text-amber-600" />
+                Gestión de Incidencias Específicas
+              </h3>
+              {invoice.incidenceType && invoice.incidenceRequiresAction ? (
+                <Alert variant="default" className="bg-amber-50 border-amber-300 text-amber-700">
+                  <AlertTriangle className="h-4 w-4 !text-amber-600" />
+                  <AlertTitle className="font-semibold">Incidencia Reportada: {incidenceTypeLabels[invoice.incidenceType] || invoice.incidenceType}</AlertTitle>
+                  <AlertDescription>
+                    {invoice.incidenceDetails}
+                    {invoice.incidenceReportedAt && (
+                      <span className="block text-xs mt-1">Reportada el: {new Date(invoice.incidenceReportedAt).toLocaleString()}</span>
+                    )}
+                  </AlertDescription>
+                  <Button variant="outline" size="sm" onClick={() => setIsReportIncidenceDialogOpen(true)} className="mt-3 border-amber-500 text-amber-700 hover:bg-amber-100">
+                    <Edit className="mr-2 h-4 w-4" /> Modificar / Resolver Incidencia
+                  </Button>
+                </Alert>
+              ) : (
+                <Button variant="outline" onClick={() => setIsReportIncidenceDialogOpen(true)}>
+                  Reportar Nueva Incidencia
+                </Button>
+              )}
+            </div>
+
+
+            <Separator />
+
             <div>
               <h3 className="text-base sm:text-lg font-semibold mb-2 flex items-center gap-2">
                   <BadgeCheck className="h-5 w-5 text-primary"/>
-                  Cambiar Estado de la Factura
+                  Actualizar Estado Principal de la Factura
               </h3>
               <div className="flex flex-wrap gap-2 mt-2">
                 {invoice.status !== 'ENTREGADA' && (
@@ -301,6 +389,18 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
           onConfirm={handleConfirmCancellationWithReason}
         />
       )}
+      {invoice && (
+         <ReportIncidenceDialog
+            isOpen={isReportIncidenceDialogOpen}
+            onOpenChange={setIsReportIncidenceDialogOpen}
+            invoiceNumber={invoice.invoiceNumber}
+            currentIncidenceType={invoice.incidenceType}
+            currentIncidenceDetails={invoice.incidenceDetails}
+            onConfirmIncidence={handleConfirmIncidence}
+            onClearIncidence={handleClearIncidence}
+        />
+      )}
     </>
   );
 }
+

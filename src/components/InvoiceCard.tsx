@@ -2,14 +2,30 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CalendarDays, Hash, Building, BadgeDollarSign, Fingerprint, PlayCircle, UserCircle, Edit3, MapPin, AlertCircle, CheckCircle, Ban, Briefcase, PackageSearch, PackageCheck, ShieldX, RotateCcw, PackageOpen, Package, MessageSquareText } from 'lucide-react';
-import type { AssignedInvoice, UserRole, InvoiceStatus } from '@/lib/types';
+import { CalendarDays, Hash, Building, BadgeDollarSign, Fingerprint, PlayCircle, UserCircle, Edit3, MapPin, AlertCircle, CheckCircle, Ban, Briefcase, PackageSearch, PackageCheck, ShieldX, RotateCcw, PackageOpen, Package, MessageSquareText, FileWarning } from 'lucide-react';
+import type { AssignedInvoice, UserRole, InvoiceStatus, IncidenceType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 interface InvoiceCardProps {
   invoice: AssignedInvoice;
   onAction?: (invoiceId: string) => void; 
-  onUpdateStatus?: (invoiceId: string, newStatus: InvoiceStatus, cancellationReason?: string, deliveryNotes?: string) => void;
+  onUpdateStatus?: (
+    invoiceId: string, 
+    newStatus: InvoiceStatus, 
+    cancellationReason?: string, 
+    deliveryNotes?: string,
+    incidencePayload?: {
+        type: IncidenceType;
+        details: string;
+        reportedAt: string;
+        requiresAction: boolean;
+    } | {
+        type: null;
+        details: null;
+        reportedAt: null;
+        requiresAction: false;
+    }
+  ) => void;
   currentUserRole?: UserRole;
   assigneeName?: string;
   clientName?: string;
@@ -27,6 +43,12 @@ const statusStyles: Record<InvoiceStatus, {
   INCIDENCIA_BODEGA: { Icon: ShieldX, badgeClass: 'bg-orange-500 hover:bg-orange-500/90 text-white', text: 'Incidencia Bodega' },
   ENTREGADA: { Icon: CheckCircle, badgeClass: 'bg-green-500 hover:bg-green-500/90 text-white', text: 'Entregada' },
   CANCELADA: { Icon: Ban, badgeClass: 'bg-red-600 hover:bg-red-600/90 text-white', text: 'Cancelada' },
+};
+
+const incidenceTypeLabels: Record<NonNullable<IncidenceType>, string> = {
+  REFACTURACION: "Refacturación",
+  DEVOLUCION: "Devolución",
+  NEGOCIACION: "Negociación",
 };
 
 
@@ -57,14 +79,17 @@ export function InvoiceCard({ invoice, onAction, onUpdateStatus, currentUserRole
 
   const handleBodegaAction = (newStatus: InvoiceStatus) => {
     if (onUpdateStatus) {
-      onUpdateStatus(invoice.id, newStatus); // Delivery notes are not managed by bodega directly from card
+      onUpdateStatus(invoice.id, newStatus);
     }
   };
 
   return (
-    <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
+    <Card className={cn(
+        "shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col",
+        invoice.incidenceRequiresAction && (isSupervisorOrAdmin) && "border-2 border-amber-500 ring-2 ring-amber-500 ring-offset-2"
+        )}>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-lg sm:text-xl flex items-center">
             <span className="mr-2 break-words">{cardTitle}</span>
             <Fingerprint className="h-5 w-5 text-primary flex-shrink-0" />
@@ -74,7 +99,13 @@ export function InvoiceCard({ invoice, onAction, onUpdateStatus, currentUserRole
             {currentStatusStyle.text}
           </Badge>
         </div>
-        <CardDescription className="break-words">Código Único: {invoice.uniqueCode}</CardDescription>
+         {invoice.incidenceRequiresAction && (isSupervisorOrAdmin) && (
+            <Badge variant="destructive" className="mt-1.5 text-xs bg-amber-500 hover:bg-amber-600 text-white self-start">
+                <FileWarning className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+                INCIDENCIA REQUIERE ATENCIÓN
+            </Badge>
+        )}
+        <CardDescription className="break-words pt-0.5">Código Único: {invoice.uniqueCode}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 text-sm flex-grow">
         <div className="flex items-start">
@@ -154,8 +185,20 @@ export function InvoiceCard({ invoice, onAction, onUpdateStatus, currentUserRole
             <div className="flex items-start pt-1 text-muted-foreground">
                 <MessageSquareText className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0"/>
                 <div className="min-w-0 flex-1">
-                    <span className="font-medium mr-1">Notas:</span>
+                    <span className="font-medium mr-1">Notas Generales:</span>
                     <span className="break-words italic">{invoice.deliveryNotes}</span>
+                </div>
+            </div>
+        )}
+         {invoice.incidenceType && (
+            <div className="flex items-start pt-1 text-amber-700">
+                <FileWarning className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0"/>
+                <div className="min-w-0 flex-1">
+                    <span className="font-semibold mr-1">Incidencia ({incidenceTypeLabels[invoice.incidenceType] || invoice.incidenceType}):</span>
+                    <span className="break-words italic">{invoice.incidenceDetails}</span>
+                    {invoice.incidenceReportedAt && (
+                        <span className="block text-xs mt-0.5 text-amber-600">Reportada: {new Date(invoice.incidenceReportedAt).toLocaleDateString()}</span>
+                    )}
                 </div>
             </div>
         )}
@@ -186,7 +229,7 @@ export function InvoiceCard({ invoice, onAction, onUpdateStatus, currentUserRole
             )}
             {invoice.status !== 'INCIDENCIA_BODEGA' && (
                  <Button onClick={() => handleBodegaAction('INCIDENCIA_BODEGA')} variant="destructive"className="w-full">
-                    <ShieldX className="mr-2 h-4 w-4" /> Reportar Incidencia
+                    <ShieldX className="mr-2 h-4 w-4" /> Reportar Incidencia de Bodega
                 </Button>
             )}
           </>

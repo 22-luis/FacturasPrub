@@ -7,6 +7,8 @@ export type InvoiceStatus = 'PENDIENTE' | 'ENTREGADA' | 'CANCELADA' | 'EN_PREPAR
 
 export type RouteStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED';
 
+export type IncidenceType = 'REFACTURACION' | 'DEVOLUCION' | 'NEGOCIACION' | null;
+
 export interface User {
   id: string;
   name: string;
@@ -49,7 +51,7 @@ export interface AssignedInvoice {
   assigneeId?: string | null; 
   status: InvoiceStatus;
   cancellationReason?: string;
-  deliveryNotes?: string; // Added for repartidor notes/issues
+  deliveryNotes?: string; 
   assignee?: { 
     id: string;
     name: string;
@@ -59,10 +61,18 @@ export interface AssignedInvoice {
   routeId?: string | null; 
   createdAt?: Date | string;
   updatedAt?: Date | string;
+
+  // Campos de incidencia
+  incidenceType?: IncidenceType;
+  incidenceDetails?: string;
+  incidenceReportedAt?: string | null; // ISO string date
+  incidenceRequiresAction?: boolean;
 }
 
-export type InvoiceFormData = Omit<AssignedInvoice, 'id' | 'assignee' | 'client' | 'routeId' | 'createdAt' | 'updatedAt'> & {
+export type InvoiceFormData = Omit<AssignedInvoice, 'id' | 'assignee' | 'client' | 'routeId' | 'createdAt' | 'updatedAt' | 'incidenceReportedAt' | 'incidenceRequiresAction'> & {
   clientId?: string | null; 
+  incidenceType?: IncidenceType;
+  incidenceDetails?: string;
 };
 
 export interface Route {

@@ -19,13 +19,13 @@ import { ManageRoutesDialog } from '@/components/ManageRoutesDialog';
 import { AddEditRouteDialog } from '@/components/AddEditRouteDialog';
 
 
-import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, UserRole, Client, ClientFormData, Route, RouteFormData, RouteStatus } from '@/lib/types';
+import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, UserRole, Client, ClientFormData, Route, RouteFormData, RouteStatus, IncidenceType } from '@/lib/types';
 import { Toaster } from "@/components/ui/toaster";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, Building as BuildingIcon, MapIcon, PackageSearch, PackageCheck, ShieldX, Warehouse } from 'lucide-react';
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, Building as BuildingIcon, MapIcon, PackageSearch, PackageCheck, ShieldX, Warehouse, FileWarning } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import bcrypt from 'bcryptjs';
@@ -37,6 +37,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 
 const UNASSIGNED_KEY = "unassigned_invoices_key";
 const ALL_REPARTIDORES_KEY = "all_repartidores_filter_key";
+const INCIDENCES_KEY = "incidences_filter_key";
+
 const invoiceStatusesArray: InvoiceStatus[] = ['PENDIENTE', 'EN_PREPARACION', 'LISTO_PARA_RUTA', 'ENTREGADA', 'CANCELADA', 'INCIDENCIA_BODEGA'];
 
 
@@ -95,7 +97,7 @@ export default function HomePage() {
   const { toast } = useToast();
 
   const [selectedRepartidorIdBySupervisor, setSelectedRepartidorIdBySupervisor] = useState<string | null>(ALL_REPARTIDORES_KEY);
-  const [selectedStatusBySupervisor, setSelectedStatusBySupervisor] = useState<InvoiceStatus | null>(null);
+  const [selectedStatusBySupervisor, setSelectedStatusBySupervisor] = useState<InvoiceStatus | 'INCIDENCES_FILTER_KEY' | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -280,7 +282,21 @@ export default function HomePage() {
       if (id) { 
         setInvoices(prevInvoices =>
           prevInvoices.map(inv =>
-            inv.id === id ? { ...inv, ...invoiceData, id, assignee: assigneeDetailsForState, client: currentClient || null, routeId: updatedRouteId, deliveryNotes: invoiceData.deliveryNotes, updatedAt: new Date().toISOString() } : inv
+            inv.id === id ? { 
+              ...inv, 
+              ...invoiceData, 
+              id, 
+              assignee: assigneeDetailsForState, 
+              client: currentClient || null, 
+              routeId: updatedRouteId, 
+              deliveryNotes: invoiceData.deliveryNotes, 
+              updatedAt: new Date().toISOString(),
+              // Preserve existing incidence fields if not explicitly changed by this save
+              incidenceType: invoiceData.incidenceType !== undefined ? invoiceData.incidenceType : inv.incidenceType,
+              incidenceDetails: invoiceData.incidenceDetails !== undefined ? invoiceData.incidenceDetails : inv.incidenceDetails,
+              incidenceReportedAt: inv.incidenceReportedAt, // Not typically changed here
+              incidenceRequiresAction: inv.incidenceRequiresAction, // Not typically changed here
+            } : inv
           )
         );
         toast({ title: "Factura Actualizada (Mock)", description: `La factura #${invoiceData.invoiceNumber} ha sido actualizada.` });
@@ -295,6 +311,10 @@ export default function HomePage() {
           updatedAt: new Date().toISOString(),
           assignee: assigneeDetailsForState,
           client: currentClient || null,
+          incidenceType: invoiceData.incidenceType || null,
+          incidenceDetails: invoiceData.incidenceDetails || undefined,
+          incidenceReportedAt: null,
+          incidenceRequiresAction: false,
         };
         setInvoices(prevInvoices => [newInvoice, ...prevInvoices].sort((a,b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()));
         toast({ title: "Factura Agregada (Mock)", description: `La factura #${newInvoice.invoiceNumber} ha sido agregada.` });
@@ -308,7 +328,23 @@ export default function HomePage() {
     }
   };
 
-  const handleUpdateInvoiceStatus = async (invoiceId: string, newStatus: InvoiceStatus, cancellationReason?: string, deliveryNotes?: string) => {
+  const handleUpdateInvoiceStatus = async (
+    invoiceId: string, 
+    newStatus: InvoiceStatus, 
+    cancellationReason?: string, 
+    deliveryNotes?: string,
+    incidencePayload?: {
+        type: IncidenceType;
+        details: string;
+        reportedAt: string;
+        requiresAction: boolean;
+    } | { // For clearing incidence
+        type: null;
+        details: null;
+        reportedAt: null;
+        requiresAction: false;
+    }
+  ) => {
     setIsLoading(true);
     try {
       let updatedInvoiceNumber = '';
@@ -324,10 +360,24 @@ export default function HomePage() {
                 updatedAt: new Date().toISOString() 
             };
             if (newStatus !== 'CANCELADA') {
-                delete updatedInv.cancellationReason; // Clear cancellation reason if not cancelled
+                delete updatedInv.cancellationReason;
             }
-             if (deliveryNotes === undefined) { // If deliveryNotes is explicitly undefined, remove it
+            if (deliveryNotes === undefined) { 
                 delete updatedInv.deliveryNotes;
+            }
+            if (incidencePayload) {
+                updatedInv.incidenceType = incidencePayload.type;
+                updatedInv.incidenceDetails = incidencePayload.details || undefined; // Ensure undefined if null
+                updatedInv.incidenceReportedAt = incidencePayload.reportedAt;
+                updatedInv.incidenceRequiresAction = incidencePayload.requiresAction;
+                 if(incidencePayload.requiresAction && (loggedInUser?.role === 'supervisor' || loggedInUser?.role === 'administrador')) {
+                     toast({
+                        title: "ALERTA DE INCIDENCIA",
+                        description: `Nueva incidencia (${incidencePayload.type}) reportada para factura ${updatedInvoiceNumber}. Requiere su atención.`,
+                        variant: "destructive", // Or a custom variant for alerts
+                        duration: 10000, // Longer duration
+                    });
+                }
             }
             return updatedInv;
           }
@@ -653,7 +703,9 @@ export default function HomePage() {
         );
       }
 
-      if (selectedStatusBySupervisor) {
+      if (selectedStatusBySupervisor === INCIDENCES_KEY) {
+        filteredInvoices = filteredInvoices.filter(inv => inv.incidenceRequiresAction === true);
+      } else if (selectedStatusBySupervisor) {
         filteredInvoices = filteredInvoices.filter(inv => inv.status === selectedStatusBySupervisor);
       }
 
@@ -741,12 +793,15 @@ export default function HomePage() {
     if (searchTerm.trim()) {
       titleParts.push(`Resultados para "${searchTerm.trim()}"`);
     }
-
+    
     let statusDescription = "Todos los Estados";
-    if (selectedStatusBySupervisor) {
-        const statusDetail = statusCardDetails[selectedStatusBySupervisor];
+    if (selectedStatusBySupervisor === INCIDENCES_KEY) {
+        statusDescription = "Facturas con Incidencias Pendientes";
+    } else if (selectedStatusBySupervisor) {
+        const statusDetail = statusCardDetails[selectedStatusBySupervisor as InvoiceStatus];
         statusDescription = statusDetail ? statusDetail.label : `Facturas ${selectedStatusBySupervisor.toLowerCase().replace(/_/g, ' ')}`;
     }
+
 
     let repartidorDescription = "Todas las Facturas";
     if (selectedRepartidorIdBySupervisor === UNASSIGNED_KEY) {
@@ -952,6 +1007,23 @@ export default function HomePage() {
                                   </Card>
                                 );
                               })}
+                               <Card
+                                key={INCIDENCES_KEY}
+                                className={cn(
+                                    "cursor-pointer transition-shadow",
+                                    selectedStatusBySupervisor === INCIDENCES_KEY ? 'ring-2 ring-amber-500 shadow-md border-amber-400' : 'border hover:shadow-md',
+                                    isLoading && 'opacity-50 cursor-not-allowed'
+                                )}
+                                onClick={() => !isLoading && setSelectedStatusBySupervisor(prev => prev === INCIDENCES_KEY ? null : INCIDENCES_KEY)}
+                                >
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
+                                    <CardTitle className="text-xs font-medium text-amber-700">Con Incidencias</CardTitle>
+                                    <FileWarning className="h-4 w-4 text-amber-600" />
+                                </CardHeader>
+                                <CardContent className="px-3 pb-2">
+                                    <p className="text-xs text-muted-foreground">Requieren atención</p>
+                                </CardContent>
+                                </Card>
                               <Button
                                 variant="outline"
                                 size="sm"
