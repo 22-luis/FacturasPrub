@@ -46,7 +46,7 @@ const statusCardDetails: Record<InvoiceStatus, { label: string; Icon: React.Elem
   LISTO_PARA_RUTA: { label: 'Listas para Ruta (Bodega)', Icon: PackageCheck, description: "Preparadas, esperando repartidor" },
   ENTREGADA: { label: 'Facturas Entregadas', Icon: CheckCircle2, description: "Confirmadas y finalizadas" },
   CANCELADA: { label: 'Facturas Canceladas', Icon: XCircle, description: "Anuladas del sistema" },
-  INCIDENCIA_BODEGA: { label: 'Incidencia en Bodega', Icon: ShieldX, description: "Problema reportado por bodega" },
+  INCIDENCIA_BODEGA: { Icon: ShieldX, description: "Problema reportado por bodega" },
 };
 
 const manageableUserRoles: UserRole[] = ['supervisor', 'repartidor', 'bodega']; 
@@ -275,7 +275,7 @@ export default function HomePage() {
       const currentAssigneeUser = users.find(u => u.id === invoiceData.assigneeId);
       const assigneeDetailsForState = currentAssigneeUser ? { id: currentAssigneeUser.id, name: currentAssigneeUser.name } : null;
       const currentClient = clients.find(c => c.id === invoiceData.clientId);
-      let updatedRouteId = invoiceData.routeId || null;
+      let updatedRouteId = (invoiceData as any).routeId || null; // Use any if routeId is not in InvoiceFormData
 
       if (id) { 
         setInvoices(prevInvoices =>
@@ -318,10 +318,9 @@ export default function HomePage() {
             const updatedInv = { 
                 ...inv, 
                 status: newStatus, 
-                cancellationReason: newStatus === 'CANCELADA' ? cancellationReason : inv.cancellationReason, // Preserve reason unless cancelled
+                cancellationReason: newStatus === 'CANCELADA' ? cancellationReason : inv.cancellationReason, 
                 updatedAt: new Date().toISOString() 
             };
-            // Clear cancellation reason if status is not CANCELADA
             if (newStatus !== 'CANCELADA') {
                 delete updatedInv.cancellationReason;
             }
@@ -330,7 +329,7 @@ export default function HomePage() {
           return inv;
         })
       );
-      toast({ title: 'Estado Actualizado (Mock)', description: `La factura #${updatedInvoiceNumber || invoiceId} ha sido actualizada a ${newStatus.toLowerCase()}.`});
+      toast({ title: 'Estado Actualizado (Mock)', description: `La factura #${updatedInvoiceNumber || invoiceId} ha sido actualizada a ${newStatus.toLowerCase().replace(/_/g, ' ')}.`});
       setIsProcessDialogOpen(false); 
       fetchRoutes(); 
     } catch (error: any) {
@@ -570,8 +569,8 @@ export default function HomePage() {
       const repartidor = users.find(u => u.id === routeData.repartidorId);
       const updatedInvoices = invoices.map(inv => {
           if(routeData.invoiceIds.includes(inv.id)) {
-              return {...inv, routeId: id || `mock-route-${Date.now()}` }; // Add routeId to invoice
-          } else if (inv.routeId === (id || routeToEdit?.id)) { // If invoice was on this route but removed
+              return {...inv, routeId: id || `mock-route-${Date.now()}` }; 
+          } else if (inv.routeId === (id || routeToEdit?.id)) { 
               return {...inv, routeId: null};
           }
           return inv;
@@ -599,7 +598,6 @@ export default function HomePage() {
         };
         setRoutes(prevRoutes => [newRoute, ...prevRoutes].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime() || new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()));
         
-        // Update routeId for newly added invoices
         const finalInvoicesWithNewRouteId = invoices.map(inv => {
              if(newRoute.invoiceIds.includes(inv.id)) {
                 return {...inv, routeId: newRouteId };
@@ -611,7 +609,6 @@ export default function HomePage() {
         toast({ title: "Ruta Creada (Mock)", description: `Nueva ruta creada para ${repartidor?.name || 'desconocido'} el ${formatISO(parseISO(routeData.date), { representation: 'date' })}.` });
       }
       setIsAddEditRouteDialogOpen(false);
-      // fetchInvoices(); // No longer needed if invoices state is managed locally
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error al Guardar Ruta (Mock)', description: error.message });
     } finally {
@@ -669,9 +666,15 @@ export default function HomePage() {
       const invoiceIdsInRepartidorRoutes = repartidorRoutes.flatMap(r => r.invoiceIds);
       
       return invoices.filter(inv => 
-        (inv.status === 'LISTO_PARA_RUTA' && inv.assigneeId === loggedInUser.id) || // Directly assigned and ready
-        (inv.status === 'LISTO_PARA_RUTA' && invoiceIdsInRepartidorRoutes.includes(inv.id)) // On one of their routes and ready
-      ).sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
+        (inv.status === 'LISTO_PARA_RUTA' && inv.assigneeId === loggedInUser.id) || 
+        (inv.status === 'LISTO_PARA_RUTA' && invoiceIdsInRepartidorRoutes.includes(inv.id)) 
+      ).sort((a, b) => {
+        try {
+          return (a.date && b.date) ? parseISO(a.date).getTime() - parseISO(b.date).getTime() : 0;
+        } catch {
+          return 0;
+        }
+      });
     }
 
     if (loggedInUser.role === 'bodega') {
@@ -680,7 +683,7 @@ export default function HomePage() {
         const isPendingOnPlannedRoute = inv.status === 'PENDIENTE' && routeOfInvoice?.status === 'PLANNED';
         return isPendingOnPlannedRoute || inv.status === 'EN_PREPARACION' || inv.status === 'INCIDENCIA_BODEGA';
       });
-      // Enrich with repartidorName for the route
+      
       return relevantInvoices.map(inv => {
         const route = routes.find(r => r.id === inv.routeId);
         const repartidorName = route ? users.find(u => u.id === route.repartidorId)?.name : undefined;
@@ -688,15 +691,42 @@ export default function HomePage() {
       }).sort((a, b) => {
         const routeA = routes.find(r => r.id === a.routeId);
         const routeB = routes.find(r => r.id === b.routeId);
+    
+        // Sort by route date first
         if (routeA?.date && routeB?.date) {
+          try {
             const dateComparison = parseISO(routeA.date).getTime() - parseISO(routeB.date).getTime();
             if (dateComparison !== 0) return dateComparison;
+          } catch (e) { /* console.error("Error parsing route dates for sorting", e); */ }
+        } else if (routeA?.date) {
+          return -1; // a (has route date) comes before b (no route date)
+        } else if (routeB?.date) {
+          return 1;  // b (has route date) comes before a (no route date)
         }
-        if (a.repartidorNameForRoute && b.repartidorNameForRoute) {
-            const repartidorComparison = a.repartidorNameForRoute.localeCompare(b.repartidorNameForRoute);
-            if (repartidorComparison !== 0) return repartidorComparison;
+    
+        // Then by repartidor name on the route (already enriched as repartidorNameForRoute)
+        const repartidorNameA = (a as any).repartidorNameForRoute;
+        const repartidorNameB = (b as any).repartidorNameForRoute;
+        if (repartidorNameA && repartidorNameB) {
+          const repartidorComparison = repartidorNameA.localeCompare(repartidorNameB);
+          if (repartidorComparison !== 0) return repartidorComparison;
+        } else if (repartidorNameA) {
+          return -1;
+        } else if (repartidorNameB) {
+          return 1;
         }
-        return parseISO(a.date).getTime() - parseISO(b.date).getTime();
+    
+        // Fallback to invoice date
+        try {
+          const timeA = a.date ? parseISO(a.date).getTime() : 0;
+          const timeB = b.date ? parseISO(b.date).getTime() : 0;
+          if (timeA !== 0 && timeB !== 0 && timeA !== timeB) return timeA - timeB;
+          if (timeA !== 0) return -1;
+          if (timeB !== 0) return 1;
+        } catch (e) { /* console.error("Error parsing invoice dates for sorting", e); */ }
+        
+        // Ultimate fallback if dates are missing or invalid
+        return (a.id || '').localeCompare(b.id || '');
       });
     }
     return [];
