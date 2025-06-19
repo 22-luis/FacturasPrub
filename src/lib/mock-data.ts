@@ -10,6 +10,7 @@ const hashedAdminPassword = bcrypt.hashSync('123', saltRounds);
 const hashedSupPassword = bcrypt.hashSync('123', saltRounds);
 const hashedJohnPassword = bcrypt.hashSync('123', saltRounds);
 const hashedJanePassword = bcrypt.hashSync('123', saltRounds);
+const hashedBodegaPassword = bcrypt.hashSync('123', saltRounds);
 
 
 export const mockUsers: User[] = [
@@ -44,6 +45,14 @@ export const mockUsers: User[] = [
     password: hashedJanePassword,
     createdAt: new Date('2023-01-04T13:00:00Z').toISOString(),
     updatedAt: new Date('2023-01-04T13:00:00Z').toISOString(),
+  },
+  {
+    id: 'bodega-005',
+    name: 'bodeguero',
+    role: 'bodega' as UserRole,
+    password: hashedBodegaPassword,
+    createdAt: new Date('2023-01-05T14:00:00Z').toISOString(),
+    updatedAt: new Date('2023-01-05T14:00:00Z').toISOString(),
   },
 ];
 
@@ -106,7 +115,7 @@ export const mockClients: Client[] = [
 ];
 
 // Dates for invoices should be YYYY-MM-DD strings for form compatibility
-export const mockInvoices: AssignedInvoice[] = [
+export let mockInvoices: AssignedInvoice[] = [ // Changed to let for routeId modification
   {
     id: 'inv-001',
     invoiceNumber: 'FAC-2024-001',
@@ -120,6 +129,7 @@ export const mockInvoices: AssignedInvoice[] = [
     status: 'PENDIENTE' as InvoiceStatus,
     createdAt: new Date('2024-07-15T09:00:00Z').toISOString(),
     updatedAt: new Date('2024-07-15T09:00:00Z').toISOString(),
+    routeId: null,
   },
   {
     id: 'inv-002',
@@ -134,6 +144,7 @@ export const mockInvoices: AssignedInvoice[] = [
     status: 'ENTREGADA' as InvoiceStatus,
     createdAt: new Date('2024-07-16T10:30:00Z').toISOString(),
     updatedAt: new Date('2024-07-18T14:00:00Z').toISOString(),
+    routeId: null,
   },
   {
     id: 'inv-003',
@@ -148,6 +159,7 @@ export const mockInvoices: AssignedInvoice[] = [
     cancellationReason: 'Cliente ausente tras múltiples intentos.',
     createdAt: new Date('2024-07-17T11:00:00Z').toISOString(),
     updatedAt: new Date('2024-07-19T10:00:00Z').toISOString(),
+    routeId: null,
   },
   {
     id: 'inv-004',
@@ -162,6 +174,7 @@ export const mockInvoices: AssignedInvoice[] = [
     status: 'PENDIENTE' as InvoiceStatus,
     createdAt: new Date('2024-07-18T14:15:00Z').toISOString(),
     updatedAt: new Date('2024-07-18T14:15:00Z').toISOString(),
+    routeId: null,
   },
   {
     id: 'inv-005',
@@ -175,6 +188,7 @@ export const mockInvoices: AssignedInvoice[] = [
     status: 'PENDIENTE' as InvoiceStatus,
     createdAt: new Date('2024-07-19T16:00:00Z').toISOString(),
     updatedAt: new Date('2024-07-19T16:00:00Z').toISOString(),
+    routeId: null,
   },
   {
     id: 'inv-006',
@@ -189,6 +203,7 @@ export const mockInvoices: AssignedInvoice[] = [
     status: 'ENTREGADA' as InvoiceStatus,
     createdAt: new Date('2024-07-20T08:00:00Z').toISOString(),
     updatedAt: new Date('2024-07-21T11:00:00Z').toISOString(),
+    routeId: null,
   },
    {
     id: 'inv-007',
@@ -202,6 +217,7 @@ export const mockInvoices: AssignedInvoice[] = [
     status: 'PENDIENTE' as InvoiceStatus,
     createdAt: new Date('2024-07-21T15:00:00Z').toISOString(),
     updatedAt: new Date('2024-07-21T15:00:00Z').toISOString(),
+    routeId: null,
   },
   {
     id: 'inv-008',
@@ -213,11 +229,12 @@ export const mockInvoices: AssignedInvoice[] = [
     address: 'Camino Demo 111, Distrito Demo',
     assigneeId: 'jane-004',
     clientId: 'client-002', 
-    status: 'ENTREGADA' as InvoiceStatus,
+    status: 'LISTO_PARA_RUTA' as InvoiceStatus, // Changed for bodega testing
     createdAt: new Date('2024-07-22T09:30:00Z').toISOString(),
     updatedAt: new Date('2024-07-22T16:30:00Z').toISOString(),
+    routeId: 'route-001', // Assign to route-001
   },
-  { // An invoice for "today" for easier testing of route creation for today
+  { 
     id: 'inv-today-01',
     invoiceNumber: 'FAC-TODAY-001',
     date: formatISO(startOfDay(new Date()), { representation: 'date' }),
@@ -225,11 +242,12 @@ export const mockInvoices: AssignedInvoice[] = [
     supplierName: 'Proveedor HoyMismo',
     uniqueCode: 'CODETODAY001',
     address: 'Plaza del Día, Ciudad Actual',
-    assigneeId: null,
+    assigneeId: 'john-003', // Assign to John for route
     clientId: 'client-001',
     status: 'PENDIENTE' as InvoiceStatus,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    routeId: 'route-002', // Assign to route-002
   },
   {
     id: 'inv-today-02',
@@ -239,11 +257,27 @@ export const mockInvoices: AssignedInvoice[] = [
     supplierName: 'Suministros Urgentes',
     uniqueCode: 'CODETODAY002',
     address: 'Calle de la Prisa 42, Pueblo Rápido',
-    assigneeId: null,
+    assigneeId: null, // Keep unassigned for now, or assign to another route
     clientId: 'client-003',
     status: 'PENDIENTE' as InvoiceStatus,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    routeId: null,
+  },
+  {
+    id: 'inv-bodega-prep',
+    invoiceNumber: 'FAC-BODEGA-PREP-001',
+    date: formatISO(startOfDay(new Date()), { representation: 'date' }),
+    totalAmount: 75.00,
+    supplierName: 'Materiales Bodega',
+    uniqueCode: 'CODEBODPREP001',
+    address: 'Almacén Central, Zona Industrial',
+    assigneeId: 'jane-004', // Assign to Jane for route
+    clientId: 'client-001',
+    status: 'EN_PREPARACION' as InvoiceStatus,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    routeId: 'route-bodega-jane', // Needs a corresponding route
   },
 ];
 
@@ -252,7 +286,7 @@ export const mockRoutes: Route[] = [
     id: 'route-001',
     date: formatISO(new Date(2024, 6, 22), { representation: 'date' }), // July 22, 2024
     repartidorId: 'jane-004',
-    invoiceIds: ['inv-008'], // Jane delivered inv-008 on this day
+    invoiceIds: ['inv-008'], 
     status: 'COMPLETED' as RouteStatus,
     createdAt: new Date('2024-07-22T08:00:00Z').toISOString(),
     updatedAt: new Date('2024-07-22T17:00:00Z').toISOString(),
@@ -261,9 +295,38 @@ export const mockRoutes: Route[] = [
     id: 'route-002',
     date: formatISO(startOfDay(new Date()), { representation: 'date' }), // Today
     repartidorId: 'john-003',
-    invoiceIds: ['inv-today-01'], // John is planned to deliver inv-today-01 today
+    invoiceIds: ['inv-today-01'], 
     status: 'PLANNED' as RouteStatus,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
+  {
+    id: 'route-bodega-jane',
+    date: formatISO(startOfDay(new Date()), { representation: 'date' }), // Today
+    repartidorId: 'jane-004',
+    invoiceIds: ['inv-bodega-prep'],
+    status: 'PLANNED' as RouteStatus,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
 ];
+
+// Assign routeId to invoices based on mockRoutes
+mockRoutes.forEach(route => {
+  route.invoiceIds.forEach(invoiceId => {
+    const invoiceIndex = mockInvoices.findIndex(inv => inv.id === invoiceId);
+    if (invoiceIndex !== -1) {
+      mockInvoices[invoiceIndex].routeId = route.id;
+      // Also ensure the invoice's assigneeId matches the route's repartidorId
+      // if the invoice is meant to be on that repartidor's route.
+      // This is important for Repartidor's view.
+      // For Bodega view, they see based on routeId and route.status
+      if (mockInvoices[invoiceIndex].assigneeId !== route.repartidorId) {
+        // console.warn(`Invoice ${invoiceId} assigned to route ${route.id} for repartidor ${route.repartidorId}, but invoice assignee is ${mockInvoices[invoiceIndex].assigneeId}. Consider aligning them.`);
+        // For simplicity, we might assume invoices on a route are implicitly for that route's repartidor if assigneeId is null or matches.
+        // Or, the supervisor explicitly assigns invoices to repartidores, and then to routes.
+        // For now, `routeId` on invoice helps Bodega.
+      }
+    }
+  });
+});

@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, Building as BuildingIcon, MapIcon } from 'lucide-react';
+import { PlusCircle, UserSquare2, Archive, UserPlus, LogIn, AlertTriangle, CheckCircle2, XCircle, ListFilter, Users, Search, Filter, Settings2, Users2 as UsersIconLucide, Building as BuildingIcon, MapIcon, PackageSearch, PackageCheck, ShieldX, Warehouse } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import bcrypt from 'bcryptjs';
@@ -37,16 +37,19 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 
 const UNASSIGNED_KEY = "unassigned_invoices_key";
 const ALL_REPARTIDORES_KEY = "all_repartidores_filter_key";
-const invoiceStatusesArray: InvoiceStatus[] = ['PENDIENTE', 'ENTREGADA', 'CANCELADA'];
+const invoiceStatusesArray: InvoiceStatus[] = ['PENDIENTE', 'EN_PREPARACION', 'LISTO_PARA_RUTA', 'ENTREGADA', 'CANCELADA', 'INCIDENCIA_BODEGA'];
 
 
 const statusCardDetails: Record<InvoiceStatus, { label: string; Icon: React.ElementType; description: string }> = {
-  PENDIENTE: { label: 'Facturas Pendientes', Icon: AlertTriangle, description: "Revisar y procesar" },
+  PENDIENTE: { label: 'Facturas Pendientes', Icon: AlertTriangle, description: "Nuevas o por asignar/procesar" },
+  EN_PREPARACION: { label: 'En Preparación (Bodega)', Icon: PackageSearch, description: "Bodega preparando el pedido" },
+  LISTO_PARA_RUTA: { label: 'Listas para Ruta (Bodega)', Icon: PackageCheck, description: "Preparadas, esperando repartidor" },
   ENTREGADA: { label: 'Facturas Entregadas', Icon: CheckCircle2, description: "Confirmadas y finalizadas" },
   CANCELADA: { label: 'Facturas Canceladas', Icon: XCircle, description: "Anuladas del sistema" },
+  INCIDENCIA_BODEGA: { label: 'Incidencia en Bodega', Icon: ShieldX, description: "Problema reportado por bodega" },
 };
 
-const manageableUserRoles: UserRole[] = ['supervisor', 'repartidor']; 
+const manageableUserRoles: UserRole[] = ['supervisor', 'repartidor', 'bodega']; 
 
 
 export default function HomePage() {
@@ -186,18 +189,18 @@ export default function HomePage() {
   }, [fetchUsers, fetchClients]);
 
   useEffect(() => {
-     if (users.length > 0 && invoices.length > 0) { // Fetch routes only after users and invoices are loaded
+     if (users.length > 0 && invoices.length > 0 && clients.length > 0) { 
       fetchRoutes();
     }
-  }, [users, invoices, fetchRoutes]);
+  }, [users, invoices, clients, fetchRoutes]);
 
 
   useEffect(() => {
     if (loggedInUser) {
       if (loggedInUser.role === 'repartidor') {
-        fetchInvoices({ assigneeId: loggedInUser.id, status: 'PENDIENTE' });
-      } else if (loggedInUser.role === 'supervisor' || loggedInUser.role === 'administrador') {
-        fetchInvoices(); 
+        fetchInvoices({ assigneeId: loggedInUser.id, status: 'LISTO_PARA_RUTA' }); // Repartidores ven lo que está listo
+      } else if (loggedInUser.role === 'supervisor' || loggedInUser.role === 'administrador' || loggedInUser.role === 'bodega') {
+        fetchInvoices(); // Supervisor, Admin, Bodega ven todo y luego filtran
         setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY);
         setSelectedStatusBySupervisor(null);
         setSearchTerm('');
@@ -272,11 +275,12 @@ export default function HomePage() {
       const currentAssigneeUser = users.find(u => u.id === invoiceData.assigneeId);
       const assigneeDetailsForState = currentAssigneeUser ? { id: currentAssigneeUser.id, name: currentAssigneeUser.name } : null;
       const currentClient = clients.find(c => c.id === invoiceData.clientId);
+      let updatedRouteId = invoiceData.routeId || null;
 
       if (id) { 
         setInvoices(prevInvoices =>
           prevInvoices.map(inv =>
-            inv.id === id ? { ...inv, ...invoiceData, id, assignee: assigneeDetailsForState, client: currentClient || null, updatedAt: new Date().toISOString() } : inv
+            inv.id === id ? { ...inv, ...invoiceData, id, assignee: assigneeDetailsForState, client: currentClient || null, routeId: updatedRouteId, updatedAt: new Date().toISOString() } : inv
           )
         );
         toast({ title: "Factura Actualizada (Mock)", description: `La factura #${invoiceData.invoiceNumber} ha sido actualizada.` });
@@ -285,6 +289,7 @@ export default function HomePage() {
         const newInvoice: AssignedInvoice = {
           ...invoiceData,
           id: newId,
+          routeId: updatedRouteId,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           assignee: assigneeDetailsForState,
@@ -294,7 +299,7 @@ export default function HomePage() {
         toast({ title: "Factura Agregada (Mock)", description: `La factura #${newInvoice.invoiceNumber} ha sido agregada.` });
       }
       setIsAddEditInvoiceDialogOpen(false);
-      fetchRoutes(); // Refresh routes in case invoice assignment changed
+      fetchRoutes(); 
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error al Guardar Factura (Mock)', description: error.message });
     } finally {
@@ -310,14 +315,24 @@ export default function HomePage() {
         prevInvoices.map(inv => {
           if (inv.id === invoiceId) {
             updatedInvoiceNumber = inv.invoiceNumber;
-            return { ...inv, status: newStatus, cancellationReason: newStatus === 'CANCELADA' ? cancellationReason : undefined, updatedAt: new Date().toISOString() };
+            const updatedInv = { 
+                ...inv, 
+                status: newStatus, 
+                cancellationReason: newStatus === 'CANCELADA' ? cancellationReason : inv.cancellationReason, // Preserve reason unless cancelled
+                updatedAt: new Date().toISOString() 
+            };
+            // Clear cancellation reason if status is not CANCELADA
+            if (newStatus !== 'CANCELADA') {
+                delete updatedInv.cancellationReason;
+            }
+            return updatedInv;
           }
           return inv;
         })
       );
       toast({ title: 'Estado Actualizado (Mock)', description: `La factura #${updatedInvoiceNumber || invoiceId} ha sido actualizada a ${newStatus.toLowerCase()}.`});
       setIsProcessDialogOpen(false); 
-      fetchRoutes(); // Refresh routes as invoice status might affect availability
+      fetchRoutes(); 
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error al Actualizar Estado (Mock)', description: error.message });
     } finally {
@@ -413,7 +428,7 @@ export default function HomePage() {
       
       if (isSupervisorAction) setIsAddRepartidorDialogOpen(false);
       else setIsAddEditUserDialogOpen(false);
-      fetchRoutes(); // Refresh routes if a repartidor was edited/added
+      fetchRoutes(); 
       
     } catch (error: any) {
       toast({ variant: 'destructive', title: isSupervisorAction ? 'Error al Guardar Repartidor (Mock)' : 'Error al Guardar Usuario (Mock)', description: error.message });
@@ -437,7 +452,6 @@ export default function HomePage() {
               : inv
           )
         );
-        // Also remove or unassign routes associated with this repartidor
         setRoutes(prevRoutes => prevRoutes.filter(r => r.repartidorId !== targetUser.id));
 
         if (selectedRepartidorIdBySupervisor === targetUser.id) {
@@ -459,7 +473,7 @@ export default function HomePage() {
         setUserToDelete(null);
         setIsConfirmDeleteUserOpen(false);
       }
-      fetchRoutes(); // Refresh routes
+      fetchRoutes(); 
     } catch (error: any) {
       toast({ variant: 'destructive', title: isSupervisorAction ? 'Error al Eliminar Repartidor (Mock)' : 'Error al Eliminar Usuario (Mock)', description: error.message });
     } finally {
@@ -534,7 +548,7 @@ export default function HomePage() {
   };
 
   const handleOpenManageRoutesDialog = () => {
-    setSelectedDateForRoutesDialog(startOfDay(new Date())); // Default to today
+    setSelectedDateForRoutesDialog(startOfDay(new Date())); 
     setIsManageRoutesDialogOpen(true);
   };
   
@@ -554,7 +568,17 @@ export default function HomePage() {
     setIsLoading(true);
     try {
       const repartidor = users.find(u => u.id === routeData.repartidorId);
-      if (id) { // Editing existing route
+      const updatedInvoices = invoices.map(inv => {
+          if(routeData.invoiceIds.includes(inv.id)) {
+              return {...inv, routeId: id || `mock-route-${Date.now()}` }; // Add routeId to invoice
+          } else if (inv.routeId === (id || routeToEdit?.id)) { // If invoice was on this route but removed
+              return {...inv, routeId: null};
+          }
+          return inv;
+      });
+      setInvoices(updatedInvoices);
+
+      if (id) { 
         setRoutes(prevRoutes =>
           prevRoutes.map(r =>
             r.id === id
@@ -563,7 +587,7 @@ export default function HomePage() {
           )
         );
         toast({ title: "Ruta Actualizada (Mock)", description: `Ruta para ${repartidor?.name || 'desconocido'} el ${formatISO(parseISO(routeData.date), { representation: 'date' })} actualizada.` });
-      } else { // Creating new route
+      } else { 
         const newRouteId = `mock-route-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
         const newRoute: Route = {
           ...routeData,
@@ -574,10 +598,20 @@ export default function HomePage() {
           updatedAt: new Date().toISOString(),
         };
         setRoutes(prevRoutes => [newRoute, ...prevRoutes].sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime() || new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()));
+        
+        // Update routeId for newly added invoices
+        const finalInvoicesWithNewRouteId = invoices.map(inv => {
+             if(newRoute.invoiceIds.includes(inv.id)) {
+                return {...inv, routeId: newRouteId };
+            }
+            return inv;
+        });
+        setInvoices(finalInvoicesWithNewRouteId);
+
         toast({ title: "Ruta Creada (Mock)", description: `Nueva ruta creada para ${repartidor?.name || 'desconocido'} el ${formatISO(parseISO(routeData.date), { representation: 'date' })}.` });
       }
       setIsAddEditRouteDialogOpen(false);
-      fetchInvoices(); 
+      // fetchInvoices(); // No longer needed if invoices state is managed locally
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Error al Guardar Ruta (Mock)', description: error.message });
     } finally {
@@ -631,21 +665,42 @@ export default function HomePage() {
     }
 
     if (loggedInUser.role === 'repartidor') {
-      const todayStr = formatISO(startOfDay(new Date()), { representation: 'date' });
-      const repartidorRoutesToday = routes.filter(r => 
-        r.repartidorId === loggedInUser.id && 
-        isSameDay(parseISO(r.date), startOfDay(new Date())) && 
-        (r.status === 'PLANNED' || r.status === 'IN_PROGRESS')
-      );
-      const invoiceIdsInRepartidorRoutesToday = repartidorRoutesToday.flatMap(r => r.invoiceIds);
+      const repartidorRoutes = routes.filter(r => r.repartidorId === loggedInUser.id);
+      const invoiceIdsInRepartidorRoutes = repartidorRoutes.flatMap(r => r.invoiceIds);
       
       return invoices.filter(inv => 
-        inv.status === 'PENDIENTE' && 
-        (inv.assigneeId === loggedInUser.id || invoiceIdsInRepartidorRoutesToday.includes(inv.id))
+        (inv.status === 'LISTO_PARA_RUTA' && inv.assigneeId === loggedInUser.id) || // Directly assigned and ready
+        (inv.status === 'LISTO_PARA_RUTA' && invoiceIdsInRepartidorRoutes.includes(inv.id)) // On one of their routes and ready
       ).sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
     }
+
+    if (loggedInUser.role === 'bodega') {
+      const relevantInvoices = invoices.filter(inv => {
+        const routeOfInvoice = routes.find(r => r.id === inv.routeId);
+        const isPendingOnPlannedRoute = inv.status === 'PENDIENTE' && routeOfInvoice?.status === 'PLANNED';
+        return isPendingOnPlannedRoute || inv.status === 'EN_PREPARACION' || inv.status === 'INCIDENCIA_BODEGA';
+      });
+      // Enrich with repartidorName for the route
+      return relevantInvoices.map(inv => {
+        const route = routes.find(r => r.id === inv.routeId);
+        const repartidorName = route ? users.find(u => u.id === route.repartidorId)?.name : undefined;
+        return { ...inv, repartidorNameForRoute: repartidorName };
+      }).sort((a, b) => {
+        const routeA = routes.find(r => r.id === a.routeId);
+        const routeB = routes.find(r => r.id === b.routeId);
+        if (routeA?.date && routeB?.date) {
+            const dateComparison = parseISO(routeA.date).getTime() - parseISO(routeB.date).getTime();
+            if (dateComparison !== 0) return dateComparison;
+        }
+        if (a.repartidorNameForRoute && b.repartidorNameForRoute) {
+            const repartidorComparison = a.repartidorNameForRoute.localeCompare(b.repartidorNameForRoute);
+            if (repartidorComparison !== 0) return repartidorComparison;
+        }
+        return parseISO(a.date).getTime() - parseISO(b.date).getTime();
+      });
+    }
     return [];
-  }, [loggedInUser, invoices, selectedRepartidorIdBySupervisor, selectedStatusBySupervisor, searchTerm, routes]);
+  }, [loggedInUser, invoices, selectedRepartidorIdBySupervisor, selectedStatusBySupervisor, searchTerm, routes, users]);
 
 
   const getInvoicesTitleForSupervisorOrAdmin = () => {
@@ -721,7 +776,7 @@ export default function HomePage() {
                     type="text"
                     value={usernameInput}
                     onChange={(e) => setUsernameInput(e.target.value)}
-                    placeholder="Ej: admin / sup / john"
+                    placeholder="Ej: admin / sup / john / bodeguero"
                     required
                     className="w-full"
                     disabled={isLoading}
@@ -843,7 +898,7 @@ export default function HomePage() {
 
                           <div>
                             <h3 className="text-base font-medium text-foreground mb-3">Filtrar Facturas por Estado:</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                               {invoiceStatusesArray.map(status => {
                                 const details = statusCardDetails[status];
                                 return (
@@ -960,7 +1015,7 @@ export default function HomePage() {
                     <InvoiceCard
                       key={invoice.id}
                       invoice={invoice}
-                      onAction={isAdmin || isSupervisor ? handleEditInvoiceClick : handleProcessInvoiceClick}
+                      onAction={isAdmin || isSupervisor ? handleEditInvoiceClick : undefined}
                       currentUserRole={loggedInUser?.role}
                       assigneeName={invoice.assignee?.name || getAssigneeName(invoice.assigneeId)}
                       clientName={invoice.client?.name}
@@ -978,7 +1033,7 @@ export default function HomePage() {
 
         {loggedInUser.role === 'repartidor' && (
            <section>
-            <h2 className="text-xl sm:text-2xl font-semibold mb-6 text-foreground">Mis Facturas Pendientes Para Hoy</h2>
+            <h2 className="text-xl sm:text-2xl font-semibold mb-6 text-foreground">Mis Facturas Listas para Ruta</h2>
             {isLoading && displayedInvoices.length === 0 && <p className="text-muted-foreground">Cargando tus facturas...</p>}
             {!isLoading && displayedInvoices.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -993,7 +1048,34 @@ export default function HomePage() {
                 ))}
               </div>
             ) : (
-             !isLoading && <p className="text-muted-foreground">No tienes facturas pendientes asignadas para hoy.</p>
+             !isLoading && <p className="text-muted-foreground">No tienes facturas listas para ruta asignadas.</p>
+            )}
+          </section>
+        )}
+
+        {loggedInUser.role === 'bodega' && (
+           <section>
+            <h2 className="text-xl sm:text-2xl font-semibold mb-6 text-foreground flex items-center">
+              <Warehouse className="mr-3 h-7 w-7 text-primary" />
+              Panel de Bodega - Facturas para Preparar
+            </h2>
+            {isLoading && displayedInvoices.length === 0 && <p className="text-muted-foreground">Cargando facturas...</p>}
+            {!isLoading && displayedInvoices.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {displayedInvoices.map(invoice => (
+                  <InvoiceCard
+                    key={invoice.id}
+                    invoice={invoice}
+                    onUpdateStatus={handleUpdateInvoiceStatus}
+                    currentUserRole={loggedInUser?.role}
+                    clientName={invoice.client?.name}
+                    assigneeName={invoice.assignee?.name} 
+                    repartidorNameForRoute={(invoice as any).repartidorNameForRoute}
+                  />
+                ))}
+              </div>
+            ) : (
+             !isLoading && <p className="text-muted-foreground">No hay facturas pendientes de preparación en rutas planificadas o con incidencias.</p>
             )}
           </section>
         )}
@@ -1015,6 +1097,7 @@ export default function HomePage() {
         users={repartidores} 
         clients={clients}
         onSave={handleSaveInvoice}
+        allRoutes={routes}
       />
 
       {isSupervisorOrAdmin && (

@@ -15,10 +15,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, Client } from '@/lib/types';
+import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, Client, Route } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { CancellationReasonDialog } from './CancellationReasonDialog';
+import { formatISO, parseISO, isSameDay } from 'date-fns';
 
 type DialogFormState = Omit<InvoiceFormData, 'totalAmount'> & {
   totalAmount: string; 
@@ -32,20 +33,22 @@ const initialDialogFormState: DialogFormState = {
   uniqueCode: '',
   address: '',
   assigneeId: undefined,
-  clientId: undefined, // Added clientId
+  clientId: undefined,
+  routeId: undefined,
   status: 'PENDIENTE',
   cancellationReason: undefined,
 };
 
-const invoiceStatuses: InvoiceStatus[] = ['PENDIENTE', 'ENTREGADA', 'CANCELADA'];
+const invoiceStatuses: InvoiceStatus[] = ['PENDIENTE', 'EN_PREPARACION', 'LISTO_PARA_RUTA', 'ENTREGADA', 'CANCELADA', 'INCIDENCIA_BODEGA'];
 
 interface AddEditInvoiceDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   invoiceToEdit: AssignedInvoice | null;
   users: User[];
-  clients: Client[]; // Added clients prop
+  clients: Client[]; 
   onSave: (invoiceData: InvoiceFormData, id?: string) => void;
+  allRoutes: Route[];
 }
 
 export function AddEditInvoiceDialog({
@@ -53,12 +56,14 @@ export function AddEditInvoiceDialog({
   onOpenChange,
   invoiceToEdit,
   users,
-  clients, // Destructure clients
+  clients,
   onSave,
+  allRoutes,
 }: AddEditInvoiceDialogProps) {
   const [formData, setFormData] = useState<DialogFormState>(initialDialogFormState);
   const { toast } = useToast();
   const [isCancellationReasonSubDialogOpen, setIsCancellationReasonSubDialogOpen] = useState(false);
+  const [availableRoutesForDateAndAssignee, setAvailableRoutesForDateAndAssignee] = useState<Route[]>([]);
 
   useEffect(() => {
     if (invoiceToEdit && isOpen) { 
@@ -70,7 +75,8 @@ export function AddEditInvoiceDialog({
         uniqueCode: invoiceToEdit.uniqueCode,
         address: invoiceToEdit.address || '',
         assigneeId: invoiceToEdit.assigneeId || undefined,
-        clientId: invoiceToEdit.clientId || undefined, // Set clientId
+        clientId: invoiceToEdit.clientId || undefined,
+        routeId: invoiceToEdit.routeId || undefined,
         status: invoiceToEdit.status || 'PENDIENTE',
         cancellationReason: invoiceToEdit.cancellationReason || undefined,
       });
@@ -78,6 +84,24 @@ export function AddEditInvoiceDialog({
       setFormData(initialDialogFormState);
     }
   }, [invoiceToEdit, isOpen]);
+
+
+  useEffect(() => {
+    if (formData.date && formData.assigneeId && allRoutes.length > 0) {
+      const selectedDate = parseISO(formData.date);
+      const filtered = allRoutes.filter(route => 
+        isSameDay(parseISO(route.date), selectedDate) && route.repartidorId === formData.assigneeId
+      );
+      setAvailableRoutesForDateAndAssignee(filtered);
+    } else {
+      setAvailableRoutesForDateAndAssignee([]);
+    }
+     // If assignee or date changes, and a route was selected, but it's no longer valid, deselect it.
+    if (formData.routeId && !availableRoutesForDateAndAssignee.find(r => r.id === formData.routeId)) {
+        setFormData(prev => ({ ...prev, routeId: undefined }));
+    }
+  }, [formData.date, formData.assigneeId, allRoutes, formData.routeId]);
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -91,13 +115,18 @@ export function AddEditInvoiceDialog({
     }
   };
 
-  const handleSelectChange = (name: 'assigneeId' | 'status' | 'clientId', value: string) => {
-    setFormData((prev) => ({
+  const handleSelectChange = (name: 'assigneeId' | 'status' | 'clientId' | 'routeId', value: string) => {
+     setFormData((prev) => ({
       ...prev,
-      [name]: (name === 'assigneeId' || name === 'clientId')
+      [name]: (name === 'assigneeId' || name === 'clientId' || name === 'routeId')
         ? (value === 'unassigned' ? undefined : value)
         : (value as InvoiceStatus),
     }));
+
+    // If assigneeId changes, reset routeId because routes are assignee-specific
+    if (name === 'assigneeId' || name === 'date') {
+        setFormData(prev => ({ ...prev, routeId: undefined }));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -130,6 +159,7 @@ export function AddEditInvoiceDialog({
     const dataToSave: InvoiceFormData = {
       ...formData,
       totalAmount: numericTotalAmount, 
+      routeId: formData.routeId || null,
     };
 
     if (dataToSave.status === 'CANCELADA' && (!invoiceToEdit || invoiceToEdit.status !== 'CANCELADA')) {
@@ -156,7 +186,8 @@ export function AddEditInvoiceDialog({
         ...formData, 
         totalAmount: numericTotalAmount, 
         status: 'CANCELADA' as InvoiceStatus, 
-        cancellationReason: reason 
+        cancellationReason: reason,
+        routeId: formData.routeId || null, 
     };
     onSave(finalInvoiceData, invoiceToEdit?.id);
     setIsCancellationReasonSubDialogOpen(false);
@@ -174,6 +205,7 @@ export function AddEditInvoiceDialog({
       <Dialog open={isOpen && !isCancellationReasonSubDialogOpen} onOpenChange={(open) => {
         if (!open) { 
             setFormData(initialDialogFormState);
+            setAvailableRoutesForDateAndAssignee([]);
         }
         onOpenChange(open);
       }}>
@@ -182,7 +214,7 @@ export function AddEditInvoiceDialog({
             <DialogTitle>{dialogTitle}</DialogTitle>
             <DialogDescription>{dialogDescription}</DialogDescription>
           </DialogHeader>
-          <div className="flex-grow overflow-y-auto">
+          <div className="flex-grow overflow-y-auto pr-2">
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               <div>
                 <Label htmlFor="invoiceNumber">Número de Factura</Label>
@@ -283,7 +315,7 @@ export function AddEditInvoiceDialog({
                   <SelectContent>
                     {invoiceStatuses.map(status => (
                       <SelectItem key={status} value={status}>
-                        {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()}
+                        {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase().replace(/_/g, ' ')}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -314,12 +346,42 @@ export function AddEditInvoiceDialog({
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label htmlFor="routeId">Asignar a Ruta (Opcional)</Label>
+                <Select
+                  name="routeId"
+                  value={formData.routeId || 'unassigned'}
+                  onValueChange={(value) => handleSelectChange('routeId', value)}
+                  disabled={!formData.date || !formData.assigneeId || availableRoutesForDateAndAssignee.length === 0}
+                >
+                  <SelectTrigger id="routeId">
+                    <SelectValue placeholder={
+                      !formData.date || !formData.assigneeId 
+                        ? "Selecciona fecha y repartidor primero" 
+                        : availableRoutesForDateAndAssignee.length === 0 
+                        ? "No hay rutas para esta fecha/repartidor"
+                        : "Seleccionar ruta..."
+                    } />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">Sin asignar a ruta específica</SelectItem>
+                    {availableRoutesForDateAndAssignee.map(route => (
+                      <SelectItem key={route.id} value={route.id}>
+                        Ruta de {route.repartidorName || 'Repartidor'} - {formatISO(parseISO(route.date), { representation: 'date' })} (ID: ...{route.id.slice(-4)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                 {(!formData.date || !formData.assigneeId) && <p className="text-xs text-muted-foreground mt-1">Para asignar una ruta, primero selecciona una fecha y un repartidor.</p>}
+                 {(formData.date && formData.assigneeId && availableRoutesForDateAndAssignee.length === 0) && <p className="text-xs text-muted-foreground mt-1">No hay rutas creadas para el repartidor y fecha seleccionados.</p>}
+              </div>
             </form>
           </div>
           <DialogFooter className="mt-auto pt-4 border-t">
             <DialogClose asChild>
               <Button type="button" variant="outline" onClick={() => {
-                 setFormData(initialDialogFormState); 
+                 setFormData(initialDialogFormState);
+                 setAvailableRoutesForDateAndAssignee([]);
                  onOpenChange(false);
               }}>Cancelar</Button>
             </DialogClose>

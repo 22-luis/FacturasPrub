@@ -1,9 +1,9 @@
 
 import type { ExtractInvoiceDataOutput } from '@/ai/flows/extract-invoice-data';
 
-export type UserRole = 'repartidor' | 'supervisor' | 'administrador';
+export type UserRole = 'repartidor' | 'supervisor' | 'administrador' | 'bodega';
 
-export type InvoiceStatus = 'PENDIENTE' | 'ENTREGADA' | 'CANCELADA';
+export type InvoiceStatus = 'PENDIENTE' | 'ENTREGADA' | 'CANCELADA' | 'EN_PREPARACION' | 'LISTO_PARA_RUTA' | 'INCIDENCIA_BODEGA';
 
 export type RouteStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED';
 
@@ -55,11 +55,12 @@ export interface AssignedInvoice {
   } | null;
   clientId?: string | null; 
   client?: Client | null; 
+  routeId?: string | null; // To associate invoice with a route for bodega view
   createdAt?: Date | string;
   updatedAt?: Date | string;
 }
 
-export type InvoiceFormData = Omit<AssignedInvoice, 'id' | 'assignee' | 'client' | 'createdAt' | 'updatedAt'> & {
+export type InvoiceFormData = Omit<AssignedInvoice, 'id' | 'assignee' | 'client' | 'routeId' | 'createdAt' | 'updatedAt'> & {
   clientId?: string | null; 
 };
 
