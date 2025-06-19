@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
-import { Mic, MicOff, AlertTriangle } from 'lucide-react'; // Added Mic, MicOff, AlertTriangle
+import { Mic, MicOff, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface CancellationReasonDialogProps {
@@ -68,7 +68,7 @@ export function CancellationReasonDialog({
         setIsListening(false);
       }
     };
-  }, [isOpen]); // Removed isListening from dependencies to avoid stopping on every listen toggle
+  }, [isOpen]);
 
   const handleToggleListen = () => {
     if (!speechApiSupported) {
@@ -86,12 +86,12 @@ export function CancellationReasonDialog({
     } else {
       const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognitionAPI) {
-        setSpeechApiSupported(false); // Should have been caught by initial check
+        setSpeechApiSupported(false); 
         toast({ variant: 'destructive', title: 'Error', description: 'API de reconocimiento de voz no encontrada.' });
         return;
       }
       recognitionRef.current = new SpeechRecognitionAPI();
-      recognitionRef.current.continuous = false; // True for continuous, false for single phrase
+      recognitionRef.current.continuous = false; 
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = 'es-ES';
 
@@ -109,15 +109,8 @@ export function CancellationReasonDialog({
             interimTranscript += event.results[i][0].transcript;
           }
         }
-        // To avoid overwriting text if user is also typing:
-        // Append final transcript, potentially update with interim for live feedback
         if (finalTranscript) {
              setReasonText((prevText) => prevText + (prevText ? " " : "") + finalTranscript.trim());
-        } else if (interimTranscript) {
-            // Optionally, you could show interim results, but it might be jumpy with textarea
-            // For simplicity, we'll just update with final results.
-            // If you want live updates in textarea:
-            // setReasonText(reasonTextRef.current + interimTranscript); // Need a ref for current text
         }
       };
 
@@ -130,6 +123,8 @@ export function CancellationReasonDialog({
           errorMsg = 'Problema al capturar audio. Revisa tu micrófono.';
         } else if (event.error === 'not-allowed') {
           errorMsg = 'Permiso para usar el micrófono denegado.';
+        } else if (event.error === 'network') {
+          errorMsg = 'Error de red con el servicio de reconocimiento de voz. Revisa tu conexión o inténtalo más tarde.';
         }
         toast({ variant: 'destructive', title: 'Error de Voz', description: errorMsg });
         setIsListening(false);
@@ -151,7 +146,7 @@ export function CancellationReasonDialog({
 
   const handleConfirm = () => {
     if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop(); // Stop listening if active
+      recognitionRef.current.stop(); 
     }
     if (providedReason === 'yes') {
       onConfirm(reasonText.trim() || undefined);
