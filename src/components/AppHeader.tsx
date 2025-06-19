@@ -1,7 +1,8 @@
 
-import { FileArchive, LogOut, UserCircle } from 'lucide-react';
+import { FileArchive, LogOut, UserCircle, PanelLeft } from 'lucide-react'; // Added PanelLeft
 import type { User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
+import { SidebarTrigger } from '@/components/ui/sidebar'; // Import SidebarTrigger
 
 interface AppHeaderProps {
   loggedInUser: User | null;
@@ -10,9 +11,12 @@ interface AppHeaderProps {
 
 export function AppHeader({ loggedInUser, onLogout }: AppHeaderProps) {
   return (
-    <header className="py-4 px-4 md:px-6 border-b bg-background shadow-sm">
+    <header className="py-4 px-4 md:px-6 border-b bg-background shadow-sm sticky top-0 z-40"> {/* Added sticky and z-index */}
       <div className="container mx-auto flex items-center justify-between">
         <div className="flex items-center gap-2">
+          {loggedInUser && ( /* Conditionally render SidebarTrigger */
+            <SidebarTrigger className="h-8 w-8 md:hidden" /> /* Basic trigger for mobile, can be styled further */
+          )}
           <FileArchive className="h-8 w-8 text-primary" />
           <h1 className="text-2xl font-bold text-foreground">SnapClaim</h1>
         </div>

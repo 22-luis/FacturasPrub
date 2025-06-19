@@ -17,6 +17,8 @@ import { AddEditClientDialog } from '@/components/AddEditClientDialog';
 import { ManageClientsDialog } from '@/components/ManageClientsDialog';
 import { ManageRoutesDialog } from '@/components/ManageRoutesDialog';
 import { AddEditRouteDialog } from '@/components/AddEditRouteDialog';
+import { AppSidebar } from '@/components/AppSidebar'; // Import the AppSidebar
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'; // Import SidebarProvider and SidebarInset
 
 
 import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, UserRole, Client, ClientFormData, Route, RouteFormData, RouteStatus, IncidenceType } from '@/lib/types';
@@ -727,9 +729,12 @@ export default function HomePage() {
         (inv.status === 'LISTO_PARA_RUTA' && invoiceIdsInRepartidorRoutes.includes(inv.id)) 
       ).sort((a, b) => {
         try {
-          return (a.date && b.date) ? parseISO(a.date).getTime() - parseISO(b.date).getTime() : 0;
+          const dateA = a.date ? parseISO(a.date).getTime() : 0;
+          const dateB = b.date ? parseISO(b.date).getTime() : 0;
+          if (dateA !== dateB) return dateA - dateB;
+          return (a.invoiceNumber || '').localeCompare(b.invoiceNumber || '');
         } catch {
-          return 0;
+           return (a.invoiceNumber || '').localeCompare(b.invoiceNumber || '');
         }
       });
     }
@@ -753,7 +758,7 @@ export default function HomePage() {
           try {
             const dateComparison = parseISO(routeA.date).getTime() - parseISO(routeB.date).getTime();
             if (dateComparison !== 0) return dateComparison;
-          } catch (e) {  }
+          } catch (e) {  /* ignore date parse error for sorting */ }
         } else if (routeA?.date) {
           return -1; 
         } else if (routeB?.date) {
@@ -777,7 +782,7 @@ export default function HomePage() {
           if (timeA !== 0 && timeB !== 0 && timeA !== timeB) return timeA - timeB;
           if (timeA !== 0) return -1;
           if (timeB !== 0) return 1;
-        } catch (e) {  }
+        } catch (e) { /* ignore date parse error for sorting */ }
         
         return (a.id || '').localeCompare(b.id || '');
       });
@@ -903,289 +908,296 @@ export default function HomePage() {
   const isSupervisorOrAdmin = isSupervisor || isAdmin;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <AppHeader loggedInUser={loggedInUser} onLogout={handleLogout} />
-      <main className="flex-grow container mx-auto px-4 py-8">
-        {isSupervisorOrAdmin && (
-          <section className="space-y-8">
-            <div>
-              <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
-                <h2 className="text-xl sm:text-2xl font-semibold text-foreground">
-                  {isAdmin ? 'Panel de Administrador' : 'Panel de Supervisor'}
-                </h2>
-                <div className="flex gap-2 flex-wrap">
-                  <Button onClick={handleOpenManageRoutesDialog} variant="outline" disabled={isLoading}>
-                      <MapIcon className="mr-2 h-4 w-4" />
-                      Gestionar Rutas
-                  </Button>
-                  <Button onClick={handleAddInvoiceClick} disabled={isLoading}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Agregar Factura
-                  </Button>
-                   <Button onClick={() => setIsManageClientsDialogOpen(true)} variant="outline" disabled={isLoading || clients.length === 0}>
-                      <BuildingIcon className="mr-2 h-4 w-4" />
-                      Gestionar Clientes
-                    </Button>
-                  {isSupervisor && !isAdmin && (
-                    <>
-                      <Button onClick={handleOpenAddRepartidorDialog} variant="outline" disabled={isLoading}>
-                        <UserPlus className="mr-2 h-4 w-4" />
-                        Agregar Repartidor
-                      </Button>
-                      <Button onClick={() => setIsManageRepartidoresOpen(true)} variant="outline" disabled={isLoading || repartidores.length === 0}>
-                        <Settings2 className="mr-2 h-4 w-4" />
-                        Gestionar Repartidores
-                      </Button>
-                    </>
-                  )}
-                  {isAdmin && (
-                    <>
-                      <Button onClick={handleOpenAddUserDialog} variant="outline" disabled={isLoading}>
-                        <UserPlus className="mr-2 h-4 w-4" />
-                        Agregar Usuario
-                      </Button>
-                       <Button onClick={() => setIsManageAllUsersDialogOpen(true)} variant="outline" disabled={isLoading || users.length === 0}>
-                        <UsersIconLucide className="mr-2 h-4 w-4" />
-                        Gestionar Usuarios
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
+    <SidebarProvider>
+      <div className="min-h-screen bg-background flex flex-col">
+        <AppHeader loggedInUser={loggedInUser} onLogout={handleLogout} />
+        <div className="flex flex-1">
+          {loggedInUser && <AppSidebar />}
+          <SidebarInset>
+            <main className="flex-grow container mx-auto px-4 py-8">
+              {isSupervisorOrAdmin && (
+                <section className="space-y-8">
+                  <div>
+                    <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
+                      <h2 className="text-xl sm:text-2xl font-semibold text-foreground">
+                        {isAdmin ? 'Panel de Administrador' : 'Panel de Supervisor'}
+                      </h2>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button onClick={handleOpenManageRoutesDialog} variant="outline" disabled={isLoading}>
+                            <MapIcon className="mr-2 h-4 w-4" />
+                            Gestionar Rutas
+                        </Button>
+                        <Button onClick={handleAddInvoiceClick} disabled={isLoading}>
+                          <PlusCircle className="mr-2 h-4 w-4" />
+                          Agregar Factura
+                        </Button>
+                         <Button onClick={() => setIsManageClientsDialogOpen(true)} variant="outline" disabled={isLoading || clients.length === 0}>
+                            <BuildingIcon className="mr-2 h-4 w-4" />
+                            Gestionar Clientes
+                          </Button>
+                        {isSupervisor && !isAdmin && (
+                          <>
+                            <Button onClick={handleOpenAddRepartidorDialog} variant="outline" disabled={isLoading}>
+                              <UserPlus className="mr-2 h-4 w-4" />
+                              Agregar Repartidor
+                            </Button>
+                            <Button onClick={() => setIsManageRepartidoresOpen(true)} variant="outline" disabled={isLoading || repartidores.length === 0}>
+                              <Settings2 className="mr-2 h-4 w-4" />
+                              Gestionar Repartidores
+                            </Button>
+                          </>
+                        )}
+                        {isAdmin && (
+                          <>
+                            <Button onClick={handleOpenAddUserDialog} variant="outline" disabled={isLoading}>
+                              <UserPlus className="mr-2 h-4 w-4" />
+                              Agregar Usuario
+                            </Button>
+                             <Button onClick={() => setIsManageAllUsersDialogOpen(true)} variant="outline" disabled={isLoading || users.length === 0}>
+                              <UsersIconLucide className="mr-2 h-4 w-4" />
+                              Gestionar Usuarios
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
 
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="item-1">
-                  <Card className="shadow-sm border">
-                    <AccordionTrigger className="w-full p-0 hover:no-underline">
-                      <CardHeader className="flex-1">
-                          <CardTitle className="text-lg flex items-center w-full">
-                            <div className="flex items-center gap-2">
-                              <Filter className="h-5 w-5 text-primary" />
-                              Opciones de Filtrado y Búsqueda de Facturas
-                            </div>
-                          </CardTitle>
-                      </CardHeader>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <CardContent className="pt-2 space-y-6">
-                          <div className="relative">
-                            <Label htmlFor="search-invoices" className="sr-only">Buscar facturas</Label>
-                            <Input
-                              id="search-invoices"
-                              type="text"
-                              placeholder="Buscar por proveedor, N° factura, cliente o código..."
-                              value={searchTerm}
-                              onChange={(e) => setSearchTerm(e.target.value)}
-                              className="pl-10 w-full"
-                              disabled={isLoading}
-                            />
-                            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                          </div>
-
-                          <div>
-                            <h3 className="text-base font-medium text-foreground mb-3">Filtrar Facturas por Estado:</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                              {invoiceStatusesArray.map(status => {
-                                const details = statusCardDetails[status];
-                                return (
-                                  <Card
-                                    key={status}
-                                    className={cn(
-                                      "cursor-pointer transition-shadow",
-                                      selectedStatusBySupervisor === status ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md',
-                                      isLoading && 'opacity-50 cursor-not-allowed'
-                                    )}
-                                    onClick={() => !isLoading && setSelectedStatusBySupervisor(prev => prev === status ? null : status)}
-                                  >
-                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
-                                      <CardTitle className="text-xs font-medium">{details.label}</CardTitle>
-                                      <details.Icon className="h-4 w-4 text-muted-foreground" />
-                                    </CardHeader>
-                                    <CardContent className="px-3 pb-2">
-                                      <p className="text-xs text-muted-foreground">{details.description}</p>
-                                    </CardContent>
-                                  </Card>
-                                );
-                              })}
-                               <Card
-                                key={INCIDENCES_KEY}
-                                className={cn(
-                                    "cursor-pointer transition-shadow",
-                                    selectedStatusBySupervisor === INCIDENCES_KEY ? 'ring-2 ring-amber-500 shadow-md border-amber-400' : 'border hover:shadow-md',
-                                    isLoading && 'opacity-50 cursor-not-allowed'
-                                )}
-                                onClick={() => !isLoading && setSelectedStatusBySupervisor(prev => prev === INCIDENCES_KEY ? null : INCIDENCES_KEY)}
-                                >
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
-                                    <CardTitle className="text-xs font-medium text-amber-700">Con Incidencias</CardTitle>
-                                    <FileWarning className="h-4 w-4 text-amber-600" />
-                                </CardHeader>
-                                <CardContent className="px-3 pb-2">
-                                    <p className="text-xs text-muted-foreground">Requieren atención</p>
-                                </CardContent>
-                                </Card>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => !isLoading && setSelectedStatusBySupervisor(null)}
-                                className={cn(
-                                  "h-full whitespace-normal text-left justify-start items-center transition-shadow hover:shadow-md text-xs py-2 px-3",
-                                  !selectedStatusBySupervisor ? 'ring-2 ring-primary shadow-md' : 'hover:bg-background hover:text-foreground',
-                                   isLoading && 'opacity-50 cursor-not-allowed'
-                                )}
-                                disabled={isLoading}
-                              >
-                                <ListFilter className="mr-2 h-3 w-3" />
-                                Mostrar Todos los Estados
-                              </Button>
-                            </div>
-                          </div>
-
-                          <div>
-                            <h3 className="text-base font-medium text-foreground mb-3">Filtrar Facturas por Repartidor:</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => !isLoading && setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
-                                    className={cn(
-                                      "h-full whitespace-normal text-left justify-start items-center transition-shadow hover:shadow-md text-xs py-2 px-3",
-                                      selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-md' : 'hover:bg-background hover:text-foreground',
-                                      isLoading && 'opacity-50 cursor-not-allowed'
-                                    )}
+                    <Accordion type="single" collapsible className="w-full">
+                      <AccordionItem value="item-1">
+                        <Card className="shadow-sm border">
+                          <AccordionTrigger className="w-full p-0 hover:no-underline">
+                            <CardHeader className="flex-1">
+                                <CardTitle className="text-lg flex items-center w-full">
+                                  <div className="flex items-center gap-2">
+                                    <Filter className="h-5 w-5 text-primary" />
+                                    Opciones de Filtrado y Búsqueda de Facturas
+                                  </div>
+                                </CardTitle>
+                            </CardHeader>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <CardContent className="pt-2 space-y-6">
+                                <div className="relative">
+                                  <Label htmlFor="search-invoices" className="sr-only">Buscar facturas</Label>
+                                  <Input
+                                    id="search-invoices"
+                                    type="text"
+                                    placeholder="Buscar por proveedor, N° factura, cliente o código..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="pl-10 w-full"
                                     disabled={isLoading}
-                                  >
-                                    <Users className="mr-2 h-3 w-3" />
-                                    Mostrar Todas las Facturas
-                                </Button>
+                                  />
+                                  <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                                </div>
 
-                                {repartidores.map(repartidor => (
-                                  <Card
-                                    key={repartidor.id}
-                                    className={cn(
-                                        "cursor-pointer transition-shadow",
-                                        selectedRepartidorIdBySupervisor === repartidor.id ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md',
-                                        isLoading && 'opacity-50 cursor-not-allowed'
-                                    )}
-                                    onClick={() => !isLoading && setSelectedRepartidorIdBySupervisor(prev => prev === repartidor.id ? ALL_REPARTIDORES_KEY : repartidor.id)}
-                                  >
-                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
-                                      <CardTitle className="text-xs font-medium">{repartidor.name}</CardTitle>
-                                      <UserSquare2 className="h-4 w-4 text-muted-foreground" />
-                                    </CardHeader>
-                                    <CardContent className="px-3 pb-2">
-                                      <div className="text-xs text-muted-foreground">Rol: repartidor</div>
-                                    </CardContent>
-                                  </Card>
-                                ))}
-                                <Card
-                                  key={UNASSIGNED_KEY}
-                                  className={cn(
-                                    "cursor-pointer transition-shadow",
-                                    selectedRepartidorIdBySupervisor === UNASSIGNED_KEY ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md',
-                                     isLoading && 'opacity-50 cursor-not-allowed'
-                                  )}
-                                  onClick={() => !isLoading && setSelectedRepartidorIdBySupervisor(prev => prev === UNASSIGNED_KEY ? ALL_REPARTIDORES_KEY : UNASSIGNED_KEY)}
-                                >
-                                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
-                                    <CardTitle className="text-xs font-medium">Facturas sin Asignar</CardTitle>
-                                    <Archive className="h-4 w-4 text-muted-foreground" />
-                                    </CardHeader>
-                                    <CardContent className="px-3 pb-2">
-                                    <div className="text-xs text-muted-foreground">Ver no asignadas</div>
-                                    </CardContent>
-                                </Card>
-                                {repartidores.length === 0 && !isLoading && (
-                                     <p className="text-muted-foreground mt-2 text-sm p-2 md:col-span-4 text-center">No hay repartidores. Agrega uno para asignar facturas.</p>
-                                )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </AccordionContent>
-                    </Card>
-                </AccordionItem>
-              </Accordion>
-            </div>
+                                <div>
+                                  <h3 className="text-base font-medium text-foreground mb-3">Filtrar Facturas por Estado:</h3>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                                    {invoiceStatusesArray.map(status => {
+                                      const details = statusCardDetails[status];
+                                      return (
+                                        <Card
+                                          key={status}
+                                          className={cn(
+                                            "cursor-pointer transition-shadow",
+                                            selectedStatusBySupervisor === status ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md',
+                                            isLoading && 'opacity-50 cursor-not-allowed'
+                                          )}
+                                          onClick={() => !isLoading && setSelectedStatusBySupervisor(prev => prev === status ? null : status)}
+                                        >
+                                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
+                                            <CardTitle className="text-xs font-medium">{details.label}</CardTitle>
+                                            <details.Icon className="h-4 w-4 text-muted-foreground" />
+                                          </CardHeader>
+                                          <CardContent className="px-3 pb-2">
+                                            <p className="text-xs text-muted-foreground">{details.description}</p>
+                                          </CardContent>
+                                        </Card>
+                                      );
+                                    })}
+                                     <Card
+                                      key={INCIDENCES_KEY}
+                                      className={cn(
+                                          "cursor-pointer transition-shadow",
+                                          selectedStatusBySupervisor === INCIDENCES_KEY ? 'ring-2 ring-amber-500 shadow-md border-amber-400' : 'border hover:shadow-md',
+                                          isLoading && 'opacity-50 cursor-not-allowed'
+                                      )}
+                                      onClick={() => !isLoading && setSelectedStatusBySupervisor(prev => prev === INCIDENCES_KEY ? null : INCIDENCES_KEY)}
+                                      >
+                                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
+                                          <CardTitle className="text-xs font-medium text-amber-700">Con Incidencias</CardTitle>
+                                          <FileWarning className="h-4 w-4 text-amber-600" />
+                                      </CardHeader>
+                                      <CardContent className="px-3 pb-2">
+                                          <p className="text-xs text-muted-foreground">Requieren atención</p>
+                                      </CardContent>
+                                      </Card>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => !isLoading && setSelectedStatusBySupervisor(null)}
+                                      className={cn(
+                                        "h-full whitespace-normal text-left justify-start items-center transition-shadow hover:shadow-md text-xs py-2 px-3",
+                                        !selectedStatusBySupervisor ? 'ring-2 ring-primary shadow-md' : 'hover:bg-background hover:text-foreground',
+                                         isLoading && 'opacity-50 cursor-not-allowed'
+                                      )}
+                                      disabled={isLoading}
+                                    >
+                                      <ListFilter className="mr-2 h-3 w-3" />
+                                      Mostrar Todos los Estados
+                                    </Button>
+                                  </div>
+                                </div>
 
-            <div>
-              <h3 className="text-lg sm:text-xl font-semibold text-foreground my-6">
-                {getInvoicesTitleForSupervisorOrAdmin()}
-              </h3>
-              {isLoading && displayedInvoices.length === 0 && <p className="text-muted-foreground">Cargando facturas...</p>}
-              {!isLoading && displayedInvoices.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {displayedInvoices.map(invoice => (
-                    <InvoiceCard
-                      key={invoice.id}
-                      invoice={invoice}
-                      onAction={isAdmin || isSupervisor ? handleEditInvoiceClick : undefined}
-                      currentUserRole={loggedInUser?.role}
-                      assigneeName={invoice.assignee?.name || getAssigneeName(invoice.assigneeId)}
-                      clientName={invoice.client?.name}
-                    />
-                  ))}
-                </div>
-              ) : (
-                !isLoading && <p className="text-muted-foreground">
-                  {searchTerm.trim() ? `No se encontraron facturas para "${searchTerm.trim()}" con los filtros seleccionados.` : `No se encontraron facturas que coincidan con los filtros seleccionados.`}
-                </p>
+                                <div>
+                                  <h3 className="text-base font-medium text-foreground mb-3">Filtrar Facturas por Repartidor:</h3>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                                      <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => !isLoading && setSelectedRepartidorIdBySupervisor(ALL_REPARTIDORES_KEY)}
+                                          className={cn(
+                                            "h-full whitespace-normal text-left justify-start items-center transition-shadow hover:shadow-md text-xs py-2 px-3",
+                                            selectedRepartidorIdBySupervisor === ALL_REPARTIDORES_KEY ? 'ring-2 ring-primary shadow-md' : 'hover:bg-background hover:text-foreground',
+                                            isLoading && 'opacity-50 cursor-not-allowed'
+                                          )}
+                                          disabled={isLoading}
+                                        >
+                                          <Users className="mr-2 h-3 w-3" />
+                                          Mostrar Todas las Facturas
+                                      </Button>
+
+                                      {repartidores.map(repartidor => (
+                                        <Card
+                                          key={repartidor.id}
+                                          className={cn(
+                                              "cursor-pointer transition-shadow",
+                                              selectedRepartidorIdBySupervisor === repartidor.id ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md',
+                                              isLoading && 'opacity-50 cursor-not-allowed'
+                                          )}
+                                          onClick={() => !isLoading && setSelectedRepartidorIdBySupervisor(prev => prev === repartidor.id ? ALL_REPARTIDORES_KEY : repartidor.id)}
+                                        >
+                                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
+                                            <CardTitle className="text-xs font-medium">{repartidor.name}</CardTitle>
+                                            <UserSquare2 className="h-4 w-4 text-muted-foreground" />
+                                          </CardHeader>
+                                          <CardContent className="px-3 pb-2">
+                                            <div className="text-xs text-muted-foreground">Rol: repartidor</div>
+                                          </CardContent>
+                                        </Card>
+                                      ))}
+                                      <Card
+                                        key={UNASSIGNED_KEY}
+                                        className={cn(
+                                          "cursor-pointer transition-shadow",
+                                          selectedRepartidorIdBySupervisor === UNASSIGNED_KEY ? 'ring-2 ring-primary shadow-md' : 'border hover:shadow-md',
+                                           isLoading && 'opacity-50 cursor-not-allowed'
+                                        )}
+                                        onClick={() => !isLoading && setSelectedRepartidorIdBySupervisor(prev => prev === UNASSIGNED_KEY ? ALL_REPARTIDORES_KEY : UNASSIGNED_KEY)}
+                                      >
+                                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-2 px-3">
+                                          <CardTitle className="text-xs font-medium">Facturas sin Asignar</CardTitle>
+                                          <Archive className="h-4 w-4 text-muted-foreground" />
+                                          </CardHeader>
+                                          <CardContent className="px-3 pb-2">
+                                          <div className="text-xs text-muted-foreground">Ver no asignadas</div>
+                                          </CardContent>
+                                      </Card>
+                                      {repartidores.length === 0 && !isLoading && (
+                                           <p className="text-muted-foreground mt-2 text-sm p-2 md:col-span-4 text-center">No hay repartidores. Agrega uno para asignar facturas.</p>
+                                      )}
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </AccordionContent>
+                          </Card>
+                      </AccordionItem>
+                    </Accordion>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-semibold text-foreground my-6">
+                      {getInvoicesTitleForSupervisorOrAdmin()}
+                    </h3>
+                    {isLoading && displayedInvoices.length === 0 && <p className="text-muted-foreground">Cargando facturas...</p>}
+                    {!isLoading && displayedInvoices.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {displayedInvoices.map(invoice => (
+                          <InvoiceCard
+                            key={invoice.id}
+                            invoice={invoice}
+                            onAction={isAdmin || isSupervisor ? handleEditInvoiceClick : undefined}
+                            currentUserRole={loggedInUser?.role}
+                            assigneeName={invoice.assignee?.name || getAssigneeName(invoice.assigneeId)}
+                            clientName={invoice.client?.name}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      !isLoading && <p className="text-muted-foreground">
+                        {searchTerm.trim() ? `No se encontraron facturas para "${searchTerm.trim()}" con los filtros seleccionados.` : `No se encontraron facturas que coincidan con los filtros seleccionados.`}
+                      </p>
+                    )}
+                  </div>
+                </section>
               )}
-            </div>
-          </section>
-        )}
 
-        {loggedInUser.role === 'repartidor' && (
-           <section>
-            <h2 className="text-xl sm:text-2xl font-semibold mb-6 text-foreground">Mis Facturas Listas para Ruta</h2>
-            {isLoading && displayedInvoices.length === 0 && <p className="text-muted-foreground">Cargando tus facturas...</p>}
-            {!isLoading && displayedInvoices.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {displayedInvoices.map(invoice => (
-                  <InvoiceCard
-                    key={invoice.id}
-                    invoice={invoice}
-                    onAction={handleProcessInvoiceClick}
-                    currentUserRole={loggedInUser?.role}
-                    clientName={invoice.client?.name}
-                  />
-                ))}
-              </div>
-            ) : (
-             !isLoading && <p className="text-muted-foreground">No tienes facturas listas para ruta asignadas.</p>
-            )}
-          </section>
-        )}
+              {loggedInUser.role === 'repartidor' && (
+                 <section>
+                  <h2 className="text-xl sm:text-2xl font-semibold mb-6 text-foreground">Mis Facturas Listas para Ruta</h2>
+                  {isLoading && displayedInvoices.length === 0 && <p className="text-muted-foreground">Cargando tus facturas...</p>}
+                  {!isLoading && displayedInvoices.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {displayedInvoices.map(invoice => (
+                        <InvoiceCard
+                          key={invoice.id}
+                          invoice={invoice}
+                          onAction={handleProcessInvoiceClick}
+                          currentUserRole={loggedInUser?.role}
+                          clientName={invoice.client?.name}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                   !isLoading && <p className="text-muted-foreground">No tienes facturas listas para ruta asignadas.</p>
+                  )}
+                </section>
+              )}
 
-        {loggedInUser.role === 'bodega' && (
-           <section>
-            <h2 className="text-xl sm:text-2xl font-semibold mb-6 text-foreground flex items-center">
-              <Warehouse className="mr-3 h-7 w-7 text-primary" />
-              Panel de Bodega - Facturas para Preparar
-            </h2>
-            {isLoading && displayedInvoices.length === 0 && <p className="text-muted-foreground">Cargando facturas...</p>}
-            {!isLoading && displayedInvoices.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {displayedInvoices.map(invoice => (
-                  <InvoiceCard
-                    key={invoice.id}
-                    invoice={invoice}
-                    onUpdateStatus={handleUpdateInvoiceStatus}
-                    currentUserRole={loggedInUser?.role}
-                    clientName={invoice.client?.name}
-                    assigneeName={invoice.assignee?.name} 
-                    repartidorNameForRoute={(invoice as any).repartidorNameForRoute}
-                  />
-                ))}
-              </div>
-            ) : (
-             !isLoading && <p className="text-muted-foreground">No hay facturas pendientes de preparación en rutas planificadas o con incidencias.</p>
-            )}
-          </section>
-        )}
-      </main>
-      <footer className="py-6 text-center text-sm text-muted-foreground border-t">
-        © 2025 SnapClaim. All rights reserved.
-      </footer>
+              {loggedInUser.role === 'bodega' && (
+                 <section>
+                  <h2 className="text-xl sm:text-2xl font-semibold mb-6 text-foreground flex items-center">
+                    <Warehouse className="mr-3 h-7 w-7 text-primary" />
+                    Panel de Bodega - Facturas para Preparar
+                  </h2>
+                  {isLoading && displayedInvoices.length === 0 && <p className="text-muted-foreground">Cargando facturas...</p>}
+                  {!isLoading && displayedInvoices.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {displayedInvoices.map(invoice => (
+                        <InvoiceCard
+                          key={invoice.id}
+                          invoice={invoice}
+                          onUpdateStatus={handleUpdateInvoiceStatus}
+                          currentUserRole={loggedInUser?.role}
+                          clientName={invoice.client?.name}
+                          assigneeName={invoice.assignee?.name} 
+                          repartidorNameForRoute={(invoice as any).repartidorNameForRoute}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                   !isLoading && <p className="text-muted-foreground">No hay facturas pendientes de preparación en rutas planificadas o con incidencias.</p>
+                  )}
+                </section>
+              )}
+            </main>
+          </SidebarInset>
+        </div>
+        <footer className="py-6 text-center text-sm text-muted-foreground border-t">
+          © 2025 SnapClaim. All rights reserved.
+        </footer>
+      </div>
 
       <ProcessInvoiceDialog
         isOpen={isProcessDialogOpen}
@@ -1313,7 +1325,7 @@ export default function HomePage() {
           </>
       )}
       <Toaster />
-    </div>
+    </SidebarProvider>
   );
 }
 
