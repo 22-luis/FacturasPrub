@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle, BadgeCheck, ScanLine, CheckCircle, XCircle, RotateCcw, Upload, Trash2, MessageSquareText } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, ScanLine, CheckCircle, XCircle, RotateCcw, Upload, Trash2, MessageSquareText, Mic, MicOff } from 'lucide-react'; // Added Mic, MicOff
 
 import type { AssignedInvoice, ExtractedInvoiceDetails, VerificationResult, InvoiceStatus } from '@/lib/types';
 import { extractInvoiceDataAction } from '@/lib/actions';
@@ -139,9 +139,8 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
     if (!invoice) return;
 
     if (newStatus === 'CANCELADA') {
-      setIsCancellationReasonSubDialogOpen(true); // This will open the sub-dialog
+      setIsCancellationReasonSubDialogOpen(true); 
     } else {
-      // For ENTREGADA or other statuses, directly call onUpdateStatus
       onUpdateStatus(invoice.id, newStatus, undefined, deliveryNotesInput.trim());
       onOpenChange(false); 
     }
@@ -150,11 +149,8 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
   const handleConfirmCancellationWithReason = (reasonFromSubDialog?: string) => {
     if (invoice) {
       let finalDeliveryNotes = deliveryNotesInput.trim();
-      if (reasonFromSubDialog) {
-        finalDeliveryNotes = `${reasonFromSubDialog}. ${finalDeliveryNotes}`.trim();
-        if (finalDeliveryNotes.endsWith('.')) finalDeliveryNotes = finalDeliveryNotes.slice(0,-1); // Avoid double period if notes were empty
-      }
-
+      // We will use the reason from sub-dialog as the primary cancellation reason.
+      // The delivery notes will be general notes.
       onUpdateStatus(invoice.id, 'CANCELADA', reasonFromSubDialog, finalDeliveryNotes);
       setIsCancellationReasonSubDialogOpen(false);
       onOpenChange(false); 
@@ -291,9 +287,6 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
               <Button variant="outline" onClick={resetAllStates}>Cerrar</Button>
             </DialogClose>
             <Button onClick={() => {
-                // This button effectively just closes if no specific save action is tied here,
-                // or it could trigger a save of just the notes if needed.
-                // For now, notes are saved with status changes.
                 onOpenChange(false);
             }}>Hecho</Button>
           </DialogFooter>
@@ -311,4 +304,3 @@ export function ProcessInvoiceDialog({ isOpen, onOpenChange, invoice, onUpdateSt
     </>
   );
 }
-
