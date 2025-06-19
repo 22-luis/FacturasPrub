@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -92,7 +91,7 @@ export function CancellationReasonDialog({
       }
       recognitionRef.current = new SpeechRecognitionAPI();
       recognitionRef.current.continuous = false; 
-      recognitionRef.current.interimResults = true;
+      recognitionRef.current.interimResults = false; // We only care about the final result for appending
       recognitionRef.current.lang = 'es-ES';
 
       recognitionRef.current.onstart = () => {
@@ -100,17 +99,14 @@ export function CancellationReasonDialog({
       };
 
       recognitionRef.current.onresult = (event) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
+        let finalTranscriptSegment = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
+            finalTranscriptSegment += event.results[i][0].transcript;
           }
         }
-        if (finalTranscript) {
-             setReasonText((prevText) => prevText + (prevText ? " " : "") + finalTranscript.trim());
+        if (finalTranscriptSegment) {
+             setReasonText((prevText) => prevText + (prevText.trim() ? " " : "") + finalTranscriptSegment.trim());
         }
       };
 
@@ -127,7 +123,7 @@ export function CancellationReasonDialog({
           errorMsg = 'Error de red con el servicio de reconocimiento de voz. Revisa tu conexión o inténtalo más tarde.';
         }
         toast({ variant: 'destructive', title: 'Error de Voz', description: errorMsg });
-        setIsListening(false);
+        setIsListening(false); // Ensure listening state is reset on error
       };
 
       recognitionRef.current.onend = () => {
