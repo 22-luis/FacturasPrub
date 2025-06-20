@@ -2,6 +2,7 @@ import type {Metadata} from 'next';
 import { GeistSans } from 'geist/font/sans'; // Import GeistSans font object
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster'; // Import Toaster
+import { AuthProvider } from '@/contexts/AuthContext';
 
 // GeistSans from 'geist/font/sans' is an object, not a function to be called.
 // Its properties like .variable are accessed directly.
@@ -25,8 +26,10 @@ export default function RootLayout({
     // is added as a class to the html element, making the CSS variable available.
     <html lang="en" className={GeistSans.variable}>
       <body className={`antialiased font-sans`}> {/* font-sans will use the var from globals.css */}
-        {children}
-        <Toaster /> {/* Add Toaster here for global toast notifications */}
+        <AuthProvider>
+          {children}
+          <Toaster /> {/* Add Toaster here for global toast notifications */}
+        </AuthProvider>
       </body>
     </html>
   );

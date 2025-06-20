@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -30,8 +29,8 @@ interface AddEditRouteDialogProps {
   onOpenChange: (open: boolean) => void;
   routeToEdit: Route | null;
   repartidores: User[];
-  allInvoices: AssignedInvoice[];
-  allRoutes: Route[];
+  allInvoices?: AssignedInvoice[];
+  allRoutes?: Route[];
   onSave: (routeData: RouteFormData, id?: string) => void;
   selectedDateForNewRoute?: Date;
 }
@@ -153,12 +152,12 @@ export function AddEditRouteDialog({
   const availableInvoicesForRoute = useMemo(() => {
     const routeDateStr = formData.date;
 
-    const invoiceIdsInOtherRoutesOnThisDate = allRoutes
+    const invoiceIdsInOtherRoutesOnThisDate = (allRoutes || [])
       .filter(r => r.date === routeDateStr && r.id !== routeToEdit?.id)
       .flatMap(r => r.invoiceIds);
     const uniqueInvoiceIdsInOtherRoutes = new Set(invoiceIdsInOtherRoutesOnThisDate);
 
-    return allInvoices.filter(inv => {
+    return (allInvoices || []).filter(inv => {
       if (inv.status !== 'PENDIENTE') return false;
 
       if (routeToEdit && routeToEdit.invoiceIds.includes(inv.id)) {
@@ -183,57 +182,56 @@ export function AddEditRouteDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={resetFormAndClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="p-4 sm:p-6 border-b bg-background">
-          <DialogTitle>{dialogTitle}</DialogTitle>
-          <DialogDescription>{dialogDescription}</DialogDescription>
+      <DialogContent className="sm:max-w-2xl max-w-[95vw] max-h-[90vh] flex flex-col">
+        <DialogHeader className="p-3 sm:p-4 md:p-6 border-b bg-background">
+          <DialogTitle className="text-lg sm:text-xl">{dialogTitle}</DialogTitle>
+          <DialogDescription className="text-sm">{dialogDescription}</DialogDescription>
         </DialogHeader>
 
-        <form id={ADD_EDIT_ROUTE_FORM_ID} onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form id={ADD_EDIT_ROUTE_FORM_ID} onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <Label htmlFor="route-date">Fecha de la Ruta</Label>
+              <Label htmlFor="route-date" className="text-sm">Fecha de la Ruta</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     id="route-date"
                     variant={"outline"}
                     className={cn(
-                      "w-full justify-start text-left font-normal",
+                      "w-full justify-start text-left font-normal text-sm",
                       !dateField && "text-muted-foreground"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateField ? format(dateField, "PPP", { locale: es }) : <span>Selecciona una fecha</span>}
+                    {dateField ? format(dateField, "PPP", { locale: es }) : <span>Seleccionar fecha</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
                     selected={dateField}
                     onSelect={handleDateChange}
                     initialFocus
                     locale={es}
-                    disabled={(date) => date < startOfDay(new Date(new Date().setDate(startOfDay(new Date()).getDate() - 30))) || date > new Date(new Date().setDate(startOfDay(new Date()).getDate() + 90))}
                   />
                 </PopoverContent>
               </Popover>
             </div>
+
             <div>
-              <Label htmlFor="route-repartidor">Repartidor</Label>
+              <Label htmlFor="route-repartidor" className="text-sm">Repartidor</Label>
               <Select
                 name="repartidorId"
                 value={formData.repartidorId}
                 onValueChange={handleRepartidorChange}
-                required
               >
-                <SelectTrigger id="route-repartidor">
+                <SelectTrigger id="route-repartidor" className="text-sm">
                   <SelectValue placeholder="Seleccionar repartidor..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {repartidores.filter(r => r.role === 'repartidor').map(user => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.name}
+                  {(repartidores || []).map(repartidor => (
+                    <SelectItem key={repartidor.id} value={repartidor.id}>
+                      {repartidor.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -242,42 +240,68 @@ export function AddEditRouteDialog({
           </div>
 
           <div>
-            <Label>Facturas Pendientes para Asignar</Label>
-            <p className="text-xs text-muted-foreground mb-2">
-                Mostrando facturas PENDIENTES para el {formData.date ? format(parseISO(formData.date), "PPP", { locale: es }) : 'día seleccionado'}
-                {routeToEdit ? ', o que ya están en esta ruta. Las facturas en otras rutas de este día no aparecerán.' : '. Las facturas ya asignadas a otras rutas en este día no aparecerán.'}
-            </p>
-            {availableInvoicesForRoute.length === 0 ? (
-                 <p className="text-sm text-center text-muted-foreground p-4 border rounded-md">No hay facturas pendientes elegibles para esta fecha y que no estén en otras rutas.</p>
-            ): (
-                <ScrollArea className="h-64 border rounded-md">
-                    <div className="p-3 space-y-2">
-                    {availableInvoicesForRoute.map(invoice => (
-                        <div key={invoice.id} className="flex items-center space-x-2 p-2 rounded-md hover:bg-muted/50 transition-colors">
-                        <Checkbox
-                            id={`invoice-${invoice.id}`}
-                            checked={selectedInvoices.has(invoice.id)}
-                            onCheckedChange={() => handleInvoiceToggle(invoice.id)}
-                        />
-                        <Label htmlFor={`invoice-${invoice.id}`} className="flex-grow text-sm font-normal cursor-pointer">
-                            {invoice.invoiceNumber} - {invoice.supplierName} (${invoice.totalAmount.toFixed(2)})
-                            {invoice.client?.name && <span className="text-xs text-muted-foreground"> (Cliente: {invoice.client.name})</span>}
-                        </Label>
+            <Label className="text-sm">Facturas Disponibles para la Ruta</Label>
+            <div className="mt-2 border rounded-md p-3 sm:p-4 max-h-60 overflow-y-auto">
+              {availableInvoicesForRoute.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No hay facturas disponibles para esta fecha y repartidor.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {availableInvoicesForRoute.map((invoice) => (
+                    <div key={invoice.id} className="flex items-center space-x-2 p-2 rounded border">
+                      <Checkbox
+                        id={`invoice-${invoice.id}`}
+                        checked={selectedInvoices.has(invoice.id)}
+                        onCheckedChange={() => handleInvoiceToggle(invoice.id)}
+                      />
+                      <Label
+                        htmlFor={`invoice-${invoice.id}`}
+                        className="flex-1 text-sm cursor-pointer"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                          <span className="font-medium">Factura #{invoice.invoiceNumber}</span>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-muted-foreground">
+                            <span>Cliente: {invoice.client?.name || 'N/A'}</span>
+                            <span>Monto: ${invoice.totalAmount?.toLocaleString() || 'N/A'}</span>
+                          </div>
                         </div>
-                    ))}
+                      </Label>
                     </div>
-                </ScrollArea>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="route-status" className="text-sm">Estado de la Ruta</Label>
+            <Select
+              name="status"
+              value={formData.status}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as RouteStatus }))}
+            >
+              <SelectTrigger id="route-status" className="text-sm">
+                <SelectValue placeholder="Seleccionar estado..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PLANNED">Planificada</SelectItem>
+                <SelectItem value="IN_PROGRESS">En Progreso</SelectItem>
+                <SelectItem value="COMPLETED">Completada</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </form>
 
-        <DialogFooter className="p-4 sm:p-6 border-t bg-background">
+        <DialogFooter className="p-3 sm:p-4 md:p-6 border-t bg-background">
           <DialogClose asChild>
-            <Button type="button" variant="outline" onClick={resetFormAndClose}>
+            <Button type="button" variant="outline" onClick={resetFormAndClose} className="text-sm">
               Cancelar
             </Button>
           </DialogClose>
-          <Button type="submit" form={ADD_EDIT_ROUTE_FORM_ID}>Guardar Ruta</Button>
+          <Button type="submit" form={ADD_EDIT_ROUTE_FORM_ID} className="text-sm">
+            {routeToEdit ? 'Actualizar Ruta' : 'Crear Ruta'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

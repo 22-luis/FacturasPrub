@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -34,17 +33,17 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className="max-w-[95vw] sm:max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
+          <AlertDialogTitle className="text-lg sm:text-xl">{title}</AlertDialogTitle>
+          <AlertDialogDescription className="text-sm">{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => onOpenChange(false)}>{cancelButtonText}</AlertDialogCancel>
+          <AlertDialogCancel onClick={() => onOpenChange(false)} className="text-sm">{cancelButtonText}</AlertDialogCancel>
           <AlertDialogAction onClick={() => {
             onConfirm();
             onOpenChange(false);
-          }}>
+          }} className="text-sm">
             {confirmButtonText}
           </AlertDialogAction>
         </AlertDialogFooter>

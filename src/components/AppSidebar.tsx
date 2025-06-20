@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -11,7 +10,11 @@ import {
   SidebarMenuButton,
   SidebarMenuSub,
   SidebarMenuSubButton,
-} from '@/components/ui/sidebar'; // Assuming this is the path to your generic sidebar components
+  SidebarHeader, // Added for potential use
+  SidebarContent, // Added for structure
+  SidebarFooter, // Added for potential use
+  SidebarTrigger, // Already in AppHeader but good to have context
+} from '@/components/ui/sidebar'; 
 import {
   LayoutDashboard,
   Truck,
@@ -19,18 +22,18 @@ import {
   FileText,
   Map,
   FileEdit,
-  Undo2,
-  MessageSquareWarning,
-  Settings, // Placeholder for Gestionar Rutas icon if Map is used elsewhere
+  Settings, // Generic icon for Gestionar Rutas if MapIcon isn't specific enough or used elsewhere.
+  // For sub-menu alerts, more specific icons could be used if available or generic ones.
+  AlertTriangle, // Example for general alerts
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Define the structure of navigation items
+
 interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
-  segment?: string; // For matching active state based on path segment
+  segment?: string; 
   subMenu?: SubNavItem[];
 }
 
@@ -43,20 +46,20 @@ interface SubNavItem {
 
 const navItems: NavItem[] = [
   {
-    href: '/dashboard',
+    href: '#', // Main dashboard link might go to a general dashboard page or just be a sub-menu trigger
     label: 'Dashboard',
     icon: LayoutDashboard,
     segment: 'dashboard',
     subMenu: [
       { href: '/dashboard/refacturacion', label: 'Refacturación', icon: FileEdit, segment: 'refacturacion' },
-      { href: '/dashboard/devoluciones', label: 'Devoluciones', icon: Undo2, segment: 'devoluciones' },
-      { href: '/dashboard/negociacion', label: 'Negociación Cliente', icon: MessageSquareWarning, segment: 'negociacion' },
+      // { href: '/dashboard/devoluciones', label: 'Devoluciones', icon: Undo2, segment: 'devoluciones' },
+      // { href: '/dashboard/negociacion', label: 'Negociación Cliente', icon: MessageSquareWarning, segment: 'negociacion' },
     ],
   },
   { href: '/repartidores', label: 'Repartidores', icon: Truck, segment: 'repartidores' },
   { href: '/clientes', label: 'Clientes', icon: Users, segment: 'clientes' },
   { href: '/facturas', label: 'Facturas', icon: FileText, segment: 'facturas' },
-  { href: '/rutas', label: 'Gestionar Rutas', icon: Map, segment: 'rutas' },
+  { href: '/rutas', label: 'Gestionar Rutas', icon: Settings, segment: 'rutas' }, // Using Settings as placeholder
 ];
 
 export function AppSidebar() {
@@ -65,6 +68,8 @@ export function AppSidebar() {
   const isActive = (itemSegment?: string, itemHref?: string) => {
     if (!pathname) return false;
     if (itemSegment) {
+      // Ensure a more precise match, e.g., /dashboard should not match /dashboard/refacturacion if that's not desired
+      // For simple cases, startsWith might be okay. For exact, use equality or regex.
       return pathname.startsWith(`/${itemSegment}`);
     }
     if (itemHref) {
@@ -73,66 +78,85 @@ export function AppSidebar() {
     return false;
   };
 
+  const hasActiveSubItem = (subMenu?: SubNavItem[]) => {
+    if (!subMenu) return false;
+    return subMenu.some(subItem => isActive(subItem.segment, subItem.href));
+  };
+
   return (
-    <Sidebar> {/* This is the generic Sidebar wrapper from your ui/sidebar.tsx */}
-      {/* SidebarHeader could be added here if needed, e.g., for a logo or app name */}
-      {/* <SidebarHeader>...</SidebarHeader> */}
-      
-      {/* SidebarContent typically wraps the scrollable menu part */}
-      {/* For this component, we'll assume SidebarMenu handles its own scrolling or is within a SidebarContent */}
-      <SidebarMenu>
-        {navItems.map((item) => (
-          <SidebarMenuItem key={item.href}>
-            {item.subMenu ? (
-              <>
-                <SidebarMenuSubButton
-                  // The main button for a sub-menu doesn't navigate itself, it toggles.
-                  // isActive can be based on whether any of its sub-items are active.
-                  isActive={item.subMenu.some(subItem => isActive(subItem.segment, subItem.href))}
-                  className="w-full"
-                >
-                  <item.icon className="h-5 w-5" />
-                  <span className="truncate">{item.label}</span>
-                </SidebarMenuSubButton>
-                <SidebarMenuSub>
-                  {item.subMenu.map((subItem) => (
-                    <SidebarMenuItem key={subItem.href}>
-                      <Link href={subItem.href} passHref legacyBehavior>
-                        <SidebarMenuSubButton
-                          asChild
-                          isActive={isActive(subItem.segment, subItem.href)}
-                          className="w-full"
-                        >
-                          <a> {/* Content of the link */}
-                            <subItem.icon className="h-4 w-4" />
-                            <span className="truncate">{subItem.label}</span>
-                          </a>
-                        </SidebarMenuSubButton>
+    <Sidebar 
+      collapsible="icon" 
+      className="border-r"
+      breakpoint="lg"
+    >
+      <SidebarContent className="py-2">
+        <SidebarMenu>
+          {navItems.map((item) => (
+            <SidebarMenuItem key={item.label}>
+              {item.subMenu && item.subMenu.length > 0 ? (
+                <>
+                  <SidebarMenuButton
+                    // The main button for a sub-menu doesn't navigate itself if href is "#"
+                    // It toggles the sub-menu. The `isActive` here refers to its sub-items.
+                    // If the parent item itself is a link, this logic might need adjustment.
+                    // For now, assuming parent is non-navigable if it has sub-items.
+                    asChild={item.href !== "#"} // Make it a link only if href is not "#"
+                    isActive={hasActiveSubItem(item.subMenu)}
+                    className="w-full"
+                    tooltip={item.label} 
+                  >
+                    {item.href === "#" ? (
+                      // Div wrapper for non-link button styling and layout
+                      <div className="flex items-center gap-2 w-full">
+                        <item.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <span className="truncate text-sm sm:text-base">{item.label}</span>
+                      </div>
+                    ) : (
+                      <Link href={item.href}>
+                        <item.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <span className="truncate text-sm sm:text-base">{item.label}</span>
                       </Link>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenuSub>
-              </>
-            ) : (
-              <Link href={item.href} passHref legacyBehavior>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive(item.segment, item.href)}
-                  className="w-full"
-                >
-                  <a> {/* Content of the link */}
-                    <item.icon className="h-5 w-5" />
-                    <span className="truncate">{item.label}</span>
-                  </a>
-                </SidebarMenuButton>
-              </Link>
-            )}
-          </SidebarMenuItem>
-        ))}
-      </SidebarMenu>
-      
-      {/* SidebarFooter could be added here if needed, e.g., for settings or user profile */}
-      {/* <SidebarFooter>...</SidebarFooter> */}
+                    )}
+                  </SidebarMenuButton>
+                  <SidebarMenuSub>
+                    {item.subMenu.map((subItem) => (
+                      <SidebarMenuItem key={subItem.label}>
+                        <Link href={subItem.href} passHref legacyBehavior>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={isActive(subItem.segment, subItem.href)}
+                            className="w-full"
+                            // tooltip for sub-items usually not needed if parent is expanded
+                          >
+                            <a> 
+                              <subItem.icon className="h-3 w-3 sm:h-4 sm:w-4" />
+                              <span className="truncate text-xs sm:text-sm">{subItem.label}</span>
+                            </a>
+                          </SidebarMenuSubButton>
+                        </Link>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenuSub>
+                </>
+              ) : (
+                <Link href={item.href} passHref legacyBehavior>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive(item.segment, item.href)}
+                    className="w-full"
+                    tooltip={item.label}
+                  >
+                    <a> 
+                      <item.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <span className="truncate text-sm sm:text-base">{item.label}</span>
+                    </a>
+                  </SidebarMenuButton>
+                </Link>
+              )}
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarContent>
     </Sidebar>
   );
 }

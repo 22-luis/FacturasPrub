@@ -1,4 +1,3 @@
-
 import type { ExtractInvoiceDataOutput } from '@/ai/flows/extract-invoice-data';
 
 export type UserRole = 'repartidor' | 'supervisor' | 'administrador' | 'bodega';
@@ -80,7 +79,7 @@ export interface Route {
   date: string; 
   repartidorId: string;
   repartidorName?: string; 
-  invoiceIds: string[];
+  invoiceIds: string[]; // Array of Invoice IDs
   invoices?: AssignedInvoice[]; 
   status: RouteStatus;
   createdAt?: Date | string;
@@ -90,7 +89,7 @@ export interface Route {
 export type RouteFormData = {
   date: string;
   repartidorId: string;
-  invoiceIds: string[];
+  invoiceIds: string[]; // Array of Invoice IDs
   status?: RouteStatus; 
 };
 
