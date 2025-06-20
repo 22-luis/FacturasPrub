@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -33,9 +34,10 @@ const roleDisplayInfo: Record<User['role'], { Icon: React.ElementType; label: st
   administrador: { Icon: ShieldAlert, label: 'Administrador', badgeClass: 'bg-purple-600 text-white hover:bg-purple-700' },
   supervisor: { Icon: ShieldCheck, label: 'Supervisor', badgeClass: 'bg-blue-500 text-white hover:bg-blue-600' },
   repartidor: { Icon: UserSquare2, label: 'Repartidor', badgeClass: 'bg-green-500 text-white hover:bg-green-600' },
+  bodega: { Icon: UserIconLucide, label: 'Bodega', badgeClass: 'bg-orange-500 text-white hover:bg-orange-600'},
 };
 
-const availableRolesForFilter: UserRole[] = ['administrador', 'supervisor', 'repartidor'];
+const availableRolesForFilter: UserRole[] = ['administrador', 'supervisor', 'repartidor', 'bodega'];
 
 export function ManageAllUsersDialog({
   isOpen,
@@ -89,9 +91,9 @@ export function ManageAllUsersDialog({
           </Select>
         </div>
 
-        <div className="flex-grow min-h-0 overflow-hidden"> {/* Container for ScrollArea */}
-          <ScrollArea className="h-full px-4 sm:px-6 py-4"> {/* ScrollArea takes full height of its container */}
-            <div className="space-y-3">
+        <div className="flex-grow min-h-0 overflow-hidden"> {/* Wrapper for scroll, NO PADDING */}
+          <ScrollArea className="h-full"> {/* ScrollArea fills wrapper, NO PADDING */}
+            <div className="px-4 sm:px-6 py-4 space-y-3"> {/* Actual content list with PADDING */}
               {filteredUsers.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   No hay usuarios que coincidan con el filtro seleccionado.
@@ -110,11 +112,12 @@ export function ManageAllUsersDialog({
                           <displayInfo.Icon className={cn("h-6 w-6 flex-shrink-0",
                             user.role === 'administrador' ? 'text-purple-600' :
                             user.role === 'supervisor' ? 'text-blue-500' :
-                            user.role === 'repartidor' ? 'text-green-500' : 'text-primary'
+                            user.role === 'repartidor' ? 'text-green-500' : 
+                            user.role === 'bodega' ? 'text-orange-500' : 'text-primary'
                           )} />
                           <div className="flex-grow min-w-0">
                             <span className="font-medium block truncate" title={user.name}>{user.name}</span>
-                            <Badge variant={user.role === 'administrador' || user.role === 'supervisor' || user.role === 'repartidor' ? "default" : "secondary"}
+                            <Badge variant={user.role === 'administrador' || user.role === 'supervisor' || user.role === 'repartidor' || user.role === 'bodega' ? "default" : "secondary"}
                                     className={cn("text-xs", displayInfo.badgeClass)}>
                               {displayInfo.label}
                             </Badge>

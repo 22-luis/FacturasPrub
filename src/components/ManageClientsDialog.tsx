@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'; // Added CardHeader, CardTitle
+import { Card, CardContent, CardHeader, CardTitle as CardTitlePrimitive } from '@/components/ui/card';
 import { Building, Pencil, Trash2, PlusCircle, Phone, MapPin } from 'lucide-react';
 import type { Client } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -55,21 +55,21 @@ export function ManageClientsDialog({
             </Button>
         </div>
         
-        <div className="flex-grow min-h-0 overflow-hidden"> {/* This div will allow ScrollArea to fill height */}
-          <ScrollArea className="h-full px-4 sm:px-6 py-4"> {/* ScrollArea wraps the client list */}
-            {clients.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-10">
-                No hay clientes registrados. Haz clic en "Agregar Nuevo Cliente" para empezar.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {clients.map((client) => (
+        <div className="flex-grow min-h-0 overflow-hidden"> {/* Wrapper for scroll, NO PADDING */}
+          <ScrollArea className="h-full"> {/* ScrollArea fills wrapper, NO PADDING */}
+            <div className="px-4 sm:px-6 py-4 space-y-3"> {/* Actual content list with PADDING */}
+              {clients.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-10">
+                  No hay clientes registrados. Haz clic en "Agregar Nuevo Cliente" para empezar.
+                </p>
+              ) : (
+                clients.map((client) => (
                   <Card key={client.id} className="shadow-sm hover:shadow-md transition-shadow">
                     <CardHeader className="pb-2 pt-3 px-4">
                         <div className="flex items-center justify-between gap-2">
-                            <CardTitle className="text-base font-semibold truncate" title={client.name}>
+                            <CardTitlePrimitive className="text-base font-semibold truncate" title={client.name}>
                                 {client.name}
-                            </CardTitle>
+                            </CardTitlePrimitive>
                             <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                                 <Button
                                 variant="outline"
@@ -112,9 +112,9 @@ export function ManageClientsDialog({
                         )}
                     </CardContent>
                   </Card>
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
           </ScrollArea>
         </div>
         <DialogFooter className="p-4 sm:p-6 border-t">
