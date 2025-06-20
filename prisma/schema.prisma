@@ -11,7 +11,7 @@ model User {
   id        String   @id @default(cuid())
   name      String   @unique
   password  String
-  role      UserRole
+  role      String   // Changed from enum to String for compatibility
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -49,21 +49,21 @@ model Branch {
 }
 
 model Invoice {
-  id                 String        @id @default(cuid())
-  invoiceNumber      String        @unique // Ensure invoice numbers are unique
+  id                 String   @id @default(cuid())
+  invoiceNumber      String   @unique // Ensure invoice numbers are unique
   date               DateTime // Changed to DateTime to store full date
-  totalAmount        Decimal       @db.Decimal(10, 2)
+  totalAmount        Float    // Changed from Decimal to Float for compatibility
   supplierName       String
   uniqueCode         String
   address            String?
-  status             InvoiceStatus @default(PENDIENTE)
+  status             String   @default("PENDIENTE") // Changed from enum to String
   cancellationReason String?
   assigneeId         String?
-  assignee           User?         @relation("AssignedInvoices", fields: [assigneeId], references: [id])
+  assignee           User?    @relation("AssignedInvoices", fields: [assigneeId], references: [id])
   clientId           String?
-  client             Client?       @relation(fields: [clientId], references: [id])
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  client             Client?  @relation(fields: [clientId], references: [id])
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   // @@index([assigneeId]) // Index for faster queries on assignee
   // @@index([status])     // Index for faster queries on status
@@ -72,34 +72,16 @@ model Invoice {
 }
 
 model Route {
-  id           String      @id @default(cuid())
+  id           String   @id @default(cuid())
   date         DateTime // Date of the route
   repartidorId String
-  repartidor   User        @relation("UserRoutes", fields: [repartidorId], references: [id])
+  repartidor   User     @relation("UserRoutes", fields: [repartidorId], references: [id])
   invoiceIds   String[] // Array of Invoice IDs, order might matter
-  status       RouteStatus @default(PLANNED)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  status       String   @default("PLANNED") // Changed from enum to String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([date])
   @@index([repartidorId])
   @@map("routes")
-}
-
-enum UserRole {
-  REPARTIDOR
-  SUPERVISOR
-  ADMINISTRADOR
-}
-
-enum InvoiceStatus {
-  PENDIENTE
-  ENTREGADA
-  CANCELADA
-}
-
-enum RouteStatus {
-  PLANNED
-  IN_PROGRESS
-  COMPLETED
 }

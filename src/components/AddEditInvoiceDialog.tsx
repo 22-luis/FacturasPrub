@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -45,10 +44,10 @@ interface AddEditInvoiceDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   invoiceToEdit: AssignedInvoice | null;
-  users: User[];
-  clients: Client[]; 
+  users?: User[];
+  clients?: Client[]; 
   onSave: (invoiceData: InvoiceFormData, id?: string) => void;
-  allRoutes: Route[];
+  allRoutes?: Route[];
 }
 
 export function AddEditInvoiceDialog({
@@ -87,9 +86,9 @@ export function AddEditInvoiceDialog({
 
 
   useEffect(() => {
-    if (formData.date && formData.assigneeId && allRoutes.length > 0) {
+    if (formData.date && formData.assigneeId && (allRoutes || []).length > 0) {
       const selectedDate = parseISO(formData.date);
-      const filtered = allRoutes.filter(route => 
+      const filtered = (allRoutes || []).filter(route => 
         isSameDay(parseISO(route.date), selectedDate) && route.repartidorId === formData.assigneeId
       );
       setAvailableRoutesForDateAndAssignee(filtered);
@@ -194,7 +193,7 @@ export function AddEditInvoiceDialog({
     onOpenChange(false);
   };
 
-  const repartidores = users.filter(user => user.role === 'repartidor');
+  const repartidores = (users || []).filter(user => user.role === 'repartidor');
   const dialogTitle = invoiceToEdit ? 'Editar Factura' : 'Agregar Nueva Factura';
   const dialogDescription = invoiceToEdit 
     ? `Modifica los detalles de la factura ${invoiceToEdit.invoiceNumber}.`
@@ -209,46 +208,64 @@ export function AddEditInvoiceDialog({
         }
         onOpenChange(open);
       }}>
-        <DialogContent className="sm:max-w-[525px] max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-[525px] max-w-[95vw] max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>{dialogTitle}</DialogTitle>
-            <DialogDescription>{dialogDescription}</DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">{dialogTitle}</DialogTitle>
+            <DialogDescription className="text-sm">{dialogDescription}</DialogDescription>
           </DialogHeader>
           <div className="flex-grow overflow-y-auto pr-2">
             <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
-              <div>
-                <Label htmlFor="invoiceNumber">Número de Factura</Label>
-                <Input
-                  id="invoiceNumber"
-                  name="invoiceNumber"
-                  value={formData.invoiceNumber}
-                  onChange={handleChange}
-                  required
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <Label htmlFor="invoiceNumber">Número de Factura</Label>
+                  <Input
+                    id="invoiceNumber"
+                    name="invoiceNumber"
+                    value={formData.invoiceNumber}
+                    onChange={handleChange}
+                    required
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="date">Fecha (YYYY-MM-DD)</Label>
+                  <Input
+                    id="date"
+                    name="date"
+                    type="date"
+                    value={formData.date}
+                    onChange={handleChange}
+                    required
+                    className="text-sm"
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="date">Fecha (YYYY-MM-DD)</Label>
-                <Input
-                  id="date"
-                  name="date"
-                  type="date"
-                  value={formData.date}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="totalAmount">Monto Total</Label>
-                <Input
-                  id="totalAmount"
-                  name="totalAmount"
-                  type="text"
-                  inputMode="decimal"
-                  value={formData.totalAmount} 
-                  onChange={handleChange}
-                  placeholder="Ej: 123.45"
-                  required
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <Label htmlFor="totalAmount">Monto Total</Label>
+                  <Input
+                    id="totalAmount"
+                    name="totalAmount"
+                    type="text"
+                    inputMode="decimal"
+                    value={formData.totalAmount} 
+                    onChange={handleChange}
+                    placeholder="Ej: 123.45"
+                    required
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="uniqueCode">Código Único</Label>
+                  <Input
+                    id="uniqueCode"
+                    name="uniqueCode"
+                    value={formData.uniqueCode}
+                    onChange={handleChange}
+                    required
+                    className="text-sm"
+                  />
+                </div>
               </div>
               <div>
                 <Label htmlFor="supplierName">Nombre del Proveedor</Label>
@@ -258,16 +275,7 @@ export function AddEditInvoiceDialog({
                   value={formData.supplierName}
                   onChange={handleChange}
                   required
-                />
-              </div>
-              <div>
-                <Label htmlFor="uniqueCode">Código Único</Label>
-                <Input
-                  id="uniqueCode"
-                  name="uniqueCode"
-                  value={formData.uniqueCode}
-                  onChange={handleChange}
-                  required
+                  className="text-sm"
                 />
               </div>
               <div>
@@ -280,101 +288,106 @@ export function AddEditInvoiceDialog({
                   placeholder="Ej: Calle Falsa 123, Ciudad"
                   rows={3}
                   required 
+                  className="text-sm"
                 />
               </div>
-              <div>
-                <Label htmlFor="clientId">Cliente</Label>
-                <Select
-                  name="clientId"
-                  value={formData.clientId || 'unassigned'}
-                  onValueChange={(value) => handleSelectChange('clientId', value)}
-                >
-                  <SelectTrigger id="clientId">
-                    <SelectValue placeholder="Seleccionar cliente..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">Sin asignar cliente</SelectItem>
-                    {clients.map(client => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="status">Estado de la Factura</Label>
-                <Select
-                  name="status"
-                  value={formData.status}
-                  onValueChange={(value) => handleSelectChange('status', value)}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Seleccionar estado..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {invoiceStatuses.map(status => (
-                      <SelectItem key={status} value={status}>
-                        {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase().replace(/_/g, ' ')}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <Label htmlFor="clientId">Cliente</Label>
+                  <Select
+                    name="clientId"
+                    value={formData.clientId || 'unassigned'}
+                    onValueChange={(value) => handleSelectChange('clientId', value)}
+                  >
+                    <SelectTrigger id="clientId" className="text-sm">
+                      <SelectValue placeholder="Seleccionar cliente..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Sin asignar cliente</SelectItem>
+                      {(clients || []).map(client => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="status">Estado de la Factura</Label>
+                  <Select
+                    name="status"
+                    value={formData.status}
+                    onValueChange={(value) => handleSelectChange('status', value)}
+                  >
+                    <SelectTrigger id="status" className="text-sm">
+                      <SelectValue placeholder="Seleccionar estado..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {invoiceStatuses.map(status => (
+                        <SelectItem key={status} value={status}>
+                          {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase().replace(/_/g, ' ')}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               {formData.status === 'CANCELADA' && formData.cancellationReason && (
                 <div className="text-sm text-muted-foreground p-2 border rounded-md">
                   <p><span className="font-medium">Motivo de cancelación guardado:</span> {formData.cancellationReason}</p>
                 </div>
               )}
-              <div>
-                <Label htmlFor="assigneeId">Asignar a Repartidor</Label>
-                <Select
-                  name="assigneeId"
-                  value={formData.assigneeId || 'unassigned'}
-                  onValueChange={(value) => handleSelectChange('assigneeId', value)}
-                >
-                  <SelectTrigger id="assigneeId">
-                    <SelectValue placeholder="Seleccionar repartidor..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">Sin asignar repartidor</SelectItem>
-                    {repartidores.map(user => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <Label htmlFor="assigneeId">Asignar a Repartidor</Label>
+                  <Select
+                    name="assigneeId"
+                    value={formData.assigneeId || 'unassigned'}
+                    onValueChange={(value) => handleSelectChange('assigneeId', value)}
+                  >
+                    <SelectTrigger id="assigneeId" className="text-sm">
+                      <SelectValue placeholder="Seleccionar repartidor..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Sin asignar repartidor</SelectItem>
+                      {repartidores.map(user => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="routeId">Asignar a Ruta (Opcional)</Label>
+                  <Select
+                    name="routeId"
+                    value={formData.routeId || 'unassigned'}
+                    onValueChange={(value) => handleSelectChange('routeId', value)}
+                    disabled={!formData.date || !formData.assigneeId || availableRoutesForDateAndAssignee.length === 0}
+                  >
+                    <SelectTrigger id="routeId" className="text-sm">
+                      <SelectValue placeholder={
+                        !formData.date || !formData.assigneeId 
+                          ? "Selecciona fecha y repartidor primero" 
+                          : availableRoutesForDateAndAssignee.length === 0 
+                          ? "No hay rutas para esta fecha/repartidor"
+                          : "Seleccionar ruta..."
+                      } />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Sin asignar a ruta específica</SelectItem>
+                      {availableRoutesForDateAndAssignee.map(route => (
+                        <SelectItem key={route.id} value={route.id}>
+                          Ruta de {route.repartidorName || 'Repartidor'} - {formatISO(parseISO(route.date), { representation: 'date' })} (ID: ...{route.id.slice(-4)})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="routeId">Asignar a Ruta (Opcional)</Label>
-                <Select
-                  name="routeId"
-                  value={formData.routeId || 'unassigned'}
-                  onValueChange={(value) => handleSelectChange('routeId', value)}
-                  disabled={!formData.date || !formData.assigneeId || availableRoutesForDateAndAssignee.length === 0}
-                >
-                  <SelectTrigger id="routeId">
-                    <SelectValue placeholder={
-                      !formData.date || !formData.assigneeId 
-                        ? "Selecciona fecha y repartidor primero" 
-                        : availableRoutesForDateAndAssignee.length === 0 
-                        ? "No hay rutas para esta fecha/repartidor"
-                        : "Seleccionar ruta..."
-                    } />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">Sin asignar a ruta específica</SelectItem>
-                    {availableRoutesForDateAndAssignee.map(route => (
-                      <SelectItem key={route.id} value={route.id}>
-                        Ruta de {route.repartidorName || 'Repartidor'} - {formatISO(parseISO(route.date), { representation: 'date' })} (ID: ...{route.id.slice(-4)})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                 {(!formData.date || !formData.assigneeId) && <p className="text-xs text-muted-foreground mt-1">Para asignar una ruta, primero selecciona una fecha y un repartidor.</p>}
-                 {(formData.date && formData.assigneeId && availableRoutesForDateAndAssignee.length === 0) && <p className="text-xs text-muted-foreground mt-1">No hay rutas creadas para el repartidor y fecha seleccionados.</p>}
-              </div>
+               {(!formData.date || !formData.assigneeId) && <p className="text-xs text-muted-foreground mt-1">Para asignar una ruta, primero selecciona una fecha y un repartidor.</p>}
+               {(formData.date && formData.assigneeId && availableRoutesForDateAndAssignee.length === 0) && <p className="text-xs text-muted-foreground mt-1">No hay rutas creadas para el repartidor y fecha seleccionados.</p>}
             </form>
           </div>
           <DialogFooter className="mt-auto pt-4 border-t">
@@ -383,9 +396,9 @@ export function AddEditInvoiceDialog({
                  setFormData(initialDialogFormState);
                  setAvailableRoutesForDateAndAssignee([]);
                  onOpenChange(false);
-              }}>Cancelar</Button>
+              }} className="text-sm">Cancelar</Button>
             </DialogClose>
-            <Button type="submit" onClick={handleSubmit}>Guardar Factura</Button>
+            <Button type="submit" onClick={handleSubmit} className="text-sm">Guardar Factura</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

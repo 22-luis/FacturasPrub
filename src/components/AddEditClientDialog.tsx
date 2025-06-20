@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -84,14 +83,14 @@ export function AddEditClientDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={resetFormAndClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-w-[95vw]">
         <DialogHeader>
-          <DialogTitle>{dialogTitle}</DialogTitle>
-          <DialogDescription>{dialogDescription}</DialogDescription>
+          <DialogTitle className="text-lg sm:text-xl">{dialogTitle}</DialogTitle>
+          <DialogDescription className="text-sm">{dialogDescription}</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 py-2">
           <div>
-            <Label htmlFor="client-name">Nombre del Cliente / Empresa</Label>
+            <Label htmlFor="client-name" className="text-sm">Nombre del Cliente / Empresa</Label>
             <Input
               id="client-name"
               name="name"
@@ -99,35 +98,38 @@ export function AddEditClientDialog({
               onChange={handleChange}
               required
               autoFocus
+              className="text-sm"
             />
           </div>
           <div>
-            <Label htmlFor="client-phone">Teléfono de Contacto</Label>
+            <Label htmlFor="client-phone" className="text-sm">Teléfono de Contacto</Label>
             <Input
               id="client-phone"
               name="phone"
               type="tel"
               value={formData.phone}
               onChange={handleChange}
+              className="text-sm"
             />
           </div>
           <div>
-            <Label htmlFor="client-mainAddress">Dirección Principal</Label>
+            <Label htmlFor="client-mainAddress" className="text-sm">Dirección Principal</Label>
             <Textarea
               id="client-mainAddress"
               name="mainAddress"
               value={formData.mainAddress}
               onChange={handleChange}
               rows={3}
+              className="text-sm"
             />
           </div>
           <DialogFooter className="pt-2">
             <DialogClose asChild>
-              <Button type="button" variant="outline" onClick={resetFormAndClose}>
+              <Button type="button" variant="outline" onClick={resetFormAndClose} className="text-sm">
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="submit">Guardar Cliente</Button>
+            <Button type="submit" className="text-sm">Guardar Cliente</Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -19,7 +18,7 @@ import { ManageRoutesDialog } from '@/components/ManageRoutesDialog';
 import { AddEditRouteDialog } from '@/components/AddEditRouteDialog';
 import { AppSidebar } from '@/components/AppSidebar'; 
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'; 
-
+import { useAuth } from '@/contexts/AuthContext';
 
 import type { AssignedInvoice, User, InvoiceFormData, InvoiceStatus, UserRole, Client, ClientFormData, Route, RouteFormData, RouteStatus, IncidenceType } from '@/lib/types';
 import { Toaster } from "@/components/ui/toaster";
@@ -58,6 +57,7 @@ const manageableUserRoles: UserRole[] = ['supervisor', 'repartidor', 'bodega'];
 
 
 export default function HomePage() {
+  const { user: loggedInUser, login, logout, isLoading: authLoading } = useAuth();
   const [isProcessDialogOpen, setIsProcessDialogOpen] = useState(false);
   const [processingInvoice, setProcessingInvoice] = useState<AssignedInvoice | null>(null);
 
@@ -91,7 +91,6 @@ export default function HomePage() {
   const [users, setUsers] = useState<User[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
-  const [loggedInUser, setLoggedInUser] = useState<User | null>(null);
 
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
@@ -258,7 +257,7 @@ export default function HomePage() {
         throw new Error(data.error || 'Error de inicio de sesión');
       }
       
-      setLoggedInUser(data as User); 
+      login(data as User); 
       toast({ title: "Sesión Iniciada", description: `Bienvenido ${data.name}.` });
       setUsernameInput('');
       setPasswordInput('');
@@ -271,7 +270,7 @@ export default function HomePage() {
 
   const handleLogout = () => {
     toast({ title: "Sesión Cerrada", description: `Hasta luego ${loggedInUser?.name}.` });
-    setLoggedInUser(null);
+    logout();
     setUsernameInput('');
     setPasswordInput('');
   };
@@ -840,6 +839,17 @@ export default function HomePage() {
     return baseTitle;
   };
 
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Verificando sesión...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!loggedInUser) {
     return (

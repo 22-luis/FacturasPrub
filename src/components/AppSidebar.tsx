@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -85,13 +84,12 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon"> {/* Set to icon collapsible for desktop */}
-      {/* Optional: SidebarHeader can be used for a logo or app name if SidebarTrigger moves inside */}
-      {/* <SidebarHeader>
-        <h2 className="text-lg font-semibold">SnapClaim</h2>
-      </SidebarHeader> */}
-      
-      <SidebarContent>
+    <Sidebar 
+      collapsible="icon" 
+      className="border-r"
+      breakpoint="lg"
+    >
+      <SidebarContent className="py-2">
         <SidebarMenu>
           {navItems.map((item) => (
             <SidebarMenuItem key={item.label}>
@@ -110,13 +108,13 @@ export function AppSidebar() {
                     {item.href === "#" ? (
                       // Div wrapper for non-link button styling and layout
                       <div className="flex items-center gap-2 w-full">
-                        <item.icon className="h-5 w-5" />
-                        <span className="truncate">{item.label}</span>
+                        <item.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <span className="truncate text-sm sm:text-base">{item.label}</span>
                       </div>
                     ) : (
                       <Link href={item.href}>
-                        <item.icon className="h-5 w-5" />
-                        <span className="truncate">{item.label}</span>
+                        <item.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                        <span className="truncate text-sm sm:text-base">{item.label}</span>
                       </Link>
                     )}
                   </SidebarMenuButton>
@@ -131,8 +129,8 @@ export function AppSidebar() {
                             // tooltip for sub-items usually not needed if parent is expanded
                           >
                             <a> 
-                              <subItem.icon className="h-4 w-4" />
-                              <span className="truncate">{subItem.label}</span>
+                              <subItem.icon className="h-3 w-3 sm:h-4 sm:w-4" />
+                              <span className="truncate text-xs sm:text-sm">{subItem.label}</span>
                             </a>
                           </SidebarMenuSubButton>
                         </Link>
@@ -149,8 +147,8 @@ export function AppSidebar() {
                     tooltip={item.label}
                   >
                     <a> 
-                      <item.icon className="h-5 w-5" />
-                      <span className="truncate">{item.label}</span>
+                      <item.icon className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <span className="truncate text-sm sm:text-base">{item.label}</span>
                     </a>
                   </SidebarMenuButton>
                 </Link>
@@ -159,11 +157,6 @@ export function AppSidebar() {
           ))}
         </SidebarMenu>
       </SidebarContent>
-      
-      {/* Optional: SidebarFooter for settings, user profile, etc. */}
-      {/* <SidebarFooter>
-         <UserProfileButton /> 
-      </SidebarFooter> */}
     </Sidebar>
   );
 }

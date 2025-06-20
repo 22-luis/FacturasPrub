@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -23,7 +22,7 @@ interface AddEditUserDialogProps {
   onOpenChange: (open: boolean) => void;
   userToEdit: User | null;
   onSave: (userData: { name: string; role: UserRole; password?: string }, idToEdit?: string) => void;
-  availableRoles: UserRole[];
+  availableRoles?: UserRole[];
   currentUser: User | null;
 }
 
@@ -32,11 +31,11 @@ export function AddEditUserDialog({
   onOpenChange,
   userToEdit,
   onSave,
-  availableRoles,
+  availableRoles = [],
   currentUser,
 }: AddEditUserDialogProps) {
   const [userName, setUserName] = useState('');
-  const [userRole, setUserRole] = useState<UserRole>(availableRoles.includes('repartidor') ? 'repartidor' : availableRoles[0]);
+  const [userRole, setUserRole] = useState<UserRole>(availableRoles.includes('repartidor') ? 'repartidor' : availableRoles[0] || 'repartidor');
   const [password, setPassword] = useState('');
   const { toast } = useToast();
 
@@ -111,25 +110,26 @@ export function AddEditUserDialog({
       }
       onOpenChange(open);
     }}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-w-[95vw]">
         <DialogHeader>
-          <DialogTitle>{dialogTitle}</DialogTitle>
-          <DialogDescription>{dialogDescription}</DialogDescription>
+          <DialogTitle className="text-lg sm:text-xl">{dialogTitle}</DialogTitle>
+          <DialogDescription className="text-sm">{dialogDescription}</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 py-2">
           <div>
-            <Label htmlFor="userName-userdialog">Nombre del Usuario</Label>
+            <Label htmlFor="userName-userdialog" className="text-sm">Nombre del Usuario</Label>
             <Input
               id="userName-userdialog"
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
               required
               autoFocus
+              className="text-sm"
             />
           </div>
           
           <div>
-            <Label htmlFor="password-userdialog">
+            <Label htmlFor="password-userdialog" className="text-sm">
               {isEditing ? "Nueva Contraseña (dejar en blanco para no cambiar)" : "Contraseña"}
             </Label>
             <Input
@@ -139,18 +139,19 @@ export function AddEditUserDialog({
               onChange={(e) => setPassword(e.target.value)}
               placeholder={isEditing ? "Ingresa nueva contraseña..." : "Contraseña requerida"}
               required={!isEditing} // Required only when creating a new user
+              className="text-sm"
             />
           </div>
 
           <div>
-            <Label htmlFor="userRole-userdialog">Rol del Usuario</Label>
+            <Label htmlFor="userRole-userdialog" className="text-sm">Rol del Usuario</Label>
             <Select
               name="userRole"
               value={userRole}
               onValueChange={(value) => setUserRole(value as UserRole)}
               disabled={roleSelectionDisabled}
             >
-              <SelectTrigger id="userRole-userdialog" className={roleSelectionDisabled ? "bg-muted/50" : ""}>
+              <SelectTrigger id="userRole-userdialog" className={`text-sm ${roleSelectionDisabled ? "bg-muted/50" : ""}`}>
                 <SelectValue placeholder="Seleccionar rol..." />
               </SelectTrigger>
               <SelectContent>
@@ -175,11 +176,11 @@ export function AddEditUserDialog({
               <Button type="button" variant="outline" onClick={() => {
                   resetForm();
                   onOpenChange(false);
-              }}>
+              }} className="text-sm">
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="submit">{buttonText}</Button>
+            <Button type="submit" className="text-sm">{buttonText}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
